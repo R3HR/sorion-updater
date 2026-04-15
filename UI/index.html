@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORION — Sorare Market Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d1a;
+    --bg2: #0a0a14;
+    --surface: #13131f;
+    --surface2: #1a1a2e;
+    --surface3: #1f1f35;
+    --border: #2a2a45;
+    --border2: #3a3a60;
+    --purple: #b060ff;
+    --purple2: #8040cc;
+    --purple3: #6020aa;
+    --purple-glow: rgba(176,96,255,0.15);
+    --cyan: #00f5ff;
+    --cyan-dim: rgba(0,245,255,0.08);
+    --pink: #ff2d78;
+    --yellow: #ffe600;
+    --text: #e8e8ff;
+    --text2: #9090c0;
+    --muted: #5050808;
+    --limited: #ffb830;
+    --rare: #ff5555;
+    --sr: #7090ff;
+    --up: #00f5a0;
+    --down: #ff2d78;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanlines effect */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(176,96,255,0.015) 2px,
+      rgba(176,96,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Animated purple corner glow */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px; right: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(176,96,255,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  .bottom-glow {
+    position: fixed;
+    bottom: -200px; left: -200px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(0,245,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+    animation: pulse-glow 6s ease-in-out infinite reverse;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 0 32px 80px;
+  }
+
+  /* ── Header ─────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 36px;
+    position: relative;
+  }
+
+  /* Animated header line */
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0;
+    height: 1px;
+    width: 40%;
+    background: linear-gradient(90deg, var(--purple), transparent);
+    animation: scan-line 3s ease-in-out infinite;
+  }
+
+  @keyframes scan-line {
+    0% { width: 0%; opacity: 1; }
+    50% { width: 60%; opacity: 0.8; }
+    100% { width: 100%; opacity: 0; }
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-mark {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--text);
+    text-shadow: 0 0 20px rgba(176,96,255,0.5);
+    position: relative;
+  }
+
+  .logo-mark .o {
+    color: var(--purple);
+    text-shadow: 0 0 20px var(--purple), 0 0 40px var(--purple2);
+  }
+
+  .logo-sub {
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--purple);
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+    opacity: 0.8;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+
+  .nav-link {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text2);
+    text-decoration: none;
+    font-family: 'Share Tech Mono', monospace;
+    transition: color 0.2s;
+    position: relative;
+  }
+
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -3px; left: 0; right: 0;
+    height: 1px;
+    background: var(--purple);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+
+  .nav-link:hover { color: var(--purple); }
+  .nav-link:hover::after { transform: scaleX(1); }
+
+  .nav-cta {
+    background: transparent;
+    border: 1px solid var(--purple);
+    color: var(--purple);
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 9px 18px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .nav-cta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--purple);
+    transform: translateX(-100%);
+    transition: transform 0.2s;
+    z-index: -1;
+  }
+
+  .nav-cta:hover {
+    color: var(--bg);
+    box-shadow: 0 0 20px var(--purple2);
+  }
+
+  .nav-cta:hover::before { transform: translateX(0); }
+
+  /* ── Hero Stats ──────────────────────────────────────────────── */
+  .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .hero-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 22px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .hero-stat::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: linear-gradient(180deg, var(--purple), var(--purple3));
+  }
+
+  .hero-stat::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, var(--purple-glow) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .hero-stat:hover {
+    border-color: var(--purple2);
+    box-shadow: 0 0 20px var(--purple-glow), inset 0 0 20px var(--purple-glow);
+  }
+
+  .hero-stat:hover::after { opacity: 1; }
+
+  .hero-stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 8px;
+    opacity: 0.9;
+  }
+
+  .hero-stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    margin-bottom: 6px;
+    text-shadow: 0 0 20px rgba(176,96,255,0.3);
+  }
+
+  .hero-stat-sub {
+    font-size: 10px;
+    color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── Controls ────────────────────────────────────────────────── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 220px;
+    max-width: 380px;
+  }
+
+  .search-wrap::before {
+    content: '⌕';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--purple);
+    font-size: 16px;
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    padding: 10px 14px 10px 36px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .search-input:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 12px var(--purple-glow);
+  }
+
+  .search-input::placeholder { color: #404060; }
+
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .filter-btn:hover {
+    border-color: var(--purple2);
+    color: var(--purple);
+    box-shadow: 0 0 10px var(--purple-glow);
+  }
+
+  .filter-btn.active {
+    border-color: var(--purple);
+    color: var(--purple);
+    background: var(--purple-glow);
+    box-shadow: 0 0 15px var(--purple-glow);
+  }
+
+  .filter-btn.ltd.active { border-color: var(--limited); color: var(--limited); background: rgba(255,184,48,0.08); box-shadow: 0 0 15px rgba(255,184,48,0.15); }
+  .filter-btn.rar.active { border-color: var(--rare);    color: var(--rare);    background: rgba(255,85,85,0.08);  box-shadow: 0 0 15px rgba(255,85,85,0.15); }
+  .filter-btn.sr.active  { border-color: var(--sr);      color: var(--sr);      background: rgba(112,144,255,0.08);box-shadow: 0 0 15px rgba(112,144,255,0.15); }
+
+  .updated-at {
+    margin-left: auto;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Table ───────────────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(176,96,255,0.05);
+    position: relative;
+  }
+
+  .table-wrap::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--purple), transparent);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  thead th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--purple);
+    padding: 14px 16px;
+    text-align: left;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.15s;
+    opacity: 0.8;
+  }
+
+  thead th:hover { color: var(--text); opacity: 1; }
+  thead th.sorted { color: var(--cyan); opacity: 1; }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(42,42,69,0.6);
+    transition: background 0.1s;
+    cursor: pointer;
+    position: relative;
+  }
+
+  tbody tr:last-child { border-bottom: none; }
+
+  tbody tr:hover {
+    background: var(--surface3);
+    box-shadow: inset 3px 0 0 var(--purple);
+  }
+
+  tbody td {
+    padding: 12px 16px;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .rank-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: #404060;
+  }
+
+  .player-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .player-img {
+    width: 36px; height: 50px;
+    border-radius: 4px;
+    object-fit: cover;
+    background: var(--surface2);
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .player-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+  }
+
+  .player-team {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+    letter-spacing: 0.05em;
+  }
+
+  .sc-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .sc-badge.limited { color: var(--limited); border-color: var(--limited); background: rgba(255,184,48,0.08); }
+  .sc-badge.rare    { color: var(--rare);    border-color: var(--rare);    background: rgba(255,85,85,0.08); }
+  .sc-badge.sr      { color: var(--sr);      border-color: var(--sr);      background: rgba(112,144,255,0.08); }
+
+  .tier-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 7px;
+  }
+
+  .fmv-price {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--purple);
+    text-shadow: 0 0 10px var(--purple-glow);
+  }
+
+  .price {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .liq {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+  }
+
+  .sparkline-wrap {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 28px;
+    padding: 2px 0;
+  }
+
+  .spark-bar {
+    width: 5px;
+    border-radius: 2px 2px 0 0;
+    transition: opacity 0.15s;
+    min-height: 2px;
+  }
+
+  tbody tr:hover .spark-bar { opacity: 0.8; }
+  .liq-high   .liq-dot { background: var(--up); box-shadow: 0 0 6px var(--up); }
+  .liq-high   { color: var(--up); }
+  .liq-medium .liq-dot { background: var(--limited); }
+  .liq-medium { color: var(--limited); }
+  .liq-low    .liq-dot { background: #404060; }
+  .liq-low    { color: #404060; }
+
+  .change-up   { color: #00ff88; font-family: 'Share Tech Mono', monospace; font-size: 12px; font-weight: 600; }
+  .change-down { color: #ff2d78; font-family: 'Share Tech Mono', monospace; font-size: 12px; font-weight: 600; }
+  .change-nil  { color: #404060; font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+
+  .liq-wrap { position: relative; display: inline-flex; align-items: center; cursor: default; }
+
+  .liq-tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    padding: 7px 11px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 20;
+    letter-spacing: 0.05em;
+    line-height: 1.6;
+  }
+
+  .liq-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--border2);
+  }
+
+  .liq-wrap:hover .liq-tooltip { opacity: 1; }
+
+  .loading-row td, .empty-row td {
+    text-align: center;
+    padding: 80px;
+    color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--purple);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+  }
+
+  .page-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    padding: 7px 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .page-btn:hover { border-color: var(--purple); color: var(--purple); box-shadow: 0 0 10px var(--purple-glow); }
+  .page-btn.active { background: var(--purple-glow); border-color: var(--purple); color: var(--purple); }
+  .page-btn:disabled { opacity: 0.25; cursor: not-allowed; box-shadow: none; }
+
+  .footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: #404060;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 1100px) { .hero-stats { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px)  { .col-7d, .col-supply, .col-tier { display: none; } }
+  @media (max-width: 600px)  {
+    .wrap { padding: 0 14px 60px; }
+    .hero-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .col-floor, .col-liq { display: none; }
+    .logo-sub { display: none; }
+    .nav-links { gap: 14px; }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-stat { animation: fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+  .hero-stat:nth-child(1) { animation-delay: 0.05s; }
+  .hero-stat:nth-child(2) { animation-delay: 0.12s; }
+  .hero-stat:nth-child(3) { animation-delay: 0.19s; }
+  .hero-stat:nth-child(4) { animation-delay: 0.26s; }
+  .controls { animation: fadeUp 0.5s 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+  .table-wrap { animation: fadeUp 0.5s 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+</style>
+</head>
+<body>
+<div class="bottom-glow"></div>
+
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-mark">S<span class="o">O</span>RION</div>
+      <div class="logo-sub">// Market Intelligence</div>
+    </div>
+    <nav class="nav-links">
+      <a class="nav-link" href="#">Market</a>
+      <a class="nav-link" href="https://craftlog.pro">Craft_LOG</a>
+      <a class="nav-link" href="#">Bot</a>
+      <a class="nav-cta" href="https://craftlog.pro">Open App →</a>
+    </nav>
+  </header>
+
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-label">// Players Tracked</div>
+      <div class="hero-stat-value" id="stat-total">—</div>
+      <div class="hero-stat-sub">across all scarcities</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-label">// Avg FMV · Limited</div>
+      <div class="hero-stat-value" id="stat-avg-ltd">—</div>
+      <div class="hero-stat-sub">weighted market value</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-label">// Avg FMV · Rare</div>
+      <div class="hero-stat-value" id="stat-avg-rar">—</div>
+      <div class="hero-stat-sub">weighted market value</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-label">// Last Updated</div>
+      <div class="hero-stat-value" id="stat-updated" style="font-size:16px;padding-top:4px">—</div>
+      <div class="hero-stat-sub">daily data refresh</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <input class="search-input" id="search" type="text" placeholder="search player or team..." oninput="filterTable()">
+    </div>
+    <button class="filter-btn ltd active" id="btn-ltd" onclick="setScarcity('limited')">◆ Limited</button>
+    <button class="filter-btn rar" id="btn-rar" onclick="setScarcity('rare')">◆ Rare</button>
+    <button class="filter-btn sr"  id="btn-sr"  onclick="setScarcity('super_rare')">◆ SR</button>
+    <button class="filter-btn"    id="btn-all" onclick="setScarcity('all')">All</button>
+    <div class="updated-at" id="updated-at"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:48px">#</th>
+          <th onclick="sortBy('player_name')">Player</th>
+          <th onclick="sortBy('change_24h')" class="col-24h">24h %</th>
+          <th onclick="sortBy('change_7d')"  class="col-7d2">7d %</th>
+          <th class="col-tier">Tier</th>
+          <th onclick="sortBy('fmv')" class="sorted">FMV ↓</th>
+          <th onclick="sortBy('floor_price')" class="col-floor">Floor</th>
+          <th onclick="sortBy('sale_1')">Last Sale</th>
+          <th onclick="sortBy('avg_sales')">Avg Sales</th>
+          <th class="col-liq" onclick="sortBy('sales_count')">Liquidity</th>
+          <th class="col-supply col-7d">7d Trend</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr class="loading-row">
+          <td colspan="10"><span class="spinner"></span>loading market data...</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pagination" id="pagination"></div>
+
+  <div class="footer">
+    <span>SORION // Sorare Market Intelligence</span>
+    <span>Not affiliated with Sorare · Data refreshed daily</span>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
+  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4aGRsY3BkdXBta3Bzb3l0emVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjQwMjQsImV4cCI6MjA4OTM0MDAyNH0.bvOQf7cF05GWafdb-vR7V9bphLjvgqTuY2BTLLGPnQM';
+
+  let allData = [], filtered = [], sortKey = 'fmv', sortDir = -1, currentPage = 1;
+  const PAGE_SIZE = 50;
+  let scarcityFilter = 'limited';
+
+  async function loadData() {
+    try {
+      // Fetch all records in batches of 1000 (Supabase default limit)
+      let all = [];
+      let from = 0;
+      const batchSize = 1000;
+
+      while (true) {
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/card_prices?select=*&order=fmv.desc&limit=${batchSize}&offset=${from}`,
+          { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+        );
+        if (!res.ok) throw new Error('Failed to load');
+        const batch = await res.json();
+        all = all.concat(batch);
+        if (batch.length < batchSize) break;
+        from += batchSize;
+      }
+
+      allData = all;
+      updateHeroStats();
+      setScarcity('limited');
+    } catch(e) {
+      document.getElementById('table-body').innerHTML =
+        `<tr class="empty-row"><td colspan="10">// ERROR: failed to load market data</td></tr>`;
+    }
+  }
+
+  function updateHeroStats() {
+    document.getElementById('stat-total').textContent = allData.length.toLocaleString();
+    const ltd = allData.filter(r => r.scarcity === 'limited' && r.fmv);
+    const rar = allData.filter(r => r.scarcity === 'rare' && r.fmv);
+    const avgLtd = ltd.length ? ltd.reduce((s,r) => s+r.fmv,0)/ltd.length : 0;
+    const avgRar = rar.length ? rar.reduce((s,r) => s+r.fmv,0)/rar.length : 0;
+    document.getElementById('stat-avg-ltd').textContent = avgLtd ? `€${avgLtd.toFixed(2)}` : '—';
+    document.getElementById('stat-avg-rar').textContent = avgRar ? `€${avgRar.toFixed(2)}` : '—';
+    if (allData.length) {
+      const latest = allData.reduce((a,b) => new Date(a.updated_at)>new Date(b.updated_at)?a:b);
+      const d = new Date(latest.updated_at);
+      document.getElementById('stat-updated').textContent =
+        d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+      document.getElementById('updated-at').textContent =
+        '// updated ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    }
+  }
+
+  function setScarcity(sc) {
+    scarcityFilter = sc;
+    ['ltd','rar','sr','all'].forEach(k => document.getElementById('btn-'+k).classList.remove('active'));
+    const map = {limited:'ltd',rare:'rar',super_rare:'sr',all:'all'};
+    document.getElementById('btn-'+(map[sc]||'all')).classList.add('active');
+    currentPage = 1; filterTable();
+  }
+
+  function filterTable() {
+    const search = document.getElementById('search').value.toLowerCase().trim();
+    filtered = allData.filter(r => {
+      if (scarcityFilter !== 'all' && r.scarcity !== scarcityFilter) return false;
+      if (search && !r.player_name.toLowerCase().includes(search) &&
+          !(r.team_name||'').toLowerCase().includes(search)) return false;
+      return true;
+    });
+    filtered.sort((a,b) => {
+      const av = a[sortKey]??-Infinity, bv = b[sortKey]??-Infinity;
+      if (typeof av==='string') return sortDir*av.localeCompare(bv);
+      return sortDir*(av-bv);
+    });
+    renderTable();
+  }
+
+  function sortBy(key) {
+    if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=-1; }
+    document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
+    filterTable();
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('table-body');
+    const start = (currentPage-1)*PAGE_SIZE;
+    const page  = filtered.slice(start, start+PAGE_SIZE);
+
+    if (!page.length) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="10">// no players found</td></tr>`;
+      renderPagination(); return;
+    }
+
+    tbody.innerHTML = page.map((r,i) => {
+      const rank    = start+i+1;
+      const sc      = r.scarcity==='super_rare'?'sr':r.scarcity==='rare'?'rare':'limited';
+      const scLabel = r.scarcity==='super_rare'?'SR':r.scarcity==='rare'?'Rare':'Limited';
+      const tier    = r.tier ? r.tier.replace('tier_','T') : '—';
+      const fmv     = r.fmv         ? `€${r.fmv.toFixed(2)}`         : '—';
+      const floor   = r.floor_price ? `€${r.floor_price.toFixed(2)}` : '—';
+      const last    = r.sale_1      ? `€${r.sale_1.toFixed(2)}`      : '—';
+      const avg     = r.avg_sales   ? `€${r.avg_sales.toFixed(2)}`   : '—';
+      const cnt     = r.sales_count||0;
+      const liqClass= cnt>=5?'liq-high':cnt>=2?'liq-medium':'liq-low';
+      const liqLabel= cnt>=5?'High':cnt>=2?'Med':'Low';
+
+      return `<tr>
+        <td><span class="rank-num">${String(rank).padStart(2,'0')}</span></td>
+        <td><div class="player-cell">
+          <img class="player-img" src="${r.picture_url||''}" alt="" onerror="this.style.visibility='hidden'">
+          <div>
+            <div class="player-name">${esc(r.player_name)}</div>
+            <div class="player-team">${esc(r.team_name||'')}</div>
+          </div>
+        </div></td>
+        <td class="col-24h">${renderChange(r.sale_1, r.sale_2)}</td>
+        <td class="col-7d2">${renderChange(r.sale_1, r.sale_5)}</td>
+        <td class="col-tier"><span class="tier-badge">${tier}</span></td>
+        <td class="fmv-price">${fmv}</td>
+        <td class="price col-floor">${floor}</td>
+        <td class="price">${last}</td>
+        <td class="price">${avg}</td>
+        <td class="col-liq">
+          <div class="liq-wrap">
+            <div class="liq ${liqClass}"><div class="liq-dot"></div>${liqLabel} (${cnt})</div>
+            <div class="liq-tooltip">
+              ${cnt} sales tracked<br>
+              Based on last ${cnt} IN_SEASON sales<br>
+              High ≥ 5 · Med ≥ 2 · Low &lt; 2
+            </div>
+          </div>
+        </td>
+        <td class="col-supply col-7d">${renderSparkline(r)}</td>
+      </tr>`;
+    }).join('');
+    renderPagination();
+    // Load 30d history for sparklines asynchronously
+    setTimeout(loadVisibleHistory, 100);
+  }
+
+  function renderPagination() {
+    const total = Math.ceil(filtered.length/PAGE_SIZE);
+    const pg = document.getElementById('pagination');
+    if (total<=1) { pg.innerHTML=''; return; }
+
+    let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← prev</button>`;
+    const s = Math.max(1,currentPage-3), e = Math.min(total,currentPage+3);
+    if (s>1) html+=`<button class="page-btn" onclick="goPage(1)">01</button><span style="color:#404060;padding:0 4px">…</span>`;
+    for (let i=s;i<=e;i++) html+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${String(i).padStart(2,'0')}</button>`;
+    if (e<total) html+=`<span style="color:#404060;padding:0 4px">…</span><button class="page-btn" onclick="goPage(${total})">${String(total).padStart(2,'0')}</button>`;
+    html+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>next →</button>`;
+    html+=`<span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px;margin-left:8px">${filtered.length.toLocaleString()} players</span>`;
+    pg.innerHTML = html;
+  }
+
+  function goPage(p) {
+    const total = Math.ceil(filtered.length/PAGE_SIZE);
+    if (p<1||p>total) return;
+    currentPage=p; renderTable();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function renderChange(current, previous) {
+    if (!current || !previous || previous === 0) {
+      return `<span class="change-nil">—</span>`;
+    }
+    const pct = ((current - previous) / previous) * 100;
+    const sign = pct > 0 ? '▲' : pct < 0 ? '▼' : '';
+    const cls  = pct > 0 ? 'change-up' : pct < 0 ? 'change-down' : 'change-nil';
+    return `<span class="${cls}">${sign}${Math.abs(pct).toFixed(2)}%</span>`;
+  }
+
+  // ── Price History Cache ───────────────────────────────────────
+  const historyCache = {};
+
+  async function loadHistory(playerSlug, scarcity) {
+    const key = `${playerSlug}_${scarcity}`;
+    if (historyCache[key]) return historyCache[key];
+
+    try {
+      const since = new Date();
+      since.setDate(since.getDate() - 30);
+      const sinceStr = since.toISOString().split('T')[0];
+
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${playerSlug}&scarcity=eq.${scarcity}&recorded_at=gte.${sinceStr}&order=recorded_at.asc&select=price,recorded_at`,
+        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      historyCache[key] = data;
+      return data;
+    } catch { return null; }
+  }
+
+  function renderSparklineFromHistory(history) {
+    if (!history || history.length < 2) return null;
+
+    const points = history.map(h => h.price);
+    const W = 80, H = 28;
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+
+    const coords = points.map((v, i) => {
+      const x = (i / (points.length - 1)) * W;
+      const y = H - ((v - min) / range) * (H - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+
+    const trend = points[points.length - 1] - points[0];
+    const color = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#505080';
+    const glow  = trend > 0
+      ? 'filter:drop-shadow(0 0 3px #00ff88)'
+      : trend < 0
+      ? 'filter:drop-shadow(0 0 3px #ff2d78)'
+      : '';
+
+    const lastCoord = coords[coords.length - 1].split(',');
+    const trendArrow = trend > 0
+      ? `<span style="color:#00ff88;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▲</span>`
+      : trend < 0
+      ? `<span style="color:#ff2d78;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▼</span>`
+      : '';
+
+    return `<div style="display:flex;align-items:center">
+      <svg width="${W}" height="${H}" style="${glow}" xmlns="http://www.w3.org/2000/svg">
+        <polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="${lastCoord[0]}" cy="${lastCoord[1]}" r="2.5" fill="${color}"/>
+      </svg>
+      ${trendArrow}
+    </div>`;
+  }
+
+  function renderSparkline(r) {
+    // Fallback to sale data until history is available
+    const points = [r.sale_5, r.sale_4, r.sale_3, r.sale_2, r.sale_1]
+      .filter(v => v !== null && v > 0);
+
+    if (points.length < 2) {
+      return `<span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#303050">no data</span>`;
+    }
+
+    const W = 80, H = 28;
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const range = max - min || 1;
+
+    const coords = points.map((v, i) => {
+      const x = (i / (points.length - 1)) * W;
+      const y = H - ((v - min) / range) * (H - 4) - 2;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+
+    const trend  = points[points.length - 1] - points[0];
+    const color  = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#505080';
+    const glow   = trend > 0 ? 'filter:drop-shadow(0 0 3px #00ff88)' : trend < 0 ? 'filter:drop-shadow(0 0 3px #ff2d78)' : '';
+    const lastCoord = coords[coords.length - 1].split(',');
+    const trendArrow = trend > 0
+      ? `<span style="color:#00ff88;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▲</span>`
+      : trend < 0
+      ? `<span style="color:#ff2d78;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▼</span>`
+      : '';
+
+    return `<div style="display:flex;align-items:center" data-slug="${r.player_slug}" data-scarcity="${r.scarcity}" class="sparkline-cell">
+      <svg width="${W}" height="${H}" style="${glow}" xmlns="http://www.w3.org/2000/svg">
+        <polyline points="${coords.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <circle cx="${lastCoord[0]}" cy="${lastCoord[1]}" r="2.5" fill="${color}"/>
+      </svg>
+      ${trendArrow}
+    </div>`;
+  }
+
+  // Lazy load 30d history for visible sparklines
+  async function loadVisibleHistory() {
+    const cells = document.querySelectorAll('.sparkline-cell');
+    for (const cell of cells) {
+      const slug     = cell.dataset.slug;
+      const scarcity = cell.dataset.scarcity;
+      if (!slug) continue;
+
+      const history = await loadHistory(slug, scarcity);
+      if (!history || history.length < 2) continue;
+
+      const svg = renderSparklineFromHistory(history);
+      if (svg) cell.closest('td').innerHTML = svg;
+    }
+  }
+
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  loadData();
+</script>
+</body>
+</html>
