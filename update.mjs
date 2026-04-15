@@ -1,12 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
-const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4aGRsY3BkdXBta3Bzb3l0emVzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzc2NDAyNCwiZXhwIjoyMDg5MzQwMDI0fQ.im8D7skH_4ibgnTKKOnT6SUD6cPkvK2miIgcn_GLJ6c';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 const SORARE_API   = 'https://api.sorare.com/graphql';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-<<<<<<< HEAD
 const BATCH_SIZE = 200;
 const DELAY_MS   = 500;
 
@@ -17,6 +16,7 @@ async function fetchPrices(playerSlug, scarcity) {
         rarity: ${scarcity}
         seasonEligibility: IN_SEASON
         playerSlug: "${playerSlug}"
+        first: 20
       ) {
         date
         amounts { eurCents }
@@ -97,7 +97,7 @@ async function main() {
       sale_3:      sales[2]?.eur ?? null,
       sale_4:      sales[3]?.eur ?? null,
       sale_5:      sales[4]?.eur ?? null,
-      avg_sales:   sales.length ? parseFloat((sales.reduce((s,p) => s+p.eur,0)/sales.length).toFixed(2)) : null,
+      avg_sales:   sales.length ? parseFloat((sales.slice(0,10).reduce((s,p) => s+p.eur,0)/Math.min(sales.length,10)).toFixed(2)) : null,
       sales_count: sales.length,
       updated_at:  new Date().toISOString(),
     };
@@ -128,14 +128,12 @@ async function main() {
 
 main().catch(console.error);
 
-const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
-const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4aGRsY3BkdXBta3Bzb3l0emVzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzc2NDAyNCwiZXhwIjoyMDg5MzQwMDI0fQ.im8D7skH_4ibgnTKKOnT6SUD6cPkvK2miIgcn_GLJ6c';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 const SORARE_API   = 'https://api.sorare.com/graphql';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-=======
->>>>>>> 65a97127b38c53432425bbcdba3820dcc7d97ee8
 const BATCH_SIZE   = 200;  // players per run
 const DELAY_MS     = 500;  // ms between API calls
 
