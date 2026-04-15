@@ -6,6 +6,7 @@ const SORARE_API   = 'https://api.sorare.com/graphql';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+<<<<<<< HEAD
 const BATCH_SIZE = 200;
 const DELAY_MS   = 500;
 
@@ -133,6 +134,8 @@ const SORARE_API   = 'https://api.sorare.com/graphql';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+=======
+>>>>>>> 65a97127b38c53432425bbcdba3820dcc7d97ee8
 const BATCH_SIZE   = 200;  // players per run
 const DELAY_MS     = 500;  // ms between API calls
 
