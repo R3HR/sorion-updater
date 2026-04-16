@@ -1301,9 +1301,9 @@
       const floor   = r.floor_price ? `€${r.floor_price.toFixed(2)}` : '—';
       const last    = r.sale_1      ? `€${r.sale_1.toFixed(2)}`      : '—';
       const avg     = r.avg_sales   ? `€${r.avg_sales.toFixed(2)}`   : '—';
-      const cnt     = r.sales_count||0;
-      const liqClass= cnt>=5?'liq-high':cnt>=2?'liq-medium':'liq-low';
-      const liqLabel= cnt>=5?'High':cnt>=2?'Med':'Low';
+      const cnt      = r.sales_count || 0; // sales in last 24h
+      const liqClass = cnt >= 3 ? 'liq-high' : cnt >= 1 ? 'liq-medium' : 'liq-low';
+      const liqLabel = cnt >= 3 ? 'High' : cnt >= 1 ? 'Med' : 'Low';
       const idx     = allData.indexOf(r);
 
       return `<tr onclick="openModal(allData[${idx}])" style="cursor:pointer">
@@ -1326,9 +1326,8 @@
           <div class="liq-wrap">
             <div class="liq ${liqClass}"><div class="liq-dot"></div>${liqLabel} (${cnt})</div>
             <div class="liq-tooltip">
-              ${cnt} sales tracked<br>
-              Based on last ${cnt} IN_SEASON sales<br>
-              High ≥ 5 · Med ≥ 2 · Low &lt; 2
+              ${cnt} sales in last 24h<br>
+              High ≥ 3 · Med ≥ 1 · Low = 0
             </div>
           </div>
         </td>
@@ -1380,8 +1379,8 @@
       const last     = r.sale_1      ? `€${r.sale_1.toFixed(2)}`       : '—';
       const avg      = r.avg_sales   ? `€${r.avg_sales.toFixed(2)}`    : '—';
       const cnt      = r.sales_count || 0;
-      const liqClass = cnt >= 5 ? 'liq-high' : cnt >= 2 ? 'liq-medium' : 'liq-low';
-      const liqLabel = cnt >= 5 ? 'High' : cnt >= 2 ? 'Med' : 'Low';
+      const liqClass = cnt >= 3 ? 'liq-high' : cnt >= 1 ? 'liq-medium' : 'liq-low';
+      const liqLabel = cnt >= 3 ? 'High' : cnt >= 1 ? 'Med' : 'Low';
       const ch24     = renderChange(r.sale_1, r.sale_2);
       const ch7d     = renderChange(r.sale_1, r.sale_5);
 
@@ -1503,7 +1502,7 @@
     document.getElementById('modal-grid').innerHTML = [
       ['Floor Price', r.floor_price ? `€${r.floor_price.toFixed(2)}` : '—'],
       ['Avg Sales',   r.avg_sales   ? `€${r.avg_sales.toFixed(2)}`   : '—'],
-      ['Sales Count', r.sales_count ?? '—'],
+      ['Sales (24h)', r.sales_count ?? '—'],
       ['Supply',      r.available_supply ?? '—'],
     ].map(([label, val]) => `
       <div class="modal-stat">
