@@ -89,17 +89,28 @@ async function main() {
     const fmv         = calculateFMV(sales, floorPrice);
 
     // Update card_prices
+    const now = new Date();
+    const h24ago = new Date(now - 24 * 60 * 60 * 1000);
+    const h72ago = new Date(now - 72 * 60 * 60 * 1000);
+    const d7ago  = new Date(now - 7  * 24 * 60 * 60 * 1000);
+
+    const sales24h = sales.filter(s => new Date(s.date) >= h24ago).length;
+    const sales72h = sales.filter(s => new Date(s.date) >= h72ago).length;
+    const sales7d  = sales.filter(s => new Date(s.date) >= d7ago).length;
+
     const update = {
-      floor_price: floorPrice,
-      fmv:         fmv ? parseFloat(fmv.toFixed(2)) : null,
-      sale_1:      sales[0]?.eur ?? null,
-      sale_2:      sales[1]?.eur ?? null,
-      sale_3:      sales[2]?.eur ?? null,
-      sale_4:      sales[3]?.eur ?? null,
-      sale_5:      sales[4]?.eur ?? null,
-      avg_sales:   sales.length ? parseFloat((sales.slice(0,10).reduce((s,p) => s+p.eur,0)/Math.min(sales.length,10)).toFixed(2)) : null,
-      sales_count: sales.length,
-      updated_at:  new Date().toISOString(),
+      floor_price:  floorPrice,
+      fmv:          fmv ? parseFloat(fmv.toFixed(2)) : null,
+      sale_1:       sales[0]?.eur ?? null,
+      sale_2:       sales[1]?.eur ?? null,
+      sale_3:       sales[2]?.eur ?? null,
+      sale_4:       sales[3]?.eur ?? null,
+      sale_5:       sales[4]?.eur ?? null,
+      avg_sales:    sales.length ? parseFloat((sales.slice(0,10).reduce((s,p) => s+p.eur,0)/Math.min(sales.length,10)).toFixed(2)) : null,
+      sales_count:  sales24h,   // sales in last 24h = real liquidity
+      sales_72h:    sales72h,
+      sales_7d:     sales7d,
+      updated_at:   new Date().toISOString(),
     };
 
     const { error: updateError } = await supabase
