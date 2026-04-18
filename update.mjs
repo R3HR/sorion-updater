@@ -39,19 +39,45 @@ async function fetchPrices(playerSlug, scarcity) {
 }
 
 function calculateFMV(sales, floorPrice) {
-  const s = sales.slice(0, 5);
-  const weights = [
-    [floorPrice,        0.30],
-    [s[0]?.eur ?? null, 0.25],
-    [s[1]?.eur ?? null, 0.20],
-    [s[2]?.eur ?? null, 0.13],
-    [s[3]?.eur ?? null, 0.08],
-    [s[4]?.eur ?? null, 0.04],
-  ].filter(([v]) => v !== null && v > 0);
+  // Collect all sale values
+  const allValues = sales.slice(0, 20).map(s => s.eur).filter(v => v > 0);
 
-  if (!weights.length) return null;
-  const totalWeight = weights.reduce((s, [, w]) => s + w, 0);
-  return weights.reduce((s, [v, w]) => s + v * w, 0) / totalWeight;
+  // Trimmed mean — remove highest and lowest outlier
+  if (allValues.length >= 4) {
+    allValues.sort((a, b) => a - b);
+    allValues.shift(); // remove lowest
+    allValues.pop();   // remove highest
+  }
+
+  if (!allValues.length && !floorPrice) return null;
+
+  // Weights for up to 20 sales (descending — recent sales weighted more)
+  const saleWeights = [
+    0.12, 0.10, 0.09, 0.08, 0.07,
+    0.06, 0.06, 0.05, 0.05, 0.04,
+    0.02, 0.02, 0.02, 0.02, 0.02,
+    0.01, 0.01, 0.01, 0.01, 0.01,
+  ];
+
+  const entries = [];
+
+  // Floor price gets 0.15 weight
+  if (floorPrice && floorPrice > 0) {
+    entries.push([floorPrice, 0.15]);
+  }
+
+  // Add trimmed sales with weights
+  allValues.forEach((v, i) => {
+    if (i < saleWeights.length) {
+      entries.push([v, saleWeights[i]]);
+    }
+  });
+
+  if (!entries.length) return null;
+
+  // Normalize weights to sum to 1.0
+  const totalWeight = entries.reduce((s, [, w]) => s + w, 0);
+  return entries.reduce((s, [v, w]) => s + v * w, 0) / totalWeight;
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
