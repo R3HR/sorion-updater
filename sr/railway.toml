@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node update-sr.mjs"
+cronSchedule = "*/5 22-23,0-4 * * *"
+restartPolicyType = "never"
