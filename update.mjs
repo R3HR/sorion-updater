@@ -9,8 +9,15 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 const BATCH_SIZE = 200;
 const DELAY_MS   = 500;
 
-async function fetchPrices(playerSlug, scarcity) {
+async function fetchData(playerSlug, scarcity) {
   const query = `{
+    player: anyPlayer(slug: "${playerSlug}") {
+      ... on FootballPlayer {
+        lowestPriceAnyCard(inSeason: true, rarity: ${scarcity}) {
+          publicMinPrices { eurCents }
+        }
+      }
+    }
     tokens {
       tokenPrices(
         rarity: ${scarcity}
@@ -33,8 +40,9 @@ async function fetchPrices(playerSlug, scarcity) {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.errors) return null;
-    const prices = data?.data?.tokens?.tokenPrices ?? [];
-    return prices.map(p => ({ date: p.date, eur: p.amounts.eurCents / 100 }));
+    const sales = (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100 }));
+    const floorCents = data?.data?.player?.lowestPriceAnyCard?.publicMinPrices?.eurCents;
+    return { sales, fetchedFloor: floorCents ? floorCents / 100 : null };
   } catch { return null; }
 }
 
@@ -53,10 +61,10 @@ function calculateFMV(sales, floorPrice) {
 
   // Weights for up to 20 sales (descending — recent sales weighted more)
   const saleWeights = [
-    0.12, 0.10, 0.09, 0.08, 0.07,
-    0.06, 0.06, 0.05, 0.05, 0.04,
-    0.02, 0.02, 0.02, 0.02, 0.02,
-    0.01, 0.01, 0.01, 0.01, 0.01,
+    0.22, 0.18, 0.14, 0.10, 0.08,  // sales 1–5: dominant
+    0.04, 0.03, 0.03, 0.02, 0.02,  // sales 6–10: stark reduziert
+    0.01, 0.01, 0.01, 0.01, 0.01,  // sales 11–15: minimal
+    0.005, 0.005, 0.005, 0.005, 0.005,  // sales 16–20: fast irrelevant
   ];
 
   const entries = [];
@@ -87,7 +95,7 @@ async function main() {
 
   const { data: players, error } = await supabase
     .from('card_prices')
-    .select('id, player_slug, scarcity, floor_price')
+    .select('id, player_slug, scarcity')
     .order('updated_at', { ascending: true })
     .limit(BATCH_SIZE);
 
@@ -99,9 +107,9 @@ async function main() {
   const today = new Date().toISOString().split('T')[0];
 
   for (const player of players) {
-    const sales = await fetchPrices(player.player_slug, player.scarcity);
+    const result = await fetchData(player.player_slug, player.scarcity);
 
-    if (!sales || sales.length === 0) {
+    if (!result || result.sales.length === 0) {
       await supabase.from('card_prices')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', player.id);
@@ -110,8 +118,9 @@ async function main() {
       continue;
     }
 
+    const { sales, fetchedFloor } = result;
     const sortedSales = [...sales].sort((a, b) => a.eur - b.eur);
-    const floorPrice  = player.floor_price ?? sortedSales[0]?.eur ?? null;
+    const floorPrice  = fetchedFloor ?? sortedSales[0]?.eur ?? null;
     const fmv         = calculateFMV(sales, floorPrice);
 
     // Update card_prices

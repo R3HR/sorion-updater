@@ -9,8 +9,15 @@ const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 const BATCH_SIZE = 200;
 const DELAY_MS   = 200;
 
-async function fetchPrices(playerSlug) {
+async function fetchData(playerSlug) {
   const query = `{
+    player: anyPlayer(slug: "${playerSlug}") {
+      ... on FootballPlayer {
+        lowestPriceAnyCard(inSeason: true, rarity: ${SCARCITY}) {
+          publicMinPrices { eurCents }
+        }
+      }
+    }
     tokens {
       tokenPrices(rarity: ${SCARCITY} seasonEligibility: IN_SEASON playerSlug: "${playerSlug}" first: 20) {
         date
@@ -27,7 +34,9 @@ async function fetchPrices(playerSlug) {
     if (!res.ok) return null;
     const data = await res.json();
     if (data.errors) return null;
-    return (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100 }));
+    const sales = (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100 }));
+    const floorCents = data?.data?.player?.lowestPriceAnyCard?.publicMinPrices?.eurCents;
+    return { sales, fetchedFloor: floorCents ? floorCents / 100 : null };
   } catch { return null; }
 }
 
@@ -39,7 +48,7 @@ function calculateFMV(sales, floorPrice) {
     values.pop();
   }
   if (!values.length && !floorPrice) return null;
-  const saleWeights = [0.12,0.10,0.09,0.08,0.07,0.06,0.06,0.05,0.05,0.04,0.02,0.02,0.02,0.02,0.02,0.01,0.01,0.01,0.01,0.01];
+  const saleWeights = [0.22,0.18,0.14,0.10,0.08,0.04,0.03,0.03,0.02,0.02,0.01,0.01,0.01,0.01,0.01,0.005,0.005,0.005,0.005,0.005];
   const entries = [];
   if (floorPrice > 0) entries.push([floorPrice, 0.15]);
   values.forEach((v, i) => { if (i < saleWeights.length) entries.push([v, saleWeights[i]]); });
@@ -54,7 +63,7 @@ async function main() {
   console.log(`[${new Date().toISOString()}] Starting ${SCARCITY} update...`);
   const { data: players, error } = await supabase
     .from('card_prices')
-    .select('id, player_slug, floor_price')
+    .select('id, player_slug')
     .eq('scarcity', SCARCITY)
     .order('updated_at', { ascending: true })
     .limit(BATCH_SIZE);
@@ -63,13 +72,14 @@ async function main() {
   let updated = 0, failed = 0;
   const today = new Date().toISOString().split('T')[0];
   for (const player of players) {
-    const sales = await fetchPrices(player.player_slug);
-    if (!sales || !sales.length) {
+    const result = await fetchData(player.player_slug);
+    if (!result || !result.sales.length) {
       await supabase.from('card_prices').update({ updated_at: new Date().toISOString() }).eq('id', player.id);
       failed++; await sleep(DELAY_MS); continue;
     }
+    const { sales, fetchedFloor } = result;
     const sorted = [...sales].sort((a, b) => a.eur - b.eur);
-    const floorPrice = player.floor_price ?? sorted[0]?.eur ?? null;
+    const floorPrice = fetchedFloor ?? sorted[0]?.eur ?? null;
     const fmv = calculateFMV(sales, floorPrice);
     const now = new Date();
     const h24ago = new Date(now - 24*60*60*1000);
