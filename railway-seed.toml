@@ -1,0 +1,7 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "node seed-all-players.mjs"
+cronSchedule = "0 5 * * *"
+restartPolicyType = "never"
