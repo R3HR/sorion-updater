@@ -47,9 +47,9 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 | 8 | Sorare API-Key beantragen + 429-Backoff | **offen** | Nach Seed wächst DB auf tausende Spieler. Ohne API-Key drohen Rate-Limits. Aktuell: silent fail, `updated_at` wird trotzdem gesetzt → tote Spieler unsichtbar |
 | 9 | `add-missing-players` auf Slim-Insert umgestellt | **Code fertig**, Deploy offen | Berechnet kein FMV mehr — nur Insert mit `updated_at=epoch`, Update-Script rechnet. Eine Formel, eine Stelle |
 | 10 | Repo aufgeräumt | **erledigt 2026-07-06** | node_modules aus Git, .gitignore, Versionsleichen in `_archive/` |
-| 11 | Rechtliches: Impressum + Datenschutzerklärung (Plausible, Supabase, Sorare-OAuth) | **offen** | Pflicht (DE: § 5 DDG, DSGVO). Seite ist öffentlich → sollte vor Saisonstart/Reichweite stehen |
-| 12 | Google Fonts selbst hosten statt von fonts.googleapis.com laden | **offen** | Abmahnrisiko (LG München 2022), betrifft Sorion-UI + CraftLog-UI |
-| 13 | Footer-Disclaimer: „Not affiliated with Sorare" + FMV = Schätzung, keine Finanzberatung | **offen** | Marken-/Haftungsabgrenzung |
+| 11 | Rechtliches: Impressum + Datenschutzerklärung | **Vorlage fertig 2026-07-06** | `UI/legal.html` (+ Kopie in CraftLog UI). Jonas muss die gelben `[PLATZHALTER]` füllen: Name, Adresse, E-Mail, Hosting-Anbieter, Supabase-Region. Vorlage ≠ Rechtsberatung |
+| 12 | Google Fonts selbst hosten | **erledigt 2026-07-06** | `fonts/`-Ordner in beiden UIs (latin+latin-ext), Google-CDN-Links entfernt. CraftLog: auch Chart.js lokal statt cdnjs. ⚠️ Beim Deployen der UIs müssen `fonts/`, `legal.html` (und bei CraftLog `chart.umd.min.js`) mit hochgeladen werden |
+| 13 | Footer-Disclaimer + Legal-Link | **erledigt 2026-07-06** | Beide UIs: „Not affiliated" + Schätzungs-Disclaimer + Link auf legal.html |
 
 ## Design: InSeason/Classic (TODO #1)
 
