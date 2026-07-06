@@ -2,6 +2,6 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "node update-limited.mjs"
-cronSchedule = "*/5 22-23,0-4 * * *"
+startCommand = "node update-scarcity.mjs limited"
+cronSchedule = "*/5 22-23,0-4,16-20 * * *"
 restartPolicyType = "never"

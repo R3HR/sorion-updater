@@ -869,7 +869,7 @@
     text-transform: uppercase;
   }
 
-  @media (max-width: 1100px) { .hero-stats { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 800px) { .hero-stats { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 900px)  { .col-7d, .col-supply, .col-tier, .col-24h { display: none; } }
 
   @media (max-width: 600px) {
@@ -1121,13 +1121,13 @@
 <div class="wrap">
   <header>
     <div class="logo">
-      <img src="logo.png" alt="SORION" style="height:48px;width:auto;object-fit:contain">
+      <img src="logo.png" alt="SORION" style="height:72px;width:auto;object-fit:contain">
       <div class="logo-sub">// Market Intelligence</div>
     </div>
     <nav class="nav-links">
       <a class="nav-link" href="#">Market</a>
+      <a class="nav-link" href="portfolio.html">Portfolio</a>
       <a class="nav-link" href="https://craftlog.pro">Craft_LOG</a>
-      <a class="nav-link" href="#">Bot</a>
       <a class="nav-cta" href="https://craftlog.pro">Open App →</a>
     </nav>
   </header>
@@ -1155,6 +1155,24 @@
     </div>
   </div>
 
+  <!-- Top/Flop Movers -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px" id="movers-section">
+    <div class="hero-stat" style="padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <span style="color:#00ff88;font-size:14px">▲</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#00ff88">Top 5 Movers · 7d</span>
+      </div>
+      <div id="top-movers"></div>
+    </div>
+    <div class="hero-stat" style="padding:0;overflow:hidden">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <span style="color:#ff2d78;font-size:14px">▼</span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#ff2d78">Flop 5 Movers · 7d</span>
+      </div>
+      <div id="flop-movers"></div>
+    </div>
+  </div>
+
   <div class="controls">
     <div class="search-wrap">
       <input class="search-input" id="search" type="text" placeholder="search player or team..." oninput="filterTable()">
@@ -1174,8 +1192,8 @@
         <tr>
           <th style="width:48px">#</th>
           <th onclick="sortBy('player_name')">Player</th>
-          <th onclick="sortBy('change_24h')" class="col-24h">24h %</th>
-          <th onclick="sortBy('change_7d')"  class="col-7d2">7d %</th>
+          <th onclick="sortBy('change_24h')" class="col-24h" style="cursor:pointer">24h % ↕</th>
+          <th onclick="sortBy('change_7d')"  class="col-7d2" style="cursor:pointer">7d % ↕</th>
           <th class="col-tier">Tier</th>
           <th onclick="sortBy('fmv')" class="sorted">FMV ↓</th>
           <th onclick="sortBy('floor_price')" class="col-floor">Floor</th>
@@ -1234,6 +1252,7 @@
       allData = all;
       updateHeroStats();
       setScarcity('limited');
+      renderMovers();
     } catch(e) {
       document.getElementById('table-body').innerHTML =
         `<tr class="empty-row"><td colspan="10">// ERROR: failed to load market data</td></tr>`;
@@ -1263,7 +1282,7 @@
     ['ltd','rar','sr','all'].forEach(k => document.getElementById('btn-'+k).classList.remove('active'));
     const map = {limited:'ltd',rare:'rar',super_rare:'sr',all:'all'};
     document.getElementById('btn-'+(map[sc]||'all')).classList.add('active');
-    currentPage = 1; filterTable();
+    currentPage = 1; filterTable(); renderMovers();
   }
 
   function filterTable() {
@@ -1274,6 +1293,8 @@
           !(r.team_name||'').toLowerCase().includes(search)) return false;
       return true;
     });
+    // change_24h/change_7d kommen zeitbasiert aus der DB (price_history, via update-scarcity.mjs)
+
     filtered.sort((a,b) => {
       const av = a[sortKey]??-Infinity, bv = b[sortKey]??-Infinity;
       if (typeof av==='string') return sortDir*av.localeCompare(bv);
@@ -1321,8 +1342,8 @@
             <div class="player-team">${highlight(r.team_name||'', search)}</div>
           </div>
         </div></td>
-        <td class="col-24h">${renderChange(r.sale_1, r.sale_2)}</td>
-        <td class="col-7d2">${renderChange(r.sale_1, r.sale_5)}</td>
+        <td class="col-24h">${renderPct(r.change_24h)}</td>
+        <td class="col-7d2">${renderPct(r.change_7d)}</td>
         <td class="col-tier"><span class="tier-badge">${tier}</span></td>
         <td class="fmv-price">${fmv}</td>
         <td class="price col-floor">${floor}</td>
@@ -1387,8 +1408,8 @@
       const cnt      = r.sales_count || 0;
       const liqClass = cnt >= 3 ? 'liq-high' : cnt >= 1 ? 'liq-medium' : 'liq-low';
       const liqLabel = cnt >= 3 ? 'High' : cnt >= 1 ? 'Med' : 'Low';
-      const ch24     = renderChange(r.sale_1, r.sale_2);
-      const ch7d     = renderChange(r.sale_1, r.sale_5);
+      const ch24     = renderPct(r.change_24h);
+      const ch7d     = renderPct(r.change_7d);
 
       return `<div class="m-card">
         <div class="m-card-top">
@@ -1450,11 +1471,42 @@
     `;
   }
 
-  function renderChange(current, previous) {
-    if (!current || !previous || previous === 0) {
+  function renderMovers() {
+    if (!allData.length) return;
+
+    // Always use allData filtered only by scarcity — never by search
+    const scarcityData = allData.filter(r => r.scarcity === scarcityFilter || scarcityFilter === 'all');
+    const withPct = scarcityData
+      .filter(r => r.change_7d !== null && r.change_7d !== undefined)
+      .map(r => ({ ...r, pct7d: r.change_7d }));
+
+    const sorted = [...withPct].sort((a, b) => b.pct7d - a.pct7d);
+    const top5  = sorted.slice(0, 5);
+    const flop5 = sorted.slice(-5).reverse();
+
+    const moverRow = (r, color) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(42,42,69,0.5)">
+        <img src="${r.picture_url||''}" onerror="this.style.visibility='hidden'"
+          style="width:28px;height:40px;border-radius:3px;object-fit:cover;flex-shrink:0;background:var(--surface2)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.player_name)}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.team_name||'')}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;color:${color}">${r.pct7d > 0 ? '▲' : '▼'}${Math.abs(r.pct7d).toFixed(1)}%</div>
+          <div style="font-family:'Orbitron',monospace;font-size:11px;color:var(--purple)">€${r.fmv?.toFixed(2) || '—'}</div>
+        </div>
+      </div>`;
+
+    document.getElementById('top-movers').innerHTML  = top5.map(r => moverRow(r, '#00ff88')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
+    document.getElementById('flop-movers').innerHTML = flop5.map(r => moverRow(r, '#ff2d78')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
+  }
+
+  // Zeitbasierte Prozent-Änderung aus der DB (change_24h/change_7d, berechnet aus price_history)
+  function renderPct(pct) {
+    if (pct === null || pct === undefined) {
       return `<span class="change-nil">—</span>`;
     }
-    const pct = ((current - previous) / previous) * 100;
     const sign = pct > 0 ? '▲' : pct < 0 ? '▼' : '';
     const cls  = pct > 0 ? 'change-up' : pct < 0 ? 'change-down' : 'change-nil';
     return `<span class="${cls}">${sign}${Math.abs(pct).toFixed(2)}%</span>`;

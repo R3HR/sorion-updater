@@ -1,0 +1,50 @@
+// SORION FMV v3 — "sellable FMV"
+// Ziel: Wer eine Karte zum FMV listet, soll sie zu diesem Preis auch verkaufen können.
+//
+// Prinzipien:
+// 1. Zeit-Decay statt Index-Gewichten: ein Sale von vor 2 Stunden zählt fast voll,
+//    einer von vor 2 Wochen fast nichts — unabhängig davon, wie viele Sales dazwischen liegen.
+//    Damit reguliert sich Liquidität selbst: illiquide Karten stützen sich automatisch
+//    stärker auf den Floor.
+// 2. Floor (günstigstes AKTIVES Listing) als Anker mit festem Blend-Anteil.
+// 3. Sellability-Cap: Solange ein Angebot unter deinem Preis steht, verkauft deins nicht.
+//    FMV darf daher max. 5 % über dem aktuellen Floor liegen.
+
+const HALF_LIFE_DAYS = 3;    // Gewicht eines Sales halbiert sich alle 3 Tage
+const MAX_AGE_DAYS   = 21;   // Sales älter als 3 Wochen werden ignoriert
+const FLOOR_BLEND    = 0.35; // Anteil des Floors am Blend
+const SELL_CAP       = 1.05; // FMV ≤ Floor × 1,05
+
+/**
+ * @param {{date: string, eur: number}[]} sales   letzte Verkäufe, neueste zuerst
+ * @param {number|null} floorPrice                günstigstes aktives Listing (EUR)
+ * @param {number} [now]                          Zeitstempel (ms), default Date.now()
+ * @returns {number|null} FMV in EUR oder null wenn keinerlei Daten
+ */
+export function calculateFMV(sales, floorPrice, now = Date.now()) {
+  let entries = (sales || [])
+    .filter(s => s && s.eur > 0)
+    .map(s => {
+      const ageDays = Math.max(0, (now - new Date(s.date).getTime()) / 86400000);
+      return { v: s.eur, w: Math.pow(0.5, ageDays / HALF_LIFE_DAYS), age: ageDays };
+    })
+    .filter(e => e.age <= MAX_AGE_DAYS);
+
+  // Ausreißer trimmen (je 1× höchster und niedrigster Wert), erst ab 5 Datenpunkten
+  if (entries.length >= 5) {
+    entries.sort((a, b) => a.v - b.v);
+    entries = entries.slice(1, -1);
+  }
+
+  const hasFloor = typeof floorPrice === 'number' && floorPrice > 0;
+
+  if (!entries.length) return hasFloor ? floorPrice : null;
+
+  const totalW     = entries.reduce((s, e) => s + e.w, 0);
+  const salesValue = entries.reduce((s, e) => s + e.v * e.w, 0) / totalW;
+
+  if (!hasFloor) return salesValue;
+
+  const blended = FLOOR_BLEND * floorPrice + (1 - FLOOR_BLEND) * salesValue;
+  return Math.min(blended, floorPrice * SELL_CAP);
+}
