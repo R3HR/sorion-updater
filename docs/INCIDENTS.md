@@ -11,7 +11,7 @@
 - **Betroffen:**
   - Supabase **service_role** JWT hardcodiert in `supabase/functions/get-pool/index.ts`, `update-pool/index.ts`, `update-prices/index.ts` — dieser Key umgeht Row-Level-Security komplett (DB-Vollzugriff: lesen, schreiben, löschen)
   - Sorare **OAuth Client Secret** hardcodiert in `supabase/functions/sorare-oauth/index.ts` (+ Kopien `C:\craft-log\index.ts`, `Sorion_pro/sorare-oauth.ts`)
-  - Beides liegt in der **Git-History** von `github.com/R3HR/sorion-updater` — Löschen aus dem Code allein reicht NICHT
+  - **Git-History-Analyse (2026-07-06):** Der service_role-Key liegt in der GitHub-History (Initial Commit `0054ce9`, `update.mjs` — abrufbar via `git show 0054ce9:update.mjs`). Ursache: Erste Prototyp-Version mit gepasteten Credentials; Commit `2547094 "move keys to env vars"` hat nur die Dateien gefixt, nicht die History. Das Sorare Client Secret war dagegen **nie auf GitHub** (nur lokale Dateien + Supabase-Deployment) → geringeres Risiko, Rotation trotzdem empfohlen
 - **Risiko:** Jeder mit Repo-Zugriff (oder bei public Repo: jeder) kann die komplette DB manipulieren/löschen und sich als die Sorare-OAuth-App ausgeben.
 - **Fix Code-Seite:** ✅ 2026-07-06 — alle Functions nutzen jetzt `Deno.env.get('SERVICE_ROLE_KEY')` bzw. `Deno.env.get('SORARE_CLIENT_SECRET')`
 - **Fix durch Jonas (OFFEN):**
