@@ -26,14 +26,16 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 - `update-prices` Edge Function ist jetzt Metadaten-only (Tier/Team/Liga/Supply, kein FMV mehr) mit dynamischem Saisonjahr
 - ⚠️ SQL-Migration vom 06.07. wurde NIE ausgeführt (per DB-Probe verifiziert 21.07.) → ersetzt durch `migrations/2026-07-21_eligibility_and_changes.sql` (enthält alles)
 
-## ⚠️ Offene Aktionen für Jonas (manuell, blockierend)
+## ⚠️ Offene Aktionen für Jonas
 
-0. **Railway-Service-Configs identifizieren:** Es gibt ZWEI Config-Sets im Repo — Root (`railway-limited.toml` etc.) und Ordner (`limited/railway.toml` etc., mit eigenem Root Directory). Die Ordner-Configs hatten den neueren Cron (16–20 Uhr) → vermutlich sind DIE live, d. h. Pushes auf die Root-Scripts kamen nie an! Beide Sets sind jetzt identisch korrekt (Script: `update-scarcity.mjs` + `lib/fmv.mjs`). In Railway pro Service unter Settings → „Root Directory" + „Config File Path" nachsehen, das ungenutzte Set danach löschen. ⚠️ Bei Ordner-Setup: `lib/fmv.mjs` existiert als Kopie in jedem Ordner — bis zur Auflösung müssen Änderungen an der Formel in alle Kopien synct werden (`cp lib/fmv.mjs <dir>/lib/`).
-1. **SQL-Migration ausführen** (Supabase → SQL Editor): `migrations/2026-07-21_eligibility_and_changes.sql` — DER Blocker: schaltet Prozente UND Classic frei (legt per Backfill ~16.700 Classic-Zeilen mit `updated_at=epoch` an). Scripts/UI laufen bis dahin im Alt-Modus (nur in_season, keine Prozente, Classic-Tab leer). Die alte Datei `2026-07-06_add_change_columns.sql` NICHT mehr ausführen — ist vollständig in der neuen enthalten
-2. **Keys rotieren** — siehe [INCIDENTS.md](INCIDENTS.md) SEC-001 (Service-Role-Key + Sorare Client Secret waren im Klartext in Git)
-3. **Edge Functions neu deployen** nach Secret-Setup: `supabase functions deploy get-pool update-pool update-prices sorare-oauth add-missing-players`
-4. **Railway prüfen**: existiert noch ein alter Service der `railway.toml` / `update.mjs` nutzt? → löschen (Dateien wurden entfernt)
-5. **Seed-Service in Railway anlegen** (Config: `railway-seed.toml`, Env-Vars wie bei den anderen Services)
+**Am 21.07. erledigt:** SQL-Migration ✅ · Keys auf neue sb_-Keys umgestellt + Legacy disabled (SEC-001 ✅) · alle 5 Edge Functions deployed ✅ · Railway-Configs auf Root-tomls umgestellt (Config File Path gesetzt) ✅ · Harvester-Service angelegt ✅ · Sorare-API-Key aktiv (200 req/min) ✅
+
+**Noch offen:**
+1. `legal.html`-Platzhalter füllen (Name/Adresse/E-Mail/Hoster/Region) — in `sorion-ui` UND `Craft_log` Repo, danach pushen
+2. Ordner `limited/`, `rare/`, `sr/` im Repo löschen (Config File Paths zeigen jetzt verifiziert auf die Root-tomls — Ordner-Set ist tot; vorher 1 Nacht Betrieb abwarten)
+3. Alten Offline-Service „Sorion-Updater" (Terminal-Icon) in Railway löschen, falls noch vorhanden
+4. Sorare-OAuth-App: auf welchem Account liegt sie? (Für spätere Secret-Rotation; aktuell läuft das alte, nie geleakte Secret)
+5. Optional: `DELAY_MS` bei den 3 Updater-Services von 1500 auf 500 (Tempo ~58→~90 Zeilen/Min)
 
 ## TODO (priorisiert, Saisonstart August 2026)
 
