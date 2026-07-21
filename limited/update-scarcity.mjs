@@ -16,8 +16,10 @@ const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
 const SORARE_API   = 'https://api.sorare.com/graphql';
 
 const supabase   = createClient(SUPABASE_URL, SERVICE_KEY);
-const BATCH_SIZE = 200;
-const DELAY_MS   = 200;
+// Rate-Limit-Schonung: ~21 Sorare-Calls/Min statt Burst. Über Railway-Env-Vars
+// justierbar (mit API-Key später: DELAY_MS runter, BATCH_SIZE rauf).
+const BATCH_SIZE = parseInt(process.env.BATCH_SIZE ?? '90', 10);
+const DELAY_MS   = parseInt(process.env.DELAY_MS ?? '2800', 10);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 

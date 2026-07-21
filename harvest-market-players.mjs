@@ -18,7 +18,7 @@ const HOURS        = process.env.HARVEST_HOURS ? parseInt(process.env.HARVEST_HO
 const supabase  = createClient(SUPABASE_URL, SERVICE_KEY);
 const PAGE_SIZE = 50;
 const MAX_PAGES = 600;
-const DELAY_MS  = 300;
+const DELAY_MS  = parseInt(process.env.DELAY_MS ?? '1500', 10); // ~40 Calls/Min, rate-limit-schonend
 
 const CARD_RE = /^(.+)-(\d{4})-(limited|rare|super[-_]rare|unique)-(\d+)$/;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
