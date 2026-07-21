@@ -59,4 +59,5 @@
   3. index.html machte nach dem Callback einen eigenen Login mit **abgeleitetem Passwort** (`sorare_<slug>_craftlog`) — genau die Lücke, die die Härtung schließt (Zufallspasswort pro Login). Die gültige Session aus dem Callback wurde ignoriert, weil `sb_user` nie gespeichert wurde
 - **Fix:** apikey-Header ergänzt; Callback sendet `access_token` mit, speichert die komplette Session (`sb_token`/`sb_refresh`/`sb_user`) und wirft bei fehlender Session einen Fehler statt „erfolgreich"; index.html übernimmt die Session direkt, Passwort-Ableitung nur noch toter Fallback.
 - **Lektion:** Halbe Deployments vermeiden — die gehärtete Function lag wochenlang lokal ohne Deploy UND ohne Frontend-Anpassung. Function-Contract-Änderungen immer zusammen mit den Clients ausrollen.
-- **Status:** ✅ behoben 2026-07-21 (Repo `R3HR/Craft_log`)
+- **Nachtrag:** Ursache 4 — `get-analytics` + `sorare-proxy` hatten ebenfalls hardcodierte Legacy-Keys, standen aber nie auf der SEC-001-Deploy-Liste → seit Key-Disable tot, Crafts-Laden schlug fehl. 21.07. auf Deno.env umgestellt + deployed. Jetzt alle 7 Functions sauber.
+- **Status:** ✅ behoben 2026-07-21 (Repo `R3HR/Craft_log` + Functions)
