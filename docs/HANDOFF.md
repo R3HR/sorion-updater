@@ -96,3 +96,13 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 - **Stufe 1 ✅ (22.07.):** Portfolio zeigt pro Karte Kaufpreis/-datum/-art (öffentlich via `tokenOwner` — amounts/from/transferType), P&L seit Kauf, Stats Investiert/P&L. SHARDS=gecraftet, REWARD=Reward. Achtung: user_cards-Query kostet ~12 Complexity/Karte → anonym max ~35/Seite (Limit 500); mit `SORARE_APIKEY` als Supabase-Secret 50/Seite (Limit 30.000) — Secret setzen: `npx supabase secrets set SORARE_APIKEY=<key>`
 - **Stufe 2 (offen):** Watchlist + Zielpreise clientseitig (localStorage), „Ziel erreicht"-Badges beim Seitenbesuch. Kein Backend nötig
 - **Stufe 3 (offen, braucht eigene OAuth-App auf Jonas' Account):** Accounts, serverseitige Watchlist/Ziele, Notifications (Vorschlag: Telegram-Bot + Railway-Cron der Ziele gegen fmv prüft). OAuth-App mit BEIDEN Redirect-URIs (craftlog.pro + sorion.pro) anfordern → löst auch die verwaiste Alt-App (SEC-001-Rest)
+
+## Sorion-Accounts (22.07.) — Code fertig, 2 manuelle Schritte offen
+
+**Entscheidung:** Sorion bekommt eigene Accounts (E-Mail+Passwort via Supabase Auth, unabhängig vom Sorare-OAuth). CraftLog bleibt simpel mit Sorare-Login.
+
+**Gebaut:** `profile.html` (Signup mit Datenschutz-Checkbox, Login, Passwort-Reset per Mail, Passwort/E-Mail ändern, Profildaten inkl. Sorare-Slug, DSGVO-Datenexport als JSON, zweifach bestätigte Konto-Löschung via `delete-account`-Function mit CASCADE). Portfolio nutzt den Profil-Slug automatisch. Datenschutzerklärung um Konto-Abschnitt (5a) ergänzt. Tabellen: `profiles` + `watchlist` (mit RLS, nur eigene Zeilen) — Watchlist ist die Basis für Stufe 2/3.
+
+**⚠️ Manuelle Schritte (Jonas):**
+1. `migrations/2026-07-22_profiles.sql` im SQL Editor ausführen — vorher funktioniert die Profilseite nicht (profiles-Tabelle fehlt)
+2. Supabase → Authentication → URL Configuration: **Site URL** `https://sorion.pro`, **Redirect URLs** `https://sorion.pro/profile.html` hinzufügen — sonst führen Bestätigungs-/Reset-Mails ins Leere. Dabei prüfen: „Confirm email" aktiv (empfohlen, Double-Opt-In)
