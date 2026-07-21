@@ -79,7 +79,7 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 - **Update-Queue**: Scripts nehmen die 200 Spieler mit ältestem `updated_at`. Seed setzt `updated_at = epoch(1970)` → neue Spieler kommen sofort dran
 - **price_history**: 1 Zeile pro Spieler+Scarcity+Tag (Upsert auf `recorded_at`-Datum)
 - **Railway**: Config-as-Code via `railway-*.toml` pro Service (Config File Path in Service-Settings). `cronSchedule` + `restartPolicyType=never`
-- **FMV-Historie**: v1 = Index-Gewichte 0.12/0.10/..., v2 (2026-07-06 vormittags) = steilere Gewichte 0.22/0.18/..., v3 (2026-07-06) = Zeit-Decay + Cap in `lib/fmv.mjs`
+- **FMV-Historie**: v1 = Index-Gewichte 0.12/0.10/..., v2 (2026-07-06 vormittags) = steilere Gewichte 0.22/0.18/..., v3 (2026-07-06) = Zeit-Decay + Cap in `lib/fmv.mjs`; seit 21.07. mit CLASSIC_PROFILE (Halbwertszeit 14d, Fenster 90d) für den trägen Classic-Markt
 - **CraftLog** liest Sammlung via OAuth (`sorare-oauth` Edge Function), max 60 Seiten Pagination
 
 ## Regeln
