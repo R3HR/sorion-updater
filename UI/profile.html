@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORION — Profil</title>
+<link href="fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d1a; --surface: #13131f; --surface2: #1a1a2e; --border: #2a2a45;
+    --purple: #b060ff; --cyan: #00f5ff; --text: #e8e8ff; --text2: #9090c0;
+    --up: #00f5a0; --down: #ff2d78; --limited: #ffb830;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; min-height: 100vh; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 32px 20px 80px; }
+  a { color: var(--purple); }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 10px; }
+  .logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 20px; text-decoration: none; color: var(--text); }
+  .logo span { color: var(--purple); }
+  nav a { font-family: 'Share Tech Mono', monospace; font-size: 12px; margin-left: 14px; text-decoration: none; color: var(--text2); }
+  nav a:hover { color: var(--text); }
+  h1 { font-family: 'Orbitron', monospace; font-size: 18px; margin-bottom: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-family: 'Orbitron', monospace; font-size: 13px; color: var(--purple); margin-bottom: 14px; }
+  label { display: block; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); margin: 10px 0 4px; }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px 12px; color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 13px;
+  }
+  input:focus { outline: none; border-color: var(--purple); }
+  button {
+    background: var(--purple); color: #0d0d1a; border: none; border-radius: 6px; padding: 10px 18px;
+    font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; cursor: pointer; margin-top: 12px;
+  }
+  button:hover { filter: brightness(1.15); }
+  button.ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  button.danger { background: var(--down); color: #fff; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { flex: 1; text-align: center; padding: 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-family: 'Orbitron', monospace; font-size: 12px; cursor: pointer; color: var(--text2); }
+  .tab.active { border-color: var(--purple); color: var(--text); background: var(--surface2); }
+  .msg { font-family: 'Share Tech Mono', monospace; font-size: 12px; margin-top: 10px; min-height: 16px; }
+  .msg.ok { color: var(--up); } .msg.err { color: var(--down); }
+  .hint { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .checkbox-row { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; }
+  .checkbox-row input { margin-top: 3px; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .footer { text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="index.html">SORION<span>_</span></a>
+    <nav>
+      <a href="index.html">Market</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="profile.html" style="color:var(--text)">Profil</a>
+    </nav>
+  </header>
+
+  <!-- ── Auth (nicht eingeloggt) ─────────────────────────────── -->
+  <div id="auth-view" style="display:none">
+    <h1>// Konto</h1>
+    <div class="tabs">
+      <div class="tab active" id="tab-login" onclick="switchTab('login')">Einloggen</div>
+      <div class="tab" id="tab-signup" onclick="switchTab('signup')">Registrieren</div>
+    </div>
+
+    <div class="card" id="login-card">
+      <label>E-Mail</label>
+      <input type="email" id="login-email" autocomplete="email">
+      <label>Passwort</label>
+      <input type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button onclick="doLogin()">Einloggen</button>
+      <button class="ghost" onclick="doReset()">Passwort vergessen</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+
+    <div class="card" id="signup-card" style="display:none">
+      <label>E-Mail</label>
+      <input type="email" id="su-email" autocomplete="email">
+      <label>Passwort (min. 8 Zeichen)</label>
+      <input type="password" id="su-pass" autocomplete="new-password">
+      <div class="checkbox-row">
+        <input type="checkbox" id="su-privacy">
+        <span class="hint">Ich habe die <a href="legal.html" target="_blank">Datenschutzerklärung</a> gelesen und bin mit der Verarbeitung meiner E-Mail-Adresse zum Betrieb des Kontos einverstanden.</span>
+      </div>
+      <button onclick="doSignup()">Konto anlegen</button>
+      <div class="msg" id="su-msg"></div>
+      <div class="hint" style="margin-top:8px">Wir speichern nur deine E-Mail-Adresse und die Profildaten, die du selbst einträgst. Keine Weitergabe an Dritte, Löschung jederzeit mit einem Klick.</div>
+    </div>
+  </div>
+
+  <!-- ── Passwort-Reset (Recovery-Link) ──────────────────────── -->
+  <div id="recovery-view" style="display:none">
+    <h1>// Neues Passwort setzen</h1>
+    <div class="card">
+      <label>Neues Passwort (min. 8 Zeichen)</label>
+      <input type="password" id="rec-pass" autocomplete="new-password">
+      <button onclick="doRecoverySet()">Passwort speichern</button>
+      <div class="msg" id="rec-msg"></div>
+    </div>
+  </div>
+
+  <!-- ── Profil (eingeloggt) ─────────────────────────────────── -->
+  <div id="profile-view" style="display:none">
+    <h1>// Mein Profil</h1>
+
+    <div class="card">
+      <h2>Profildaten</h2>
+      <div class="hint" id="pr-email-line"></div>
+      <label>Anzeigename</label>
+      <input type="text" id="pr-name" maxlength="40">
+      <label>Sorare-Managername (für dein Portfolio)</label>
+      <input type="text" id="pr-slug" placeholder="z. B. jr3hr" spellcheck="false">
+      <button onclick="saveProfile()">Speichern</button>
+      <button class="ghost" onclick="openPortfolio()">→ Mein Portfolio öffnen</button>
+      <div class="msg" id="pr-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Sicherheit</h2>
+      <label>Neues Passwort</label>
+      <input type="password" id="sec-pass" autocomplete="new-password">
+      <button onclick="changePassword()">Passwort ändern</button>
+      <div class="divider"></div>
+      <label>Neue E-Mail-Adresse</label>
+      <input type="email" id="sec-email" autocomplete="email">
+      <button onclick="changeEmail()">E-Mail ändern</button>
+      <div class="hint" style="margin-top:6px">Du bekommst Bestätigungs-Mails an die alte und neue Adresse.</div>
+      <div class="msg" id="sec-msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Deine Daten (DSGVO)</h2>
+      <div class="hint">Exportiere alle bei uns gespeicherten Daten als JSON (Art. 20 DSGVO) oder lösche dein Konto vollständig und unwiderruflich (Art. 17 DSGVO) — inklusive Profil und Watchlist.</div>
+      <button class="ghost" onclick="exportData()">Daten exportieren</button>
+      <button class="danger" onclick="deleteAccount()">Konto endgültig löschen</button>
+      <div class="msg" id="data-msg"></div>
+    </div>
+
+    <button class="ghost" onclick="doLogout()">Ausloggen</button>
+  </div>
+
+  <div class="footer">
+    Not affiliated with Sorare · <a href="legal.html">Impressum &amp; Datenschutz</a>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
+  const ANON_KEY     = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+  const REDIRECT     = 'https://sorion.pro/profile.html';
+
+  // ── Session-Verwaltung ──────────────────────────────────────
+  function getSession() { try { return JSON.parse(localStorage.getItem('sorion_session')); } catch { return null; } }
+  function setSession(s) {
+    if (!s?.access_token) return;
+    localStorage.setItem('sorion_session', JSON.stringify({
+      access_token: s.access_token, refresh_token: s.refresh_token,
+      expires_at: Math.floor(Date.now() / 1000) + (s.expires_in ?? 3600) - 60,
+    }));
+  }
+  function clearSession() { localStorage.removeItem('sorion_session'); }
+
+  async function ensureSession() {
+    let s = getSession();
+    if (!s) return null;
+    if (s.expires_at > Math.floor(Date.now() / 1000)) return s;
+    // Refresh
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+      body: JSON.stringify({ refresh_token: s.refresh_token }),
+    });
+    const data = await res.json();
+    if (data.access_token) { setSession(data); return getSession(); }
+    clearSession(); return null;
+  }
+
+  async function authFetch(path, opts = {}) {
+    const s = await ensureSession();
+    if (!s) throw new Error('Nicht eingeloggt');
+    return fetch(`${SUPABASE_URL}${path}`, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${s.access_token}`, ...(opts.headers ?? {}) },
+    });
+  }
+
+  function msg(id, text, ok = false) {
+    const el = document.getElementById(id);
+    el.textContent = text; el.className = `msg ${ok ? 'ok' : 'err'}`;
+  }
+
+  // ── Views ───────────────────────────────────────────────────
+  function show(view) {
+    for (const v of ['auth-view', 'recovery-view', 'profile-view'])
+      document.getElementById(v).style.display = v === view ? 'block' : 'none';
+  }
+  function switchTab(t) {
+    document.getElementById('tab-login').classList.toggle('active', t === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', t === 'signup');
+    document.getElementById('login-card').style.display  = t === 'login'  ? 'block' : 'none';
+    document.getElementById('signup-card').style.display = t === 'signup' ? 'block' : 'none';
+  }
+
+  // ── Auth-Aktionen ───────────────────────────────────────────
+  async function doSignup() {
+    if (!document.getElementById('su-privacy').checked) { msg('su-msg', 'Bitte Datenschutzerklärung bestätigen'); return; }
+    const email = document.getElementById('su-email').value.trim();
+    const pass  = document.getElementById('su-pass').value;
+    if (pass.length < 8) { msg('su-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(REDIRECT)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const data = await res.json();
+    if (!res.ok) { msg('su-msg', data.msg || data.error_description || 'Registrierung fehlgeschlagen'); return; }
+    if (data.access_token) { setSession(data); await enterProfile(); }
+    else msg('su-msg', 'Fast geschafft — bitte bestätige den Link in deiner E-Mail.', true);
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pass  = document.getElementById('login-pass').value;
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+      body: JSON.stringify({ email, password: pass }),
+    });
+    const data = await res.json();
+    if (!data.access_token) { msg('login-msg', data.error_description || data.msg || 'Login fehlgeschlagen'); return; }
+    setSession(data);
+    await enterProfile();
+  }
+
+  async function doReset() {
+    const email = document.getElementById('login-email').value.trim();
+    if (!email) { msg('login-msg', 'E-Mail oben eintragen, dann erneut klicken'); return; }
+    await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(REDIRECT)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+      body: JSON.stringify({ email }),
+    });
+    msg('login-msg', 'Falls die Adresse existiert, ist eine Reset-Mail unterwegs.', true);
+  }
+
+  async function doRecoverySet() {
+    const pass = document.getElementById('rec-pass').value;
+    if (pass.length < 8) { msg('rec-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
+    const res = await authFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pass }) });
+    if (res.ok) { msg('rec-msg', 'Passwort gesetzt — du bist eingeloggt.', true); setTimeout(enterProfile, 800); }
+    else msg('rec-msg', 'Fehlgeschlagen — Link evtl. abgelaufen, bitte neu anfordern.');
+  }
+
+  async function doLogout() {
+    try { await authFetch('/auth/v1/logout', { method: 'POST' }); } catch {}
+    clearSession();
+    show('auth-view');
+  }
+
+  // ── Profil ──────────────────────────────────────────────────
+  let currentUser = null;
+
+  async function enterProfile() {
+    const res = await authFetch('/auth/v1/user');
+    if (!res.ok) { clearSession(); show('auth-view'); return; }
+    currentUser = await res.json();
+    document.getElementById('pr-email-line').textContent = `Eingeloggt als ${currentUser.email}`;
+    // Profilzeile laden (oder anlegen)
+    const pRes = await authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}&select=*`);
+    const rows = await pRes.json();
+    if (Array.isArray(rows) && rows.length) {
+      document.getElementById('pr-name').value = rows[0].display_name ?? '';
+      document.getElementById('pr-slug').value = rows[0].sorare_slug ?? '';
+    } else {
+      await authFetch('/rest/v1/profiles', { method: 'POST', body: JSON.stringify({ user_id: currentUser.id }) });
+    }
+    show('profile-view');
+  }
+
+  async function saveProfile() {
+    const body = {
+      display_name: document.getElementById('pr-name').value.trim() || null,
+      sorare_slug:  document.getElementById('pr-slug').value.trim().toLowerCase() || null,
+      updated_at:   new Date().toISOString(),
+    };
+    const res = await authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    if (res.ok && body.sorare_slug) localStorage.setItem('sorion_manager', body.sorare_slug); // Portfolio merkt sich den Manager
+    msg('pr-msg', res.ok ? 'Gespeichert ✓' : 'Speichern fehlgeschlagen', res.ok);
+  }
+
+  function openPortfolio() {
+    const slug = document.getElementById('pr-slug').value.trim().toLowerCase();
+    if (!slug) { msg('pr-msg', 'Erst Sorare-Managernamen eintragen'); return; }
+    window.location.href = `portfolio.html?manager=${encodeURIComponent(slug)}`;
+  }
+
+  async function changePassword() {
+    const pass = document.getElementById('sec-pass').value;
+    if (pass.length < 8) { msg('sec-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
+    const res = await authFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pass }) });
+    msg('sec-msg', res.ok ? 'Passwort geändert ✓' : 'Fehlgeschlagen', res.ok);
+    if (res.ok) document.getElementById('sec-pass').value = '';
+  }
+
+  async function changeEmail() {
+    const email = document.getElementById('sec-email').value.trim();
+    if (!email) { msg('sec-msg', 'Neue E-Mail eintragen'); return; }
+    const res = await authFetch(`/auth/v1/user?redirect_to=${encodeURIComponent(REDIRECT)}`, { method: 'PUT', body: JSON.stringify({ email }) });
+    msg('sec-msg', res.ok ? 'Bestätigungs-Mails verschickt ✓' : 'Fehlgeschlagen', res.ok);
+  }
+
+  // ── DSGVO ───────────────────────────────────────────────────
+  async function exportData() {
+    const [uRes, pRes, wRes] = await Promise.all([
+      authFetch('/auth/v1/user'),
+      authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}&select=*`),
+      authFetch(`/rest/v1/watchlist?user_id=eq.${currentUser.id}&select=*`),
+    ]);
+    const payload = {
+      exported_at: new Date().toISOString(),
+      account:   await uRes.json(),
+      profile:   await pRes.json(),
+      watchlist: await wRes.json(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sorion-datenexport-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    msg('data-msg', 'Export heruntergeladen ✓', true);
+  }
+
+  async function deleteAccount() {
+    if (!confirm('Konto wirklich ENDGÜLTIG löschen? Profil und Watchlist werden unwiderruflich entfernt.')) return;
+    if (!confirm('Letzte Sicherheitsfrage: Es gibt kein Zurück. Löschen?')) return;
+    const res = await authFetch('/functions/v1/delete-account', { method: 'POST', body: '{}' });
+    const data = await res.json();
+    if (data.deleted) {
+      clearSession();
+      alert('Dein Konto wurde gelöscht. Danke, dass du dabei warst.');
+      window.location.href = 'index.html';
+    } else {
+      msg('data-msg', data.error || 'Löschen fehlgeschlagen');
+    }
+  }
+
+  // ── Init: Hash-Redirects (Bestätigung/Recovery) verarbeiten ─
+  async function init() {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    if (hash.get('access_token')) {
+      setSession({
+        access_token: hash.get('access_token'),
+        refresh_token: hash.get('refresh_token'),
+        expires_in: parseInt(hash.get('expires_in') ?? '3600', 10),
+      });
+      const type = hash.get('type');
+      window.history.replaceState({}, '', window.location.pathname);
+      if (type === 'recovery') { show('recovery-view'); return; }
+    }
+    const s = await ensureSession();
+    if (s) await enterProfile();
+    else show('auth-view');
+  }
+  init();
+</script>
+</body>
+</html>

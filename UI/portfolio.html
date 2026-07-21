@@ -507,6 +507,7 @@
     <nav class="nav-links">
       <a class="nav-link" href="https://sorion.pro">Market</a>
       <a class="nav-link active" href="#">Portfolio</a>
+      <a class="nav-link" href="profile.html">Profil</a>
       <a class="nav-link" href="https://craftlog.pro">Craft_LOG</a>
       <button class="nav-cta" id="btn-logout" onclick="logout()" style="display:none">Logout</button>
       <button class="nav-cta" id="btn-connect" onclick="loginWithSorare()">Connect Sorare</button>
@@ -633,7 +634,9 @@
   }
 
   async function init() {
-    const slug = new URLSearchParams(window.location.search).get('manager');
+    // Reihenfolge: URL-Parameter → gemerkter Manager (auch vom Sorion-Profil gesetzt) → Eingabemaske
+    const slug = new URLSearchParams(window.location.search).get('manager')
+              || localStorage.getItem('sorion_manager');
     if (slug) showPortfolio(slug.toLowerCase()); else showLogin();
   }
 
