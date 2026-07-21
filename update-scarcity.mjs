@@ -11,9 +11,12 @@ if (!['limited', 'rare', 'super_rare'].includes(SCARCITY)) {
   process.exit(1);
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
-const SORARE_API   = 'https://api.sorare.com/graphql';
+const SUPABASE_URL  = process.env.SUPABASE_URL;
+const SERVICE_KEY   = process.env.SUPABASE_SERVICE_KEY;
+const SORARE_API    = 'https://api.sorare.com/graphql';
+// Offizieller Sorare-API-Key (optional): hebt Rate-Limit auf bis zu 600 req/min
+const SORARE_APIKEY = process.env.SORARE_APIKEY ?? null;
+const sorareHeaders = { 'Content-Type': 'application/json', ...(SORARE_APIKEY ? { 'APIKEY': SORARE_APIKEY } : {}) };
 
 const supabase   = createClient(SUPABASE_URL, SERVICE_KEY);
 // Rate-Limit-Schonung: ~21 Sorare-Calls/Min statt Burst. Über Railway-Env-Vars
@@ -47,7 +50,7 @@ async function fetchData(playerSlug, eligibility) {
     try {
       const res = await fetch(SORARE_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: sorareHeaders,
         body: JSON.stringify({ query }),
       });
       if (res.status === 429) {

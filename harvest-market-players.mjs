@@ -19,6 +19,8 @@ const supabase  = createClient(SUPABASE_URL, SERVICE_KEY);
 const PAGE_SIZE = 50;
 const MAX_PAGES = 600;
 const DELAY_MS  = parseInt(process.env.DELAY_MS ?? '1500', 10); // ~40 Calls/Min, rate-limit-schonend
+const SORARE_APIKEY = process.env.SORARE_APIKEY ?? null;
+const sorareHeaders = { 'Content-Type': 'application/json', ...(SORARE_APIKEY ? { 'APIKEY': SORARE_APIKEY } : {}) };
 
 const CARD_RE = /^(.+)-(\d{4})-(limited|rare|super[-_]rare|unique)-(\d+)$/;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -27,7 +29,7 @@ async function gql(query) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(SORARE_API, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: sorareHeaders,
       body: JSON.stringify({ query }),
     });
     if (res.status === 429) { await sleep(30000 * (attempt + 1)); continue; }
