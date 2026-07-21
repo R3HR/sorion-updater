@@ -41,41 +41,53 @@ async function gql(query) {
   throw new Error('rate limited');
 }
 
-// ── 1) Listings-Feed durchgehen, (slug, scarcity) sammeln ─────────────────────
-async function sweepListings() {
+// ── 1) Markt-Feeds durchgehen, (slug, scarcity) sammeln ───────────────────────
+// Zwei Quellen: liveSingleSaleOffers (Sekundärmarkt, 8-Tage-Fenster) und
+// liveAuctions (Primärmarkt, 10-Tage-Fenster) — über Auktionen kommen die
+// NEUEN Saison-Karten etappenweise auf den Markt (26/27-Release!).
+function collectCards(found, cards) {
+  for (const c of cards ?? []) {
+    const m = c.slug.match(CARD_RE);
+    if (!m) continue;
+    const scarcity = m[3].replace('-', '_'); // super-rare → super_rare
+    if (scarcity === 'unique') continue;     // tracken wir nicht
+    found.add(`${m[1]}|${scarcity}`);
+  }
+}
+
+async function sweepFeed(found, { field, cardsOf }) {
   const updatedAfter = HOURS ? `updatedAfter: "${new Date(Date.now() - HOURS * 3600000).toISOString()}"` : '';
-  const found = new Set(); // "slug|scarcity"
   let cursor = null, pages = 0;
 
   while (pages < MAX_PAGES) {
     const q = `{
       tokens {
-        liveSingleSaleOffers(first: ${PAGE_SIZE}, sport: FOOTBALL ${updatedAfter} ${cursor ? `after: "${cursor}"` : ''}) {
+        ${field}(first: ${PAGE_SIZE}, sport: FOOTBALL ${updatedAfter} ${cursor ? `after: "${cursor}"` : ''}) {
           pageInfo { hasNextPage endCursor }
-          edges { node { senderSide { anyCards { slug } } } }
+          edges { node { ${cardsOf} } }
         }
       }
     }`;
     let conn;
-    try { conn = (await gql(q)).tokens.liveSingleSaleOffers; }
-    catch (e) { console.warn(`Page ${pages + 1} failed: ${e.message}`); break; }
+    try { conn = (await gql(q)).tokens[field]; }
+    catch (e) { console.warn(`${field} page ${pages + 1} failed: ${e.message}`); break; }
 
     for (const { node } of conn.edges) {
-      for (const c of node.senderSide.anyCards) {
-        const m = c.slug.match(CARD_RE);
-        if (!m) continue;
-        const scarcity = m[3].replace('-', '_'); // super-rare → super_rare
-        if (scarcity === 'unique') continue;     // tracken wir nicht
-        found.add(`${m[1]}|${scarcity}`);
-      }
+      collectCards(found, node.senderSide?.anyCards ?? node.anyCards);
     }
     pages++;
-    if (pages % 25 === 0) console.log(`  Page ${pages}: ${found.size} unique (player, scarcity)`);
+    if (pages % 25 === 0) console.log(`  ${field} page ${pages}: ${found.size} unique`);
     if (!conn.pageInfo.hasNextPage) break;
     cursor = conn.pageInfo.endCursor;
     await sleep(DELAY_MS);
   }
-  console.log(`Sweep done: ${pages} pages, ${found.size} unique (player, scarcity)`);
+  console.log(`${field}: ${pages} pages → ${found.size} unique (player, scarcity) kumuliert`);
+}
+
+async function sweepListings() {
+  const found = new Set(); // "slug|scarcity"
+  await sweepFeed(found, { field: 'liveAuctions',         cardsOf: 'anyCards { slug }' });
+  await sweepFeed(found, { field: 'liveSingleSaleOffers', cardsOf: 'senderSide { anyCards { slug } }' });
   return found;
 }
 
