@@ -99,26 +99,31 @@ async function collectPlayers(scarcity) {
 }
 
 // ── Insert missing players into Supabase ──────────────────────────────────────
-async function insertMissing(players, scarcity) {
+// Nach der Eligibility-Migration bekommt jeder neue Spieler ZWEI Zeilen
+// (in_season + classic); davor wie bisher eine.
+async function insertMissing(players, scarcity, migrated) {
   if (!players.length) return { added: 0, skipped: 0 };
 
-  // Fetch existing slugs in batches of 200
-  const existingSlugs = new Set();
+  // Fetch existing rows in batches of 200 (Key: slug bzw. slug|eligibility)
+  const existing = new Set();
   const allSlugs = players.map(p => p.player_slug);
   for (let i = 0; i < allSlugs.length; i += 200) {
     const batch = allSlugs.slice(i, i + 200);
     const { data } = await supabase
       .from('card_prices')
-      .select('player_slug')
+      .select(migrated ? 'player_slug, eligibility' : 'player_slug')
       .eq('scarcity', scarcity)
       .in('player_slug', batch);
-    (data || []).forEach(r => existingSlugs.add(r.player_slug));
+    (data || []).forEach(r => existing.add(migrated ? `${r.player_slug}|${r.eligibility}` : r.player_slug));
   }
 
-  const missing = players.filter(p => !existingSlugs.has(p.player_slug));
-  console.log(`[${scarcity}] ${existingSlugs.size} already in DB, ${missing.length} to insert`);
+  const wanted = migrated
+    ? players.flatMap(p => [{ ...p, eligibility: 'in_season' }, { ...p, eligibility: 'classic' }])
+    : players;
+  const missing = wanted.filter(p => !existing.has(migrated ? `${p.player_slug}|${p.eligibility}` : p.player_slug));
+  console.log(`[${scarcity}] ${existing.size} rows already in DB, ${missing.length} to insert`);
 
-  if (!missing.length) return { added: 0, skipped: players.length };
+  if (!missing.length) return { added: 0, skipped: wanted.length };
 
   // Insert in batches
   let added = 0;
@@ -145,11 +150,14 @@ async function insertMissing(players, scarcity) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`[${new Date().toISOString()}] Starting full player seed...`);
+  const probe = await supabase.from('card_prices').select('eligibility').limit(1);
+  const migrated = !probe.error;
+  console.log(migrated ? 'Eligibility-Modus: in_season + classic Zeilen' : 'Alt-Modus: nur eine Zeile pro Spieler (Migration fehlt)');
   const summary = [];
 
   for (const scarcity of SCARCITIES) {
     const players = await collectPlayers(scarcity);
-    const result  = await insertMissing(players, scarcity);
+    const result  = await insertMissing(players, scarcity, migrated);
     summary.push({ scarcity, total: players.length, ...result });
     await sleep(500);
   }

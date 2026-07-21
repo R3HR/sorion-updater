@@ -1182,6 +1182,9 @@
       <button class="filter-btn rar" id="btn-rar" onclick="setScarcity('rare')">◆ Rare</button>
       <button class="filter-btn sr"  id="btn-sr"  onclick="setScarcity('super_rare')">◆ SR</button>
       <button class="filter-btn"    id="btn-all" onclick="setScarcity('all')">All</button>
+      <span style="width:1px;background:var(--border);margin:0 4px"></span>
+      <button class="filter-btn active" id="btn-inseason" onclick="setEligibility('in_season')">In-Season</button>
+      <button class="filter-btn"        id="btn-classic"  onclick="setEligibility('classic')">Classic</button>
     </div>
     <div class="updated-at" id="updated-at"></div>
   </div>
@@ -1228,6 +1231,19 @@
   let allData = [], filtered = [], sortKey = 'fmv', sortDir = -1, currentPage = 1;
   const PAGE_SIZE = 50;
   let scarcityFilter = 'limited';
+  let eligFilter = 'in_season'; // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
+
+  function rowElig(r) { return r.eligibility ?? 'in_season'; }
+
+  function setEligibility(e) {
+    eligFilter = e;
+    document.getElementById('btn-inseason').classList.toggle('active', e === 'in_season');
+    document.getElementById('btn-classic').classList.toggle('active', e === 'classic');
+    currentPage = 1;
+    filterData();
+    updateHeroStats();
+    renderMovers();
+  }
 
   async function loadData() {
     document.getElementById('table-body').innerHTML = skeletonRows();
@@ -1260,9 +1276,10 @@
   }
 
   function updateHeroStats() {
-    document.getElementById('stat-total').textContent = allData.length.toLocaleString();
-    const ltd = allData.filter(r => r.scarcity === 'limited' && r.fmv);
-    const rar = allData.filter(r => r.scarcity === 'rare' && r.fmv);
+    const eligData = allData.filter(r => rowElig(r) === eligFilter);
+    document.getElementById('stat-total').textContent = eligData.length.toLocaleString();
+    const ltd = eligData.filter(r => r.scarcity === 'limited' && r.fmv);
+    const rar = eligData.filter(r => r.scarcity === 'rare' && r.fmv);
     const avgLtd = ltd.length ? ltd.reduce((s,r) => s+r.fmv,0)/ltd.length : 0;
     const avgRar = rar.length ? rar.reduce((s,r) => s+r.fmv,0)/rar.length : 0;
     document.getElementById('stat-avg-ltd').textContent = avgLtd ? `€${avgLtd.toFixed(2)}` : '—';
@@ -1288,6 +1305,7 @@
   function filterTable() {
     const search = document.getElementById('search').value.toLowerCase().trim();
     filtered = allData.filter(r => {
+      if (rowElig(r) !== eligFilter) return false;
       if (scarcityFilter !== 'all' && r.scarcity !== scarcityFilter) return false;
       if (search && !r.player_name.toLowerCase().includes(search) &&
           !(r.team_name||'').toLowerCase().includes(search)) return false;
@@ -1475,7 +1493,7 @@
     if (!allData.length) return;
 
     // Always use allData filtered only by scarcity — never by search
-    const scarcityData = allData.filter(r => r.scarcity === scarcityFilter || scarcityFilter === 'all');
+    const scarcityData = allData.filter(r => (r.scarcity === scarcityFilter || scarcityFilter === 'all') && rowElig(r) === eligFilter);
     const withPct = scarcityData
       .filter(r => r.change_7d !== null && r.change_7d !== undefined)
       .map(r => ({ ...r, pct7d: r.change_7d }));
@@ -1555,7 +1573,8 @@
     document.getElementById('modal-team').textContent = `${r.team_name || ''} · ${r.league_name || ''}`;
     document.getElementById('modal-fmv').textContent  = r.fmv ? `€${r.fmv.toFixed(2)}` : '—';
     document.getElementById('modal-badges').innerHTML =
-      `<span class="sc-badge ${sc}">${scLabel}</span><span class="tier-badge">${tier}</span>`;
+      `<span class="sc-badge ${sc}">${scLabel}</span><span class="tier-badge">${tier}</span>` +
+      `<span class="tier-badge">${rowElig(r) === 'classic' ? 'Classic' : 'In-Season'}</span>`;
 
     document.getElementById('modal-grid').innerHTML = [
       ['Floor Price', r.floor_price ? `€${r.floor_price.toFixed(2)}` : '—'],
@@ -1616,16 +1635,20 @@
   const historyCache = {};
 
   async function loadHistory(playerSlug, scarcity) {
-    const key = `${playerSlug}_${scarcity}`;
+    // eligibility-Filter nur wenn die Spalte existiert (nach Migration);
+    // erkennbar daran, dass die geladenen card_prices-Zeilen das Feld haben
+    const hasElig = allData.length && allData[0].eligibility !== undefined;
+    const key = `${playerSlug}_${scarcity}_${hasElig ? eligFilter : 'any'}`;
     if (historyCache[key]) return historyCache[key];
 
     try {
       const since = new Date();
       since.setDate(since.getDate() - 30);
       const sinceStr = since.toISOString().split('T')[0];
+      const eligParam = hasElig ? `&eligibility=eq.${eligFilter}` : '';
 
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${playerSlug}&scarcity=eq.${scarcity}&recorded_at=gte.${sinceStr}&order=recorded_at.asc&select=price,recorded_at`,
+        `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${playerSlug}&scarcity=eq.${scarcity}${eligParam}&recorded_at=gte.${sinceStr}&order=recorded_at.asc&select=price,recorded_at`,
         { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
       );
       if (!res.ok) return null;

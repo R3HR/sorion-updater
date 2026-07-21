@@ -1,5 +1,7 @@
-// SORION Preis-Updater — ein Script für alle Scarcities.
+// SORION Preis-Updater — ein Script für alle Scarcities, In-Season UND Classic.
 // Aufruf: node update-scarcity.mjs <limited|rare|super_rare>
+// Jede DB-Zeile ist (player_slug, scarcity, eligibility); die Queue (ältestes
+// updated_at zuerst) mischt beide Eligibilities — 1 API-Call pro Zeile.
 import { createClient } from '@supabase/supabase-js';
 import { calculateFMV } from './lib/fmv.mjs';
 
@@ -19,15 +21,21 @@ const DELAY_MS   = 200;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function fetchData(playerSlug) {
+// eligibility: 'in_season' | 'classic'
+// - Sales:  tokenPrices(seasonEligibility: IN_SEASON | CLASSIC) — Classic aggregiert alle Jahrgänge
+// - Floor:  lowestPriceAnyCard(inSeason: true) bzw. inSeason: false für Classic
+// - Achtung: liveSingleSaleOffer.amounts.eurCents kann null sein (reines ETH-Listing) → Fallback
+async function fetchData(playerSlug, eligibility) {
+  const seasonElig = eligibility === 'classic' ? 'CLASSIC' : 'IN_SEASON';
+  const inSeason   = eligibility === 'classic' ? 'false' : 'true';
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
-      lowestPriceAnyCard(inSeason: true, rarity: ${SCARCITY}) {
+      lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         liveSingleSaleOffer { receiverSide { amounts { eurCents } } }
       }
     }
     tokens {
-      tokenPrices(rarity: ${SCARCITY} seasonEligibility: IN_SEASON playerSlug: "${playerSlug}" first: 20) {
+      tokenPrices(rarity: ${SCARCITY} seasonEligibility: ${seasonElig} playerSlug: "${playerSlug}" first: 20) {
         date
         amounts { eurCents }
       }
@@ -57,17 +65,19 @@ async function fetchData(playerSlug) {
   return null;
 }
 
-// FMV heute vs. price_history vor 1 bzw. 7 Tagen
-async function calcChanges(playerSlug, fmv, now) {
+// FMV heute vs. price_history vor 1 bzw. 7 Tagen (pro Eligibility getrennt)
+async function calcChanges(playerSlug, eligibility, fmv, now, hasEligibility) {
   if (!fmv) return { change_24h: null, change_7d: null };
   const since = new Date(now - 8 * 86400000).toISOString().split('T')[0];
-  const { data: hist } = await supabase
+  let q = supabase
     .from('price_history')
     .select('price, recorded_at')
     .eq('player_slug', playerSlug)
     .eq('scarcity', SCARCITY)
     .gte('recorded_at', since)
     .order('recorded_at', { ascending: true });
+  if (hasEligibility) q = q.eq('eligibility', eligibility);
+  const { data: hist } = await q;
   if (!hist?.length) return { change_24h: null, change_7d: null };
 
   const priceAt = (daysAgo) => {
@@ -85,25 +95,27 @@ async function calcChanges(playerSlug, fmv, now) {
 async function main() {
   console.log(`[${new Date().toISOString()}] Starting ${SCARCITY} update...`);
 
-  // Migration-Probe: existieren die change-Spalten schon?
-  const probe = await supabase.from('card_prices').select('change_24h').limit(1);
-  const hasChangeCols = !probe.error;
-  if (!hasChangeCols) console.warn('change_24h/change_7d columns missing — run migrations/2026-07-06_add_change_columns.sql');
+  // Migrations-Probe: welche Spalten existieren schon?
+  const probe = await supabase.from('card_prices').select('change_24h, eligibility').limit(1);
+  const migrated = !probe.error;
+  if (!migrated) console.warn('Migration fehlt (migrations/2026-07-21_eligibility_and_changes.sql) — laufe im Alt-Modus (nur in_season, keine Prozente)');
 
+  const cols = migrated ? 'id, player_slug, eligibility' : 'id, player_slug';
   const { data: players, error } = await supabase
     .from('card_prices')
-    .select('id, player_slug')
+    .select(cols)
     .eq('scarcity', SCARCITY)
     .order('updated_at', { ascending: true })
     .limit(BATCH_SIZE);
   if (error) { console.error(error.message); process.exit(1); }
-  console.log(`Processing ${players.length} ${SCARCITY} players...`);
+  console.log(`Processing ${players.length} ${SCARCITY} rows...`);
 
   let updated = 0, failed = 0;
   const today = new Date().toISOString().split('T')[0];
 
   for (const player of players) {
-    const result = await fetchData(player.player_slug);
+    const eligibility = player.eligibility ?? 'in_season';
+    const result = await fetchData(player.player_slug, eligibility);
     if (!result || !result.sales.length) {
       await supabase.from('card_prices').update({ updated_at: new Date().toISOString() }).eq('id', player.id);
       failed++; await sleep(DELAY_MS); continue;
@@ -119,12 +131,13 @@ async function main() {
     const h72ago = new Date(now - 72 * 3600000);
     const d7ago  = new Date(now - 7 * 86400000);
 
-    // Erst History für heute schreiben (Changes vergleichen gegen ältere Tage)
+    // History zuerst schreiben (Changes vergleichen gegen ältere Tage)
     if (fmv) {
-      await supabase.from('price_history').upsert(
-        { player_slug: player.player_slug, scarcity: SCARCITY, price: fmv, recorded_at: today },
-        { onConflict: 'player_slug,scarcity,recorded_at' }
-      );
+      const histRow = { player_slug: player.player_slug, scarcity: SCARCITY, price: fmv, recorded_at: today };
+      if (migrated) histRow.eligibility = eligibility;
+      await supabase.from('price_history').upsert(histRow, {
+        onConflict: migrated ? 'player_slug,scarcity,recorded_at,eligibility' : 'player_slug,scarcity,recorded_at',
+      });
     }
 
     const update = {
@@ -139,7 +152,7 @@ async function main() {
       sales_7d:    sales.filter(s => new Date(s.date) >= d7ago).length,
       updated_at:  new Date().toISOString(),
     };
-    if (hasChangeCols) Object.assign(update, await calcChanges(player.player_slug, fmv, now));
+    if (migrated) Object.assign(update, await calcChanges(player.player_slug, eligibility, fmv, now, migrated));
 
     const { error: e } = await supabase.from('card_prices').update(update).eq('id', player.id);
     if (e) { console.warn(`  DB update failed for ${player.player_slug}: ${e.message}`); failed++; }

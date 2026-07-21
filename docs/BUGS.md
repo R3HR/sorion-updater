@@ -26,8 +26,8 @@
 
 - **Symptom:** FMV eines Spielers sprang je nachdem, welcher Codepfad zuletzt schrieb.
 - **Ursache:** Formel dupliziert in `update-*.mjs` (Railway), `add-missing-players` (alte Gewichte, min(sales) als Floor) und `update-prices` (ganz andere Gewichte, sorarehoops-Daten).
-- **Fix:** Eine Formel in `lib/fmv.mjs`. `add-missing-players` berechnet nichts mehr (Slim-Insert mit `updated_at=epoch`). `update-prices` schreibt kein FMV mehr (nur noch Tier/Pool-Daten) — prüfen ob Function überhaupt noch gebraucht wird.
-- **Status:** 🟡 Code fertig 2026-07-06 — Edge-Function-Deploy durch Jonas offen
+- **Fix:** Eine Formel in `lib/fmv.mjs`. `add-missing-players` berechnet nichts mehr (Slim-Insert mit `updated_at=epoch`). `update-prices` wurde 2026-07-21 tatsächlich auf Metadaten-only umgebaut (vorher schrieb sie doch noch FMV/Floor/Sales mit eigener Formel!) und setzt kein `updated_at` mehr (störte die Queue).
+- **Status:** 🟡 Code fertig 2026-07-21 — Edge-Function-Deploy durch Jonas offen
 
 ## BUG-004 — 24h-/7d-Prozente ohne Zeitbezug
 
@@ -47,5 +47,5 @@
 
 - **Symptom (erwartet):** Tier-/Pool-Daten brechen beim Saisonwechsel August 2026.
 - **Ursache:** `update-pool`/`update-prices` fetchen `footballRewardPool2025<Rarity>.json` von sorarehoops.vercel.app — Jahr fest verdrahtet, Dritt-Site-Abhängigkeit.
-- **Fix (vorgeschlagen):** Jahr dynamisch bestimmen oder Tier-Daten direkt aus Sorare-API beziehen.
-- **Status:** 🔴 offen — muss vor August gelöst sein
+- **Fix:** Jahr dynamisch (aktuelles Jahr, Fallback Vorjahr) in `update-pool` + `update-prices` (2026-07-21). Stand 21.07. existieren nur 2025-Files → nach Erscheinen der 26/27-Files verifizieren, dass das Namensschema gleich bleibt.
+- **Status:** 🟡 Code fertig 2026-07-21 — Deploy offen; Namensschema-Check nach Saisonstart

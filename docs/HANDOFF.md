@@ -16,18 +16,19 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 | DB | Supabase Projekt `jxhdlcpdupmkpsoytzes` | Tabellen: `card_prices`, `price_history`, `pool_cache` |
 | CraftLog UI (Portfolio) | `C:\craft-log\Craft_Log UI\index.html` | separates Frontend, ruft `add-missing-players` auf |
 
-## Aktueller Stand (2026-07-06)
+## Aktueller Stand (2026-07-21)
 
+- **InSeason/Classic komplett implementiert** (Code): jede Zeile in `card_prices`/`price_history` hat `eligibility` ('in_season' | 'classic'), Update-Script bedient beide aus einer Queue, Seed legt beide Zeilen an, UI hat Toggle. Saisonwechsel läuft damit **automatisch** — wenn Sorare den In-Season-Flip macht, trackt die in_season-Zeile die neuen Karten, die alten rutschen in die classic-Zeile. Sorare 26/27-Karten kommen etappenweise → Übergang ist weich. **Blockiert nur noch durch die SQL-Migration (s. u.)**
+- Seed ist gelaufen: DB voll (5.972 limited / 5.775 rare / 4.942 sr Spieler, Stand 21.07.)
+- Live-Test 21.07.: In-Season liefert noch 2025er-Karten (Flip noch nicht vollzogen); `tokenPrices(CLASSIC)` aggregiert Alt-Jahrgänge sauber getrennt; Floor-Listings können `eurCents: null` haben (ETH-only) → Fallback greift
 - FMV-Formel v3 in `lib/fmv.mjs`: zeitbasierter Decay (Halbwertszeit 3 Tage), Live-Listing-Floor als Anker, Sellability-Cap (FMV ≤ Floor × 1,05). Ziel: **Wer zum FMV listet, verkauft auch.**
-- 3 Update-Scripts zu einem konsolidiert (`update-scarcity.mjs`, Scarcity via CLI-Arg)
-- Floor Price kommt live aus `lowestPriceAnyCard(inSeason: true).publicMinPrices` (aktive Listings, nicht letzte Sales)
-- Seed-Script vorhanden, befüllt DB mit allen in-season-fähigen Spielern
-- UI-Prozente (24h/7d) auf `price_history`-Basis umgestellt (DB-Spalten `change_24h`/`change_7d`)
+- `update-prices` Edge Function ist jetzt Metadaten-only (Tier/Team/Liga/Supply, kein FMV mehr) mit dynamischem Saisonjahr
+- ⚠️ SQL-Migration vom 06.07. wurde NIE ausgeführt (per DB-Probe verifiziert 21.07.) → ersetzt durch `migrations/2026-07-21_eligibility_and_changes.sql` (enthält alles)
 
 ## ⚠️ Offene Aktionen für Jonas (manuell, blockierend)
 
 0. **Railway-Service-Configs identifizieren:** Es gibt ZWEI Config-Sets im Repo — Root (`railway-limited.toml` etc.) und Ordner (`limited/railway.toml` etc., mit eigenem Root Directory). Die Ordner-Configs hatten den neueren Cron (16–20 Uhr) → vermutlich sind DIE live, d. h. Pushes auf die Root-Scripts kamen nie an! Beide Sets sind jetzt identisch korrekt (Script: `update-scarcity.mjs` + `lib/fmv.mjs`). In Railway pro Service unter Settings → „Root Directory" + „Config File Path" nachsehen, das ungenutzte Set danach löschen. ⚠️ Bei Ordner-Setup: `lib/fmv.mjs` existiert als Kopie in jedem Ordner — bis zur Auflösung müssen Änderungen an der Formel in alle Kopien synct werden (`cp lib/fmv.mjs <dir>/lib/`).
-1. **SQL-Migration ausführen** (Supabase → SQL Editor): `migrations/2026-07-06_add_change_columns.sql` — MUSS vor dem nächsten nächtlichen Update-Run laufen (Script erkennt fehlende Spalten und lässt sie dann weg, aber Prozente bleiben leer bis Migration läuft)
+1. **SQL-Migration ausführen** (Supabase → SQL Editor): `migrations/2026-07-21_eligibility_and_changes.sql` — DER Blocker: schaltet Prozente UND Classic frei (legt per Backfill ~16.700 Classic-Zeilen mit `updated_at=epoch` an). Scripts/UI laufen bis dahin im Alt-Modus (nur in_season, keine Prozente, Classic-Tab leer). Die alte Datei `2026-07-06_add_change_columns.sql` NICHT mehr ausführen — ist vollständig in der neuen enthalten
 2. **Keys rotieren** — siehe [INCIDENTS.md](INCIDENTS.md) SEC-001 (Service-Role-Key + Sorare Client Secret waren im Klartext in Git)
 3. **Edge Functions neu deployen** nach Secret-Setup: `supabase functions deploy get-pool update-pool update-prices sorare-oauth add-missing-players`
 4. **Railway prüfen**: existiert noch ein alter Service der `railway.toml` / `update.mjs` nutzt? → löschen (Dateien wurden entfernt)
@@ -37,12 +38,12 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 
 | # | Task | Status | Notizen |
 |---|---|---|---|
-| 1 | InSeason/Classic-Trennung in DB + Scripts | **offen** | Design steht (s. unten), Migration entworfen. Sorare aggregiert Classic über alle Jahrgänge → nur 1 Classic-Zeile pro Spieler+Scarcity nötig |
-| 2 | Season-Rollover-Plan für August | **offen** | Beim Rollover: In-Season-Zeilen haben anfangs 0 Sales der neuen Saison. FMV-Formel fällt dann auf Floor zurück (by design ok). `price_history` NICHT löschen |
+| 1 | InSeason/Classic-Trennung in DB + Scripts + UI | **Code fertig 2026-07-21**, Migration offen | Update-Script, Seed, UI-Toggle, update-prices — alles eligibility-aware mit Alt-Modus-Fallback |
+| 2 | Season-Rollover-Plan für August | **durch #1 gelöst** | Übergang automatisch (Zwei-Zeilen-Design). Nach Sorares In-Season-Flip beobachten: FMV neuer Karten fällt anfangs auf Floor zurück (by design). `price_history` NICHT löschen |
 | 3 | Keys rotiert + Env-Vars | **Code fertig**, Rotation durch Jonas offen | SEC-001 |
 | 4 | FMV v3 (sellable FMV) | **erledigt 2026-07-06** | `lib/fmv.mjs`, getestet gegen Live-Daten (Maza) |
 | 5 | UI-Prozente korrekt (zeitbasiert) | **Code fertig**, Migration offen | BUG-004 |
-| 6 | sorarehoops-2025-URL ersetzen | **offen** | `update-pool`/`update-prices` ziehen `footballRewardPool2025*.json` von Dritt-Site. Bricht im August. Tier-Daten direkt von Sorare beziehen oder Jahr dynamisch machen |
+| 6 | sorarehoops-Jahr dynamisch | **Code fertig 2026-07-21**, Deploy offen | Beide Functions probieren aktuelles Jahr, Fallback Vorjahr. Stand 21.07.: nur 2025-Files existieren. Restrisiko: sorarehoops könnte 26/27 anders benennen → nach Saisonstart prüfen |
 | 7 | Crons ganztägig ausweiten | **offen** | Aktuell nur 22–5 Uhr → tagsüber bis 17h alte Daten. Vorschlag: tagsüber alle 15–30 Min zusätzlich. Rate-Limits beachten (s. #8) |
 | 8 | Sorare API-Key beantragen + 429-Backoff | **offen** | Nach Seed wächst DB auf tausende Spieler. Ohne API-Key drohen Rate-Limits. Aktuell: silent fail, `updated_at` wird trotzdem gesetzt → tote Spieler unsichtbar |
 | 9 | `add-missing-players` auf Slim-Insert umgestellt | **Code fertig**, Deploy offen | Berechnet kein FMV mehr — nur Insert mit `updated_at=epoch`, Update-Script rechnet. Eine Formel, eine Stelle |
@@ -51,7 +52,7 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 | 12 | Google Fonts selbst hosten | **erledigt 2026-07-06** | `fonts/`-Ordner in beiden UIs (latin+latin-ext), Google-CDN-Links entfernt. CraftLog: auch Chart.js lokal statt cdnjs. ⚠️ Beim Deployen der UIs müssen `fonts/`, `legal.html` (und bei CraftLog `chart.umd.min.js`) mit hochgeladen werden |
 | 13 | Footer-Disclaimer + Legal-Link | **erledigt 2026-07-06** | Beide UIs: „Not affiliated" + Schätzungs-Disclaimer + Link auf legal.html |
 
-## Design: InSeason/Classic (TODO #1)
+## Design: InSeason/Classic (TODO #1) — ✅ implementiert 2026-07-21, wartet nur auf Migration
 
 **Erkenntnis:** `SeasonEligibility` im Sorare-Schema hat genau 2 Werte (`IN_SEASON`, `CLASSIC`). `tokenPrices(seasonEligibility: CLASSIC)` liefert Sales über **alle** Classic-Jahrgänge aggregiert — genau wie Sorare sie in „Letzte Verkäufe" anzeigt. Kein Per-Jahrgang-Tracking nötig.
 
