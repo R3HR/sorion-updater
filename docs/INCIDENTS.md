@@ -22,7 +22,7 @@
   4. Functions deployen: `supabase functions deploy get-pool update-pool update-prices sorare-oauth add-missing-players`
   5. Railway-Services: `SUPABASE_SERVICE_KEY` auf neuen Key ändern
   6. Optional (empfohlen wenn Repo je public war/wird): Git-History mit `git filter-repo` säubern
-- **Status:** 🟡 Code gefixt, Rotation offen
+- **Status:** ✅ **GESCHLOSSEN 2026-07-21** — Projekt auf neue Supabase-API-Keys umgestellt (`sb_publishable`/`sb_secret` in UIs, Railway ×4, Edge-Function-Secrets), alle 5 Functions neu deployed, danach Legacy-JWT-Keys via „Disable JWT-based API keys" deaktiviert. Verifiziert: alter Key → HTTP 401, neue Keys + Functions + Updater laufen. **Restpunkte:** (1) Sorare Client Secret noch regenerieren + `SORARE_CLIENT_SECRET` setzen — bis dahin ist der CraftLog-Login down, da die deployte Function das Secret aus dem Env erwartet! (2) CraftLog-UI-Hosting braucht die neue index.html (alter Key darin ist tot)
 
 ## SEC-002 — Anon-Key + Supabase-URL in Frontends (Info, kein Fix nötig)
 
