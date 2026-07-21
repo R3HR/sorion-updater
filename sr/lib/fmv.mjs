@@ -15,20 +15,27 @@ const MAX_AGE_DAYS   = 21;   // Sales älter als 3 Wochen werden ignoriert
 const FLOOR_BLEND    = 0.35; // Anteil des Floors am Blend
 const SELL_CAP       = 1.05; // FMV ≤ Floor × 1,05
 
+// Classic-Markt ist träge: längeres Fenster + langsamerer Decay, sonst bleiben
+// illiquide Alt-Karten ohne jeden Wert (BUG: ~15 % der Classic-Zeilen null)
+export const CLASSIC_PROFILE = { halfLifeDays: 14, maxAgeDays: 90 };
+
 /**
  * @param {{date: string, eur: number}[]} sales   letzte Verkäufe, neueste zuerst
  * @param {number|null} floorPrice                günstigstes aktives Listing (EUR)
  * @param {number} [now]                          Zeitstempel (ms), default Date.now()
+ * @param {{halfLifeDays?: number, maxAgeDays?: number}} [opts]  Markt-Profil
  * @returns {number|null} FMV in EUR oder null wenn keinerlei Daten
  */
-export function calculateFMV(sales, floorPrice, now = Date.now()) {
+export function calculateFMV(sales, floorPrice, now = Date.now(), opts = {}) {
+  const halfLife = opts.halfLifeDays ?? HALF_LIFE_DAYS;
+  const maxAge   = opts.maxAgeDays   ?? MAX_AGE_DAYS;
   let entries = (sales || [])
     .filter(s => s && s.eur > 0)
     .map(s => {
       const ageDays = Math.max(0, (now - new Date(s.date).getTime()) / 86400000);
-      return { v: s.eur, w: Math.pow(0.5, ageDays / HALF_LIFE_DAYS), age: ageDays };
+      return { v: s.eur, w: Math.pow(0.5, ageDays / halfLife), age: ageDays };
     })
-    .filter(e => e.age <= MAX_AGE_DAYS);
+    .filter(e => e.age <= maxAge);
 
   // Ausreißer trimmen (je 1× höchster und niedrigster Wert), erst ab 5 Datenpunkten
   if (entries.length >= 5) {

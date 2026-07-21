@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SORION — Portfolio</title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="fonts/fonts.css" rel="stylesheet">
 <style>
   :root {
     --bg: #0d0d1a;
@@ -573,111 +573,71 @@
 
 <script>
   const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
-  const ANON_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4aGRsY3BkdXBta3Bzb3l0emVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjQwMjQsImV4cCI6MjA4OTM0MDAyNH0.bvOQf7cF05GWafdb-vR7V9bphLjvgqTuY2BTLLGPnQM';
-  const SORARE_CLIENT_ID = 'JwRtoOABm0DtyOM5_xDKlFaF2-gp7uUAS4bQeQcuUjw';
-  const SORARE_CALLBACK  = 'https://sorion.pro/auth/callback';
+  const ANON_KEY     = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
 
-  let allCards    = [];
-  let filtered    = [];
-  let fmvCache    = {};
+  let allCards     = [];
+  let filtered     = [];
+  let fmvCache     = {};
   let activeFilter = 'all';
+  let currentSlug  = null;
 
-  // ── Auth ──────────────────────────────────────────────────────
-  function loginWithSorare() {
-    const returnTo = encodeURIComponent('https://sorion.pro/portfolio.html');
-    const url = `https://sorare.com/oauth/authorize?client_id=${SORARE_CLIENT_ID}&redirect_uri=${encodeURIComponent('https://craftlog.pro/auth/callback')}&response_type=code&scope=&state=${returnTo}`;
-    window.location.href = url;
-  }
-
-  function logout() {
-    localStorage.removeItem('sorare_access_token');
-    localStorage.removeItem('sorare_refresh_token');
-    localStorage.removeItem('sorare_user');
-    location.reload();
-  }
-
-  // ── Init ──────────────────────────────────────────────────────
-  async function init() {
-    // Handle OAuth callback
-    const params = new URLSearchParams(window.location.search);
-    const code   = params.get('code');
-    if (code) {
-      window.history.replaceState({}, '', window.location.pathname);
-      await handleCallback(code);
-      return;
-    }
-
-    const token = localStorage.getItem('sorare_access_token');
-    const user  = localStorage.getItem('sorare_user');
-
-    if (token && user) {
-      showPortfolio();
-    } else {
-      showLogin();
-    }
-  }
-
-  async function handleCallback(code) {
-    document.getElementById('login-screen').innerHTML = `
-      <div class="loading-wrap">
-        <div class="spinner"></div>
-        <div class="loading-text">Connecting to Sorare...</div>
-      </div>`;
-
-    try {
-      // Exchange code
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
-        body: JSON.stringify({ action: 'exchange', code, redirect_uri: SORARE_CALLBACK }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-
-      // Get user info
-      const userRes = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
-        body: JSON.stringify({ action: 'userinfo', access_token: data.access_token }),
-      });
-      const user = await userRes.json();
-
-      localStorage.setItem('sorare_access_token',  data.access_token);
-      localStorage.setItem('sorare_refresh_token', data.refresh_token);
-      localStorage.setItem('sorare_user',          JSON.stringify(user));
-
-      showPortfolio();
-    } catch(e) {
-      document.getElementById('login-screen').innerHTML = `
-        <div class="login-icon">✗</div>
-        <div class="login-title" style="color:var(--down)">Connection Failed</div>
-        <div class="login-sub">${e.message}</div>
-        <button class="btn-sorare" onclick="loginWithSorare()">Try Again</button>`;
-    }
-  }
+  // ── Öffentliches Portfolio: kein Login — Sorare-Sammlungen sind public ────
+  // Bewertung pro Karte nach Eligibility: in-season Karten → in_season-FMV,
+  // ältere Jahrgänge → classic-FMV (Zwei-Zeilen-Modell in card_prices).
+  function eligOf(c) { return c.inSeasonEligible === false ? 'classic' : 'in_season'; }
 
   function showLogin() {
-    document.getElementById('login-screen').style.display    = 'flex';
+    const ls = document.getElementById('login-screen');
+    ls.style.display = 'flex';
     document.getElementById('portfolio-screen').style.display = 'none';
-    document.getElementById('btn-connect').style.display     = '';
-    document.getElementById('btn-logout').style.display      = 'none';
+    const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
+    const btnL = document.getElementById('btn-logout');  if (btnL) btnL.style.display = 'none';
+    ls.innerHTML = `
+      <div class="login-icon">🎴</div>
+      <div class="login-title">Portfolio ansehen</div>
+      <div class="login-sub">Sorare-Managernamen eingeben — Sammlungen sind öffentlich, kein Login nötig.</div>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:center;flex-wrap:wrap">
+        <input id="slug-input" placeholder="z. B. jr3hr" spellcheck="false"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;min-width:220px"
+          onkeydown="if(event.key==='Enter')openManager()">
+        <button class="btn-sorare" onclick="openManager()">Laden</button>
+      </div>
+      <div id="slug-error" style="color:var(--down);font-size:12px;margin-top:10px;font-family:'Share Tech Mono',monospace"></div>`;
+    const remembered = localStorage.getItem('sorion_manager');
+    if (remembered) document.getElementById('slug-input').value = remembered;
   }
 
-  async function showPortfolio() {
-    document.getElementById('login-screen').style.display    = 'none';
+  function openManager() {
+    const slug = document.getElementById('slug-input').value.trim().toLowerCase();
+    if (!slug) return;
+    localStorage.setItem('sorion_manager', slug);
+    const url = new URL(window.location);
+    url.searchParams.set('manager', slug);
+    window.history.replaceState({}, '', url);
+    showPortfolio(slug);
+  }
+
+  function logout() { // Header-Button: anderen Manager laden
+    const url = new URL(window.location);
+    url.searchParams.delete('manager');
+    window.history.replaceState({}, '', url);
+    showLogin();
+  }
+
+  async function init() {
+    const slug = new URLSearchParams(window.location.search).get('manager');
+    if (slug) showPortfolio(slug.toLowerCase()); else showLogin();
+  }
+
+  async function showPortfolio(slug) {
+    currentSlug = slug;
+    document.getElementById('login-screen').style.display     = 'none';
     document.getElementById('portfolio-screen').style.display = 'block';
-    document.getElementById('btn-connect').style.display     = 'none';
-    document.getElementById('btn-logout').style.display      = '';
-
-    // Show user in header
-    const user = JSON.parse(localStorage.getItem('sorare_user') || '{}');
-    document.getElementById('btn-logout').textContent = `${user.nickname || user.slug} · Logout`;
-
-    // Show skeletons
+    const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
+    const btnL = document.getElementById('btn-logout');
+    if (btnL) { btnL.style.display = ''; btnL.textContent = `${slug} · Wechseln`; }
     showSkeletons();
-
-    // Load cards
-    await loadCards();
+    await loadCards(slug);
   }
 
   function showSkeletons() {
@@ -693,64 +653,68 @@
       </div>`).join('');
   }
 
-  // ── Load Cards ────────────────────────────────────────────────
-  async function loadCards() {
-    const token = localStorage.getItem('sorare_access_token');
-    const grid  = document.getElementById('cards-grid');
+  function showManagerError(msg) {
+    showLogin();
+    const el = document.getElementById('slug-error');
+    if (el) el.textContent = msg;
+  }
 
-    allCards = [];
-    let cursor = null;
-    let page   = 0;
+  // ── Load Cards (public per Manager-Slug, alle 3 Scarcities) ───────────────
+  async function loadCards(slug) {
+    const grid = document.getElementById('cards-grid');
+    allCards = []; fmvCache = {};
 
-    // Load all pages
-    do {
-      grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
-        <div class="spinner"></div>
-        <div class="loading-text">Loading your collection...</div>
-        <div class="loading-progress">${allCards.length} cards loaded</div>
-      </div>`;
+    for (const rarity of ['limited', 'rare', 'super_rare']) {
+      let cursor = null, page = 0;
+      do {
+        grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
+          <div class="spinner"></div>
+          <div class="loading-text">Lade ${rarity}-Karten von ${esc(slug)}...</div>
+          <div class="loading-progress">${allCards.length} Karten geladen</div>
+        </div>`;
 
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
-        body: JSON.stringify({ action: 'cards', access_token: token, cursor }),
-      });
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+          body: JSON.stringify({ action: 'user_cards', slug, rarity, cursor }),
+        });
+        const data = await res.json();
+        if (data.error) { showManagerError(`Manager „${esc(slug)}" nicht gefunden`); return; }
 
-      const data = await res.json();
-      if (data.error) break;
+        for (const n of data?.nodes ?? []) {
+          allCards.push({
+            slug: n.slug,
+            rarityTyped: n.rarityTyped,
+            inSeasonEligible: n.inSeasonEligible,
+            player: { slug: n.anyPlayer?.slug, displayName: n.anyPlayer?.displayName, pictureUrl: n.pictureUrl },
+          });
+        }
+        const pageInfo = data?.pageInfo ?? {};
+        cursor = pageInfo.hasNextPage ? pageInfo.endCursor : null;
+        page++;
+      } while (cursor && page < 60);
+    }
 
-      const nodes    = data.allNfts?.nodes ?? [];
-      const pageInfo = data.allNfts?.pageInfo ?? {};
+    if (!allCards.length) { showManagerError(`Keine Karten gefunden — Managername korrekt?`); return; }
 
-      allCards.push(...nodes);
-      cursor = pageInfo.hasNextPage ? pageInfo.endCursor : null;
-      page++;
-
-    } while (cursor && page < 50); // max 50 pages = 2500 cards
-
-    // Load FMV data from Supabase
     await loadFMV();
-
-    // Render
     filterCards();
     updateStats();
   }
 
   async function loadFMV() {
-    // Get unique player slugs
     const slugs = [...new Set(allCards.map(c => c.player?.slug).filter(Boolean))];
     if (!slugs.length) return;
-
-    // Batch fetch FMV from card_prices
-    const rarities = ['limited', 'rare', 'super_rare'];
-    for (const rarity of rarities) {
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${slugs.slice(0,100).map(s=>`"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name`,
-        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
-      );
-      const data = await res.json();
-      for (const row of data) {
-        fmvCache[`${row.player_slug}_${rarity}`] = row;
+    for (const rarity of ['limited', 'rare', 'super_rare']) {
+      for (let i = 0; i < slugs.length; i += 100) {
+        const batch = slugs.slice(i, i + 100);
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(s => `"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name,eligibility,sale_1`,
+          { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+        );
+        const data = await res.json();
+        if (!Array.isArray(data)) continue;
+        for (const row of data) fmvCache[`${row.player_slug}_${rarity}_${row.eligibility ?? 'in_season'}`] = row;
       }
     }
   }
@@ -775,7 +739,7 @@
       if (activeFilter !== 'all' && rarity !== activeFilter) return false;
       if (search) {
         const name = (c.player?.displayName || '').toLowerCase();
-        const fmvData = fmvCache[`${c.player?.slug}_${rarity}`];
+        const fmvData = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
         const team = (fmvData?.team_name || '').toLowerCase();
         if (!name.includes(search) && !team.includes(search)) return false;
       }
@@ -795,13 +759,14 @@
     }
 
     grid.innerHTML = filtered.map((c, i) => {
-      const rarity   = c.rarityTyped?.toLowerCase() || 'limited';
+      const rarity      = c.rarityTyped?.toLowerCase() || 'limited';
       const rarityLabel = rarity === 'super_rare' ? 'SR' : rarity === 'rare' ? 'Rare' : 'Ltd';
-      const fmvData  = fmvCache[`${c.player?.slug}_${rarity}`];
-      const fmv      = fmvData?.fmv;
-      const img      = c.player?.pictureUrl || '';
-      const name     = c.player?.displayName || c.slug;
-      const team     = fmvData?.team_name || '';
+      const fmvData     = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
+      const fmv         = fmvData?.fmv;
+      const img         = c.player?.pictureUrl || '';
+      const name        = c.player?.displayName || c.slug;
+      const team        = fmvData?.team_name || '';
+      const seasonTag   = eligOf(c) === 'classic' ? 'Classic' : 'In-Season';
 
       return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s">
         <div class="card-img-wrap">
@@ -810,10 +775,12 @@
         </div>
         <div class="card-info">
           <div class="card-name">${esc(name)}</div>
-          <div class="card-team">${esc(team)}</div>
+          <div class="card-team">${esc(team)} · ${seasonTag}</div>
           ${fmv
             ? `<div class="card-fmv">€${fmv.toFixed(2)}</div>`
-            : `<div class="card-fmv no-data">// no data</div>`
+            : (fmvData?.floor_price ?? fmvData?.sale_1)
+              ? `<div class="card-fmv" style="opacity:.7">~€${(fmvData.floor_price ?? fmvData.sale_1).toFixed(2)}</div>`
+              : `<div class="card-fmv no-data">// no data</div>`
           }
         </div>
       </div>`;
@@ -830,12 +797,12 @@
     document.getElementById('stat-rare').textContent    = rar.length;
     document.getElementById('stat-sr').textContent      = sr.length;
 
-    // Total portfolio value
     let total = 0;
     for (const c of allCards) {
       const rarity  = c.rarityTyped?.toLowerCase() || 'limited';
-      const fmvData = fmvCache[`${c.player?.slug}_${rarity}`];
-      if (fmvData?.fmv) total += fmvData.fmv;
+      const fmvData = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
+      const v = fmvData?.fmv ?? fmvData?.floor_price ?? fmvData?.sale_1;
+      if (v) total += v;
     }
 
     document.getElementById('stat-value').textContent =

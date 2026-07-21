@@ -3,7 +3,7 @@
 // Jede DB-Zeile ist (player_slug, scarcity, eligibility); die Queue (ältestes
 // updated_at zuerst) mischt beide Eligibilities — 1 API-Call pro Zeile.
 import { createClient } from '@supabase/supabase-js';
-import { calculateFMV } from './lib/fmv.mjs';
+import { calculateFMV, CLASSIC_PROFILE } from './lib/fmv.mjs';
 
 const SCARCITY = process.argv[2];
 if (!['limited', 'rare', 'super_rare'].includes(SCARCITY)) {
@@ -128,7 +128,7 @@ async function main() {
     const { sales, fetchedFloor } = result;
     const sorted = [...sales].sort((a, b) => a.eur - b.eur);
     const floorPrice = fetchedFloor ?? sorted[0]?.eur ?? null;
-    const fmvRaw = calculateFMV(sales, floorPrice);
+    const fmvRaw = calculateFMV(sales, floorPrice, Date.now(), eligibility === 'classic' ? CLASSIC_PROFILE : undefined);
     const fmv = fmvRaw ? parseFloat(fmvRaw.toFixed(2)) : null;
 
     const now = Date.now();
