@@ -160,6 +160,19 @@ async function main() {
     await sleep(100);
   }
   console.log(`[${new Date().toISOString()}] Done. ${added} Zeilen eingefügt (${missing.length} neue Spieler).`);
+
+  // Täglich Pool-Cache (Crafthelper) + Tier-Metadaten mit auffrischen —
+  // die Functions haben sonst keinen Zeitplan (lagen deshalb monatelang brach, BUG-008)
+  for (const fn of ['update-pool', 'update-prices']) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY },
+        body: '{}',
+      });
+      console.log(`${fn}: HTTP ${res.status}`);
+    } catch (e) { console.warn(`${fn} failed: ${e.message}`); }
+  }
 }
 
 main().catch(console.error);

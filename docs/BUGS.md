@@ -61,3 +61,10 @@
 - **Lektion:** Halbe Deployments vermeiden — die gehärtete Function lag wochenlang lokal ohne Deploy UND ohne Frontend-Anpassung. Function-Contract-Änderungen immer zusammen mit den Clients ausrollen.
 - **Nachtrag:** Ursache 4 — `get-analytics` + `sorare-proxy` hatten ebenfalls hardcodierte Legacy-Keys, standen aber nie auf der SEC-001-Deploy-Liste → seit Key-Disable tot, Crafts-Laden schlug fehl. 21.07. auf Deno.env umgestellt + deployed. Jetzt alle 7 Functions sauber.
 - **Status:** ✅ behoben 2026-07-21 (Repo `R3HR/Craft_log` + Functions)
+
+## BUG-008 — Crafthelper-Daten seit April eingefroren
+
+- **Symptom:** Pool-/Tier-Daten im Crafthelper (CraftLog) monatelang veraltet (Cache-Stand 05.04.).
+- **Ursache (2-fach):** (1) `update-pool` upsertete ohne `on_conflict=rarity` — der Merge zielte auf den Primärschlüssel, jeder Lauf nach dem ersten scheiterte mit „duplicate key". (2) Es gab ohnehin keinen Zeitplan — niemand rief die Function regelmäßig auf.
+- **Fix:** `?on_conflict=rarity` im Upsert (deployed 21.07.); Harvester ruft `update-pool` + `update-prices` jetzt täglich nach seinem Lauf auf.
+- **Status:** ✅ behoben 2026-07-21 — Cache wieder aktuell (1.189 Spieler/Rarity)
