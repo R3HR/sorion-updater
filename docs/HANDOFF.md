@@ -88,3 +88,11 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 - Keine Secrets in Code oder Git — nur `process.env` / `Deno.env.get`
 - Nach jeder Session: diese Datei + ggf. BUGS.md/INCIDENTS.md aktualisieren
 - Push auf `main` = Railway-Deploy. Nichts Halbfertiges pushen
+
+## Produkt-Roadmap: Sorion = Trading-Tool (Entscheidung 22.07.)
+
+**Positionierung:** CraftLog = Craften · Sorion = Trading. Kein Merge.
+
+- **Stufe 1 ✅ (22.07.):** Portfolio zeigt pro Karte Kaufpreis/-datum/-art (öffentlich via `tokenOwner` — amounts/from/transferType), P&L seit Kauf, Stats Investiert/P&L. SHARDS=gecraftet, REWARD=Reward. Achtung: user_cards-Query kostet ~12 Complexity/Karte → anonym max ~35/Seite (Limit 500); mit `SORARE_APIKEY` als Supabase-Secret 50/Seite (Limit 30.000) — Secret setzen: `npx supabase secrets set SORARE_APIKEY=<key>`
+- **Stufe 2 (offen):** Watchlist + Zielpreise clientseitig (localStorage), „Ziel erreicht"-Badges beim Seitenbesuch. Kein Backend nötig
+- **Stufe 3 (offen, braucht eigene OAuth-App auf Jonas' Account):** Accounts, serverseitige Watchlist/Ziele, Notifications (Vorschlag: Telegram-Bot + Railway-Cron der Ziele gegen fmv prüft). OAuth-App mit BEIDEN Redirect-URIs (craftlog.pro + sorion.pro) anfordern → löst auch die verwaiste Alt-App (SEC-001-Rest)
