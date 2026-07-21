@@ -10,7 +10,8 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 | Komponente | Ort | Deployment |
 |---|---|---|
 | Update-Script (FMV-Berechnung) | `update-scarcity.mjs` + `lib/fmv.mjs` | Railway, 3 Services (limited/rare/sr), Cron 22–5 Uhr alle 5 Min |
-| Seed-Script (alle Spieler) | `seed-all-players.mjs` | Railway, manueller Trigger (Redeploy) |
+| Seed-Script (in-season Spieler) | `seed-all-players.mjs` | Railway, manueller Trigger (Redeploy) |
+| Market-Harvester (alle gelisteten Spieler, inkl. rotierte) | `harvest-market-players.mjs` | Railway, `railway-harvest.toml`, täglich 05:30. Service muss noch angelegt werden; Erstlauf OHNE `HARVEST_HOURS` (voller 8-Tage-Feed), danach `HARVEST_HOURS=26` als Env-Var setzen (inkrementell) |
 | UI (Markt-Tabelle) | `UI/index.html` (kanonisch) | GitHub Pages aus separatem PUBLIC Repo `sorion-ui` (`C:\craft-log\sorion-ui`) — nach UI-Änderungen dorthin kopieren + pushen! Hintergrund: Haupt-Repo ist seit 2026-07-08 privat (SEC-003), Pages ging dabei offline |
 | Edge Functions | `C:\craft-log\supabase\functions\*` | Supabase (Deploy via `supabase functions deploy <name>`) |
 | DB | Supabase Projekt `jxhdlcpdupmkpsoytzes` | Tabellen: `card_prices`, `price_history`, `pool_cache` |
@@ -68,7 +69,8 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 
 ## Architektur-Wissen (Memories)
 
-- **Sorare GraphQL** (`api.sorare.com/graphql`): public, ohne Auth nutzbar, aber rate-limited. Schema-Dump: `C:\craft-log\schema.graphql`
+- **Sorare GraphQL** (`api.sorare.com/graphql`): public, ohne Auth nutzbar, aber rate-limited und **max. Query-Depth 7** (mit APIKEY 13 — noch ein Grund für TODO #8). Schema-Dump: `C:\craft-log\schema.graphql`
+- **Spieler-Vollabdeckung** (3 Quellen): (1) Seed via `allCards(inSeasonEligible: true)` = alle Craft-fähigen; (2) Market-Harvester via globalen `tokens.liveSingleSaleOffers`-Feed (8-Tage-Fenster) = alle mit aktiven Listings, auch rotierte/Classic-only — Spieler-Slug wird aus dem Karten-Slug geparst (`<player>-<jahr>-<rarity>-<serial>`, Achtung: `super-rare` UND `super_rare` kommen vor); (3) CraftLog-Sammlungs-Import. Spieler ohne Listings & Sales sind bewusst nicht drin: kein Markt = kein Preis. Einmal erfasste Zeilen bleiben für immer (kein Delete) → Abdeckung wächst monoton
 - **Preise**: `amounts.eurCents / 100` = EUR. `tokenPrices(...first: 20)` = letzte 20 Sales, neueste zuerst
 - **Floor**: `anyPlayer(slug).lowestPriceAnyCard(inSeason: true, rarity: X).publicMinPrices.eurCents` = günstigstes aktives Listing
 - **Update-Queue**: Scripts nehmen die 200 Spieler mit ältestem `updated_at`. Seed setzt `updated_at = epoch(1970)` → neue Spieler kommen sofort dran
