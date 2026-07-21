@@ -541,6 +541,14 @@
         <div class="p-stat-value" id="stat-value">—</div>
       </div>
       <div class="p-stat">
+        <div class="p-stat-label">// Investiert</div>
+        <div class="p-stat-value" id="stat-invested">—</div>
+      </div>
+      <div class="p-stat">
+        <div class="p-stat-label">// P&amp;L seit Kauf</div>
+        <div class="p-stat-value" id="stat-pnl">—</div>
+      </div>
+      <div class="p-stat">
         <div class="p-stat-label">// Limited</div>
         <div class="p-stat-value" id="stat-limited" style="color:var(--limited)">—</div>
       </div>
@@ -687,6 +695,12 @@
             rarityTyped: n.rarityTyped,
             inSeasonEligible: n.inSeasonEligible,
             player: { slug: n.anyPlayer?.slug, displayName: n.anyPlayer?.displayName, pictureUrl: n.pictureUrl },
+            // Trading-Daten: Kaufpreis/-datum/-art sind bei Sorare öffentlich (tokenOwner)
+            purchase: n.tokenOwner ? {
+              eur:  n.tokenOwner.amounts?.eurCents != null ? n.tokenOwner.amounts.eurCents / 100 : null,
+              date: n.tokenOwner.from ?? null,
+              type: n.tokenOwner.transferType ?? null,
+            } : null,
           });
         }
         const pageInfo = data?.pageInfo ?? {};
@@ -768,6 +782,23 @@
       const team        = fmvData?.team_name || '';
       const seasonTag   = eligOf(c) === 'classic' ? 'Classic' : 'In-Season';
 
+      // Trading-Zeile: Kaufpreis + Entwicklung seit Kauf
+      const val = fmv ?? fmvData?.floor_price ?? fmvData?.sale_1 ?? null;
+      const buy = c.purchase?.eur;
+      let buyLine = '';
+      if (buy != null && buy > 0 && val != null) {
+        const diff = val - buy;
+        const pct  = (diff / buy) * 100;
+        const col  = diff >= 0 ? 'var(--up)' : 'var(--down)';
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:${col};margin-top:2px">Kauf €${buy.toFixed(2)} → ${diff >= 0 ? '+' : ''}${pct.toFixed(0)}%</div>`;
+      } else if (buy != null && buy > 0) {
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">Kauf €${buy.toFixed(2)}</div>`;
+      } else if (c.purchase?.type === 'SHARDS') {
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">⚗️ gecraftet</div>`;
+      } else if (c.purchase?.type === 'REWARD') {
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">🏆 Reward</div>`;
+      }
+
       return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s">
         <div class="card-img-wrap">
           <img class="card-img" src="${img}" alt="" onerror="this.style.display='none'">
@@ -782,6 +813,7 @@
               ? `<div class="card-fmv" style="opacity:.7">~€${(fmvData.floor_price ?? fmvData.sale_1).toFixed(2)}</div>`
               : `<div class="card-fmv no-data">// no data</div>`
           }
+          ${buyLine}
         </div>
       </div>`;
     }).join('');
@@ -797,16 +829,31 @@
     document.getElementById('stat-rare').textContent    = rar.length;
     document.getElementById('stat-sr').textContent      = sr.length;
 
-    let total = 0;
+    let total = 0, invested = 0, pnl = 0, pnlBasis = 0;
     for (const c of allCards) {
       const rarity  = c.rarityTyped?.toLowerCase() || 'limited';
       const fmvData = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
       const v = fmvData?.fmv ?? fmvData?.floor_price ?? fmvData?.sale_1;
       if (v) total += v;
+      const buy = c.purchase?.eur;
+      if (buy != null && buy > 0) {
+        invested += buy;
+        if (v) { pnl += v - buy; pnlBasis += buy; }
+      }
     }
 
     document.getElementById('stat-value').textContent =
       total > 0 ? `€${total.toFixed(0)}` : '—';
+    document.getElementById('stat-invested').textContent =
+      invested > 0 ? `€${invested.toFixed(0)}` : '—';
+    const pnlEl = document.getElementById('stat-pnl');
+    if (pnlBasis > 0) {
+      const pct = (pnl / pnlBasis) * 100;
+      pnlEl.textContent = `${pnl >= 0 ? '+' : ''}€${pnl.toFixed(0)} (${pnl >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
+      pnlEl.style.color = pnl >= 0 ? 'var(--up)' : 'var(--down)';
+    } else {
+      pnlEl.textContent = '—';
+    }
   }
 
   function esc(s) {
