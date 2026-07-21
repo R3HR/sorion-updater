@@ -23,6 +23,7 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 - Seed ist gelaufen: DB voll (5.972 limited / 5.775 rare / 4.942 sr Spieler, Stand 21.07.)
 - Live-Test 21.07.: In-Season liefert noch 2025er-Karten (Flip noch nicht vollzogen); `tokenPrices(CLASSIC)` aggregiert Alt-Jahrgänge sauber getrennt; Floor-Listings können `eurCents: null` haben (ETH-only) → Fallback greift
 - FMV-Formel v3 in `lib/fmv.mjs`: zeitbasierter Decay (Halbwertszeit 3 Tage), Live-Listing-Floor als Anker, Sellability-Cap (FMV ≤ Floor × 1,05). Ziel: **Wer zum FMV listet, verkauft auch.**
+- Portfolio läuft auf beiden Seiten (21.07. abends): Sorion öffentlich per Manager-Slug (`portfolio.html?manager=<slug>`, kein OAuth — Cross-Domain-Problem damit gelöst), CraftLog eingeloggt. Bewertung pro Karte nach `inSeasonEligible` → in_season- bzw. classic-FMV (Cache-Key `slug_rarity_eligibility`)
 - `update-prices` Edge Function ist jetzt Metadaten-only (Tier/Team/Liga/Supply, kein FMV mehr) mit dynamischem Saisonjahr
 - ⚠️ SQL-Migration vom 06.07. wurde NIE ausgeführt (per DB-Probe verifiziert 21.07.) → ersetzt durch `migrations/2026-07-21_eligibility_and_changes.sql` (enthält alles)
 
