@@ -49,3 +49,14 @@
 - **Ursache:** `update-pool`/`update-prices` fetchen `footballRewardPool2025<Rarity>.json` von sorarehoops.vercel.app — Jahr fest verdrahtet, Dritt-Site-Abhängigkeit.
 - **Fix:** Jahr dynamisch (aktuelles Jahr, Fallback Vorjahr) in `update-pool` + `update-prices` (2026-07-21). Stand 21.07. existieren nur 2025-Files → nach Erscheinen der 26/27-Files verifizieren, dass das Namensschema gleich bleibt.
 - **Status:** 🟡 Code fertig 2026-07-21 — Deploy offen; Namensschema-Check nach Saisonstart
+
+## BUG-007 — CraftLog-Login tot nach Key-Umstellung (Dreifach-Ursache)
+
+- **Symptom:** Nach SEC-001-Abschluss (21.07.): „Login with Sorare" → „Verbindung fehlgeschlagen".
+- **Ursachen (3 Schichten, nacheinander gefunden):**
+  1. Function-Aufrufe in callback.html/index.html schickten nur `Authorization: Bearer <key>` ohne `apikey`-Header — mit dem alten JWT-anon-Key ok, mit dem neuen publishable Key (kein JWT) lehnt das Gateway ab
+  2. Beim Function-Deploy ging eine lokal vorbereitete, nie deployte SEC-gehärtete `sorare-oauth`-Version live (Login verlangt `access_token` zur Identitäts-Verifikation) — Callback kannte den neuen Vertrag nicht
+  3. index.html machte nach dem Callback einen eigenen Login mit **abgeleitetem Passwort** (`sorare_<slug>_craftlog`) — genau die Lücke, die die Härtung schließt (Zufallspasswort pro Login). Die gültige Session aus dem Callback wurde ignoriert, weil `sb_user` nie gespeichert wurde
+- **Fix:** apikey-Header ergänzt; Callback sendet `access_token` mit, speichert die komplette Session (`sb_token`/`sb_refresh`/`sb_user`) und wirft bei fehlender Session einen Fehler statt „erfolgreich"; index.html übernimmt die Session direkt, Passwort-Ableitung nur noch toter Fallback.
+- **Lektion:** Halbe Deployments vermeiden — die gehärtete Function lag wochenlang lokal ohne Deploy UND ohne Frontend-Anpassung. Function-Contract-Änderungen immer zusammen mit den Clients ausrollen.
+- **Status:** ✅ behoben 2026-07-21 (Repo `R3HR/Craft_log`)
