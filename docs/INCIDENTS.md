@@ -13,6 +13,7 @@
   - Sorare **OAuth Client Secret** hardcodiert in `supabase/functions/sorare-oauth/index.ts` (+ Kopien `C:\craft-log\index.ts`, `Sorion_pro/sorare-oauth.ts`)
   - **Git-History-Analyse (2026-07-06):** Der service_role-Key liegt in der GitHub-History (Initial Commit `0054ce9`, `update.mjs` — abrufbar via `git show 0054ce9:update.mjs`). Ursache: Erste Prototyp-Version mit gepasteten Credentials; Commit `2547094 "move keys to env vars"` hat nur die Dateien gefixt, nicht die History. Das Sorare Client Secret war dagegen **nie auf GitHub** (nur lokale Dateien + Supabase-Deployment) → geringeres Risiko, Rotation trotzdem empfohlen
 - **Risiko:** Jeder mit Repo-Zugriff (oder bei public Repo: jeder) kann die komplette DB manipulieren/löschen und sich als die Sorare-OAuth-App ausgeben.
+- **⚠️ Verschärfung (2026-07-08):** Repo ist verifiziert **PUBLIC** (raw.githubusercontent.com ohne Login abrufbar) → der service_role-Key in der Git-History ist für **jeden im Internet** lesbar, nicht nur für Collaborators. Key-Rotation ist damit DRINGEND. Siehe auch SEC-003.
 - **Fix Code-Seite:** ✅ 2026-07-06 — alle Functions nutzen jetzt `Deno.env.get('SERVICE_ROLE_KEY')` bzw. `Deno.env.get('SORARE_CLIENT_SECRET')`
 - **Fix durch Jonas (OFFEN):**
   1. Supabase Dashboard → Settings → API → **JWT Secret rotieren** (⚠️ invalidiert auch den anon-Key → neuen anon-Key in `UI/index.html` und `Craft_Log UI/index.html` eintragen!)
@@ -45,3 +46,12 @@
 - **Szenario:** Beim Saisonwechsel liefern alle `IN_SEASON`-Queries plötzlich Daten der neuen Saison. Neue Karten haben 0 Sales-Historie → FMV fällt auf Floor zurück oder wird null. Hardcodierte 2025-Pool-URLs (BUG-006) brechen.
 - **Plan:** Siehe HANDOFF.md TODO #1/#2. Vor dem Rollover testen: Was liefert `tokenPrices(seasonEligibility: IN_SEASON)` in den ersten Tagen der neuen Saison?
 - **Status:** 🔴 offen — Deadline Anfang August 2026
+
+## SEC-003 — Repo public: FMV-Formel & gesamter Code öffentlich lesbar
+
+- **Entdeckt:** 2026-07-08 (Frage von Jonas, verifiziert per anonymem HTTP-Abruf)
+- **Betroffen:** `github.com/R3HR/sorion-updater` ist public — `lib/fmv.mjs` (Kern-IP: FMV-Formel mit allen Parametern), alle Scripts, Configs und die komplette Git-History sind ohne Login lesbar.
+- **Risiko:** Kein technischer Angriff, aber Geschäftsrisiko: Konkurrenten können die Formel 1:1 kopieren. Zusätzlich verschärft es SEC-001 (Key in History öffentlich).
+- **Fix durch Jonas:** GitHub → Repo → Settings → General → Danger Zone → **Change visibility → Private**. Railway-Deploys funktionieren weiter (GitHub-App-Anbindung deckt private Repos ab). Danach trotzdem Key-Rotation aus SEC-001 durchziehen — die History war öffentlich, der Key gilt als kompromittiert.
+- **Folgewirkung:** Repo privat gestellt 2026-07-08 → GitHub Pages (Website) ging offline, da Pages bei privaten Repos Bezahlplan braucht. Lösung: UI in separates public Repo `sorion-ui` ausgelagert (`C:\craft-log\sorion-ui`, enthält nur HTML/anon-Key, keine Formel). Sync-Regel in HANDOFF.
+- **Status:** 🟡 Repo privat ✅ (2026-07-08) · Key-Rotation SEC-001 weiterhin offen

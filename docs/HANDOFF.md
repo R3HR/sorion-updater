@@ -11,7 +11,7 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 |---|---|---|
 | Update-Script (FMV-Berechnung) | `update-scarcity.mjs` + `lib/fmv.mjs` | Railway, 3 Services (limited/rare/sr), Cron 22–5 Uhr alle 5 Min |
 | Seed-Script (alle Spieler) | `seed-all-players.mjs` | Railway, manueller Trigger (Redeploy) |
-| UI (Markt-Tabelle) | `UI/index.html` | statisches Hosting |
+| UI (Markt-Tabelle) | `UI/index.html` (kanonisch) | GitHub Pages aus separatem PUBLIC Repo `sorion-ui` (`C:\craft-log\sorion-ui`) — nach UI-Änderungen dorthin kopieren + pushen! Hintergrund: Haupt-Repo ist seit 2026-07-08 privat (SEC-003), Pages ging dabei offline |
 | Edge Functions | `C:\craft-log\supabase\functions\*` | Supabase (Deploy via `supabase functions deploy <name>`) |
 | DB | Supabase Projekt `jxhdlcpdupmkpsoytzes` | Tabellen: `card_prices`, `price_history`, `pool_cache` |
 | CraftLog UI (Portfolio) | `C:\craft-log\Craft_Log UI\index.html` | separates Frontend, ruft `add-missing-players` auf |
