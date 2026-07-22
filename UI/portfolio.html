@@ -492,6 +492,26 @@
   }
 
   .card-item { animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+
+  /* ── Card-Detail-Modal ─────────────────────────────────────── */
+  #pm-backdrop { position: fixed; inset: 0; background: rgba(5,5,12,.82); backdrop-filter: blur(4px); z-index: 50; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #pm-backdrop.open { display: flex; }
+  .pm { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 60px rgba(176,96,255,.18); }
+  .pm-head { display: flex; gap: 14px; padding: 18px; border-bottom: 1px solid var(--border); align-items: center; }
+  .pm-img { width: 64px; height: 90px; object-fit: contain; border-radius: 6px; background: var(--surface2); }
+  .pm-name { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; color: var(--text); }
+  .pm-sub { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); margin-top: 5px; }
+  .pm-close { margin-left: auto; background: none; border: none; color: var(--text2); font-size: 22px; cursor: pointer; align-self: flex-start; }
+  .pm-close:hover { color: var(--text); }
+  .pm-body { padding: 16px 18px 20px; }
+  .pm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pm-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .pm-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .pm-label { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: var(--purple); margin-bottom: 4px; opacity: .85; }
+  .pm-val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--text); }
+  .pm-section { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .2em; color: var(--text2); text-transform: uppercase; margin: 16px 0 8px; }
+  .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #404060; padding: 8px 0; }
+
 </style>
 </head>
 <body>
@@ -578,6 +598,22 @@
 
   </div>
 
+</div>
+
+
+<!-- Card-Detail-Modal -->
+<div id="pm-backdrop" onclick="if(event.target===this)closeCard()">
+  <div class="pm">
+    <div class="pm-head">
+      <img class="pm-img" id="pm-img" src="" alt="">
+      <div>
+        <div class="pm-name" id="pm-name"></div>
+        <div class="pm-sub" id="pm-sub"></div>
+      </div>
+      <button class="pm-close" onclick="closeCard()">✕</button>
+    </div>
+    <div class="pm-body" id="pm-body"></div>
+  </div>
 </div>
 
 <script>
@@ -832,7 +868,7 @@
                       : c.purchase?.type === 'REWARD' ? '🏆 reward'
                       : (buy != null && buy > 0) ? `Paid €${buy.toFixed(2)}` : '';
 
-      return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s" title="${esc(name)}${team ? ' · ' + esc(team) : ''}">
+      return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s;cursor:pointer" onclick="openCard(${i})" title="${esc(name)}${team ? ' · ' + esc(team) : ''}">
         <div class="card-img-wrap">
           <img class="card-img" src="${img || PH_IMG}" alt="" onerror="this.onerror=null;this.src=PH_IMG">
           <span class="card-rarity ${rarity}">${rarityLabel}</span>
@@ -894,6 +930,109 @@
 
   function esc(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+
+  // ── Card-Detail-Modal: alle Infos zu einer Karte, v. a. die persönlichen ──
+  function fmtEur(v) { return v != null ? '€' + Number(v).toFixed(2) : '—'; }
+  function pctSpan(pct) {
+    if (pct == null) return '<span style="color:#404060">—</span>';
+    const up = pct >= 0;
+    return `<span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${pct.toFixed(1)}%</span>`;
+  }
+
+  function openCard(i) {
+    const c = filtered[i];
+    if (!c) return;
+    const rarity  = c.rarityTyped?.toLowerCase() || 'limited';
+    const fmvData = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
+    const val = fmvData?.fmv ?? fmvData?.floor_price ?? fmvData?.sale_1 ?? null;
+    const buy = c.purchase?.eur;
+    const rarityLabel = rarity === 'super_rare' ? 'Super Rare' : rarity === 'rare' ? 'Rare' : 'Limited';
+
+    document.getElementById('pm-img').src = c.player?.pictureUrl || PH_IMG;
+    document.getElementById('pm-name').textContent = c.player?.displayName || c.slug;
+    document.getElementById('pm-sub').textContent =
+      [fmvData?.team_name, rarityLabel, eligOf(c) === 'classic' ? 'Classic' : 'In-Season', (c.slug.match(/-(\d{4})-/) || [])[1]].filter(Boolean).join(' · ');
+
+    const origin = c.purchase?.type === 'SHARDS' ? '⚗️ crafted'
+                 : c.purchase?.type === 'REWARD' ? '🏆 reward'
+                 : c.purchase?.type ? 'purchase' : '—';
+    const buyDate = c.purchase?.date ? new Date(c.purchase.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    const sincePct = (buy > 0 && val != null) ? ((val - buy) / buy) * 100 : null;
+    const sinceAbs = (buy > 0 && val != null) ? val - buy : null;
+    const sinceAbsTxt = sinceAbs == null ? '' :
+      `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;margin-top:3px;color:var(--text2)">${sinceAbs >= 0 ? '+' : '−'}€${Math.abs(sinceAbs).toFixed(2)}</div>`;
+
+    document.getElementById('pm-body').innerHTML = `
+      <div class="pm-grid">
+        <div class="pm-stat"><div class="pm-label">Current value</div><div class="pm-val">${fmvData?.fmv != null ? fmtEur(val) : val != null ? '~' + fmtEur(val) : '// no data'}</div></div>
+        <div class="pm-stat"><div class="pm-label">Since purchase</div><div class="pm-val">${sincePct != null ? pctSpan(sincePct) + sinceAbsTxt : '—'}</div></div>
+      </div>
+      <div class="pm-section">// Your position</div>
+      <div class="pm-grid3">
+        <div class="pm-stat"><div class="pm-label">Paid</div><div class="pm-val">${buy > 0 ? fmtEur(buy) : '—'}</div></div>
+        <div class="pm-stat"><div class="pm-label">Date</div><div class="pm-val" style="font-size:11px">${buyDate}</div></div>
+        <div class="pm-stat"><div class="pm-label">Origin</div><div class="pm-val" style="font-size:11px">${origin}</div></div>
+      </div>
+      <div class="pm-section">// Market</div>
+      <div class="pm-grid3">
+        <div class="pm-stat"><div class="pm-label">FMV</div><div class="pm-val">${fmtEur(fmvData?.fmv)}</div></div>
+        <div class="pm-stat"><div class="pm-label">Floor</div><div class="pm-val">${fmtEur(fmvData?.floor_price)}</div></div>
+        <div class="pm-stat"><div class="pm-label">Last sale</div><div class="pm-val">${fmtEur(fmvData?.sale_1)}</div></div>
+      </div>
+      <div class="pm-section">// Trend</div>
+      <div id="pm-trend"><div class="pm-nodata">// loading…</div></div>`;
+
+    document.getElementById('pm-backdrop').classList.add('open');
+    loadCardTrend(c, rarity, fmvData);
+  }
+
+  function closeCard() { document.getElementById('pm-backdrop').classList.remove('open'); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCard(); });
+
+  async function loadCardTrend(c, rarity, fmvData) {
+    const el = () => document.getElementById('pm-trend');
+    const slug = c.player?.slug;
+    if (!slug) { if (el()) el().innerHTML = '<div class="pm-nodata">// no data</div>'; return; }
+    try {
+      const since = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${slug}&scarcity=eq.${rarity}&eligibility=eq.${eligOf(c)}&recorded_at=gte.${since}&order=recorded_at.asc&select=price,recorded_at`,
+        { headers: { 'apikey': ANON_KEY } }
+      );
+      const hist = res.ok ? await res.json() : [];
+      const now = fmvData?.fmv ?? null;
+      if (!el()) return;
+      if (!hist.length || now == null) { el().innerHTML = '<div class="pm-nodata">// price history builds up daily — check back soon</div>'; return; }
+
+      const at = days => {
+        const t = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+        const older = hist.filter(h => h.recorded_at <= t);
+        return older.length ? older[older.length - 1].price : null;
+      };
+      const p7 = at(7) ?? hist[0].price;
+      const p30 = hist[0].price;
+      const pct = base => base > 0 ? ((now - base) / base) * 100 : null;
+
+      const pts = hist.map(h => h.price).concat([now]);
+      const W = 380, Hh = 46;
+      const min = Math.min(...pts), max = Math.max(...pts), range = max - min || 1;
+      const coords = pts.map((v, idx) => `${(idx / (pts.length - 1)) * W},${Hh - ((v - min) / range) * (Hh - 8) - 4}`);
+      const up = pts[pts.length - 1] >= pts[0];
+
+      el().innerHTML = `
+        <div class="pm-grid">
+          <div class="pm-stat"><div class="pm-label">Last 7 days</div><div class="pm-val">${pctSpan(pct(p7))}</div></div>
+          <div class="pm-stat"><div class="pm-label">Last 30 days</div><div class="pm-val">${pctSpan(pct(p30))}</div></div>
+        </div>
+        <div class="pm-stat" style="margin-top:8px">
+          <div class="pm-label">FMV trend (30d)</div>
+          <svg width="100%" viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" style="display:block">
+            <polyline points="${coords.join(' ')}" fill="none" stroke="${up ? 'var(--up)' : 'var(--down)'}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+        </div>`;
+    } catch { if (el()) el().innerHTML = '<div class="pm-nodata">// no data</div>'; }
   }
 
   init();
