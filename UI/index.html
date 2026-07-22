@@ -1264,7 +1264,7 @@
     document.getElementById('btn-inseason').classList.toggle('active', e === 'in_season');
     document.getElementById('btn-classic').classList.toggle('active', e === 'classic');
     currentPage = 1;
-    filterData();
+    filterTable();
     updateHeroStats();
     renderMovers();
   }
@@ -1303,7 +1303,7 @@
       // Dedupe (Updater schreiben waehrend des Ladens -> Zeilen koennen verrutschen)
       allData = [...new Map(allData.map(r => [r.id, r])).values()];
       updateHeroStats();
-      filterData();
+      filterTable();
       renderMovers();
     } catch(e) {
       document.getElementById('table-body').innerHTML =
