@@ -616,6 +616,29 @@
   </div>
 </div>
 
+
+<!-- Manager-Search-Modal -->
+<div id="ms-backdrop" style="position:fixed;inset:0;background:rgba(5,5,12,.82);backdrop-filter:blur(4px);z-index:60;display:none;align-items:center;justify-content:center;padding:20px">
+  <div class="pm" style="max-width:480px">
+    <div class="pm-head">
+      <div>
+        <div class="pm-name">⌕ Manager Search</div>
+        <div class="pm-sub">Look up any Sorare manager — collections are public</div>
+      </div>
+      <button class="pm-close" onclick="closeManagerSearch()">✕</button>
+    </div>
+    <div class="pm-body">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <input id="ms-input" placeholder="manager name, e.g. jr3hr" spellcheck="false"
+          style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px"
+          onkeydown="if(event.key==='Enter')msSearch()">
+        <button class="btn-sorare" style="padding:10px 18px;font-size:11px" onclick="msSearch()">Load</button>
+      </div>
+      <div id="ms-result"></div>
+    </div>
+  </div>
+</div>
+
 <script>
   const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
   const ANON_KEY     = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
@@ -684,7 +707,7 @@
     document.getElementById('portfolio-screen').style.display = 'block';
     const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
     const btnL = document.getElementById('btn-logout');
-    if (btnL) { btnL.style.display = ''; btnL.textContent = `${slug} · Switch`; }
+    if (btnL) { btnL.style.display = ''; btnL.textContent = `⌕ ${slug}`; btnL.onclick = openManagerSearch; }
     showSkeletons();
     await loadCards(slug);
   }
@@ -1033,6 +1056,141 @@
           </svg>
         </div>`;
     } catch { if (el()) el().innerHTML = '<div class="pm-nodata">// no data</div>'; }
+  }
+
+
+  // ── Manager Search: kompakte Bilanz statt Voll-Portfolio ──────────────────
+  function openManagerSearch() {
+    document.getElementById('ms-backdrop').style.display = 'flex';
+    const inp = document.getElementById('ms-input');
+    inp.value = currentSlug || localStorage.getItem('sorion_manager') || '';
+    inp.focus(); inp.select();
+  }
+  function closeManagerSearch() { document.getElementById('ms-backdrop').style.display = 'none'; }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeManagerSearch(); });
+
+  async function msSearch() {
+    const slug = document.getElementById('ms-input').value.trim().toLowerCase();
+    if (!slug) return;
+    const box = document.getElementById('ms-result');
+    box.innerHTML = '<div class="pm-nodata">// loading collection…</div>';
+    try {
+      const data = await msFetchManager(slug, n => {
+        box.innerHTML = `<div class="pm-nodata">// loading collection… ${n} cards</div>`;
+      });
+      renderMsResult(slug, data);
+    } catch (e) {
+      box.innerHTML = `<div class="pm-nodata">// ${esc(e.message)}</div>`;
+    }
+  }
+
+  async function msFetchManager(slug, onProgress) {
+    try {
+      const c = JSON.parse(sessionStorage.getItem('sorion_ms_cache'));
+      if (c && c.slug === slug && Date.now() - c.ts < 10 * 60 * 1000) return c;
+    } catch {}
+
+    const cards = [];
+    for (const rarity of ['limited', 'rare', 'super_rare']) {
+      let cursor = null, page = 0;
+      do {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+          body: JSON.stringify({ action: 'user_cards', slug, rarity, cursor }),
+        });
+        const d = await res.json();
+        if (d.error) throw new Error('manager not found');
+        for (const n of d?.nodes ?? []) {
+          cards.push({
+            rarity,
+            inSeason: n.inSeasonEligible !== false,
+            name: n.anyPlayer?.displayName ?? n.slug,
+            pslug: n.anyPlayer?.slug ?? null,
+            buy: n.tokenOwner?.amounts?.eurCents != null ? n.tokenOwner.amounts.eurCents / 100 : null,
+            origin: n.tokenOwner?.transferType ?? null,
+          });
+        }
+        if (onProgress) onProgress(cards.length);
+        cursor = d?.pageInfo?.hasNextPage ? d.pageInfo.endCursor : null;
+        page++;
+      } while (cursor && page < 60);
+    }
+    if (!cards.length) throw new Error('no cards found — is the manager name correct?');
+
+    // FMVs batchweise holen
+    const fmv = {};
+    const slugs = [...new Set(cards.map(c => c.pslug).filter(Boolean))];
+    for (const rarity of ['limited', 'rare', 'super_rare']) {
+      for (let i = 0; i < slugs.length; i += 100) {
+        const batch = slugs.slice(i, i + 100);
+        const res = await fetch(
+          `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(x => `"${x}"`).join(',')})&select=player_slug,fmv,floor_price,sale_1,eligibility`,
+          { headers: { 'apikey': ANON_KEY } }
+        );
+        const rows = res.ok ? await res.json() : [];
+        if (Array.isArray(rows)) for (const r of rows) fmv[`${r.player_slug}_${rarity}_${r.eligibility ?? 'in_season'}`] = r;
+      }
+    }
+    const out = { slug, ts: Date.now(), cards, fmv };
+    try { sessionStorage.setItem('sorion_ms_cache', JSON.stringify(out)); } catch {}
+    return out;
+  }
+
+  function renderMsResult(slug, data) {
+    const valOf = c => {
+      const d = data.fmv[`${c.pslug}_${c.rarity}_${c.inSeason ? 'in_season' : 'classic'}`];
+      return d ? (d.fmv ?? d.floor_price ?? d.sale_1 ?? null) : null;
+    };
+    let value = 0, invested = 0, pnl = 0, pnlBasis = 0;
+    const counts = { limited: 0, rare: 0, super_rare: 0 };
+    const ranked = [];
+    for (const c of data.cards) {
+      counts[c.rarity] = (counts[c.rarity] ?? 0) + 1;
+      const v = valOf(c);
+      if (v) value += v;
+      if (c.buy > 0) {
+        invested += c.buy;
+        if (v != null) {
+          pnl += v - c.buy; pnlBasis += c.buy;
+          ranked.push({ ...c, val: v, pct: ((v - c.buy) / c.buy) * 100 });
+        }
+      }
+    }
+    ranked.sort((a, b) => b.pct - a.pct);
+    const top = ranked.slice(0, 3);
+    const flop = ranked.slice(-3).reverse().filter(f => !top.includes(f));
+
+    const rl = r => r === 'super_rare' ? 'SR' : r === 'rare' ? 'R' : 'L';
+    const row = c => {
+      const up = c.pct >= 0;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)} <span style="color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:9px">${rl(c.rarity)}</span></span>
+        <span style="font-family:'Share Tech Mono',monospace;font-size:11px;white-space:nowrap">€${c.buy.toFixed(2)} → €${c.val.toFixed(2)}
+          <span style="color:${up ? 'var(--up)' : 'var(--down)'};font-weight:700"> ${up ? '+' : ''}${c.pct.toFixed(0)}%</span></span>
+      </div>`;
+    };
+    const pnlPct = pnlBasis > 0 ? (pnl / pnlBasis) * 100 : null;
+
+    document.getElementById('ms-result').innerHTML = `
+      <div class="pm-grid">
+        <div class="pm-stat"><div class="pm-label">Cards</div><div class="pm-val">${data.cards.length} <span style="font-size:10px;color:var(--text2)">(${counts.limited}L·${counts.rare}R·${counts.super_rare}SR)</span></div></div>
+        <div class="pm-stat"><div class="pm-label">Portfolio value</div><div class="pm-val">€${value.toFixed(0)}</div></div>
+        <div class="pm-stat"><div class="pm-label">Invested</div><div class="pm-val">€${invested.toFixed(0)}</div></div>
+        <div class="pm-stat"><div class="pm-label">P&amp;L since buy</div><div class="pm-val" style="color:${pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${pnl >= 0 ? '+' : '−'}€${Math.abs(pnl).toFixed(0)}${pnlPct != null ? ` (${pnl >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%)` : ''}</div></div>
+      </div>
+      ${top.length ? `<div class="pm-section">// Top 3 (buy → value)</div>${top.map(row).join('')}` : ''}
+      ${flop.length ? `<div class="pm-section">// Flop 3 (buy → value)</div>${flop.map(row).join('')}` : ''}
+      <button class="btn-sorare" style="margin-top:16px;width:100%;justify-content:center;padding:12px;font-size:11px" onclick="msOpenFull('${esc(slug)}')">Open full portfolio →</button>`;
+  }
+
+  function msOpenFull(slug) {
+    closeManagerSearch();
+    localStorage.setItem('sorion_manager', slug);
+    const url = new URL(window.location);
+    url.searchParams.set('manager', slug);
+    window.history.replaceState({}, '', url);
+    showPortfolio(slug);
   }
 
   init();
