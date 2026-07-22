@@ -68,3 +68,11 @@
 - **Ursache (2-fach):** (1) `update-pool` upsertete ohne `on_conflict=rarity` — der Merge zielte auf den Primärschlüssel, jeder Lauf nach dem ersten scheiterte mit „duplicate key". (2) Es gab ohnehin keinen Zeitplan — niemand rief die Function regelmäßig auf.
 - **Fix:** `?on_conflict=rarity` im Upsert (deployed 21.07.); Harvester ruft `update-pool` + `update-prices` jetzt täglich nach seinem Lauf auf.
 - **Status:** ✅ behoben 2026-07-21 — Cache wieder aktuell (1.189 Spieler/Rarity)
+
+## BUG-009 — Marktseite: Ladefehler + still kaputter Eligibility-Toggle
+
+- **Symptom:** „ERROR: failed to load market data" nach der Ladezeit-Optimierung; außerdem reagierte der In-Season/Classic-Toggle seit 21.07. nicht (still, ohne Fehlermeldung).
+- **Ursachen:** (1) `count=exact` über 80k Zeilen konnte in Timeout laufen; (2) Tippfehler `filterData()` statt `filterTable()` — im neuen Loader UND im Toggle vom 21.07. (dort crashte jeder Klick lautlos).
+- **Fix:** Loader ohne count-Abfrage (lädt bis unvolle Seite, Fehler degradieren zu Teildaten statt Crash); Funktionsname korrigiert. Live verifiziert inkl. Toggle (8.183 Classic-Zeilen).
+- **Lektion:** UI-Interaktionen nach Einbau einmal wirklich KLICKEN (Toggle war nie getestet worden); `node --check`/`new Function` fängt nur Syntax, keine ReferenceErrors.
+- **Status:** ✅ behoben 2026-07-22
