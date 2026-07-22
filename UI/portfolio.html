@@ -785,38 +785,37 @@
       const team        = fmvData?.team_name || '';
       const seasonTag   = eligOf(c) === 'classic' ? 'Classic' : 'In-Season';
 
-      // Trading-Zeile: Kaufpreis + Entwicklung seit Kauf
+      // Karte zeigt den Namen selbst — unten nur Zahlen, gross und lesbar.
+      // P&L als Chip mit Hintergrund statt duenner Farb-Schrift.
       const val = fmv ?? fmvData?.floor_price ?? fmvData?.sale_1 ?? null;
       const buy = c.purchase?.eur;
-      let buyLine = '';
+      let pnlChip = '';
       if (buy != null && buy > 0 && val != null) {
-        const diff = val - buy;
-        const pct  = (diff / buy) * 100;
-        const col  = diff >= 0 ? 'var(--up)' : 'var(--down)';
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:${col};margin-top:2px">Paid €${buy.toFixed(2)} → ${diff >= 0 ? '+' : ''}${pct.toFixed(0)}%</div>`;
-      } else if (buy != null && buy > 0) {
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">Paid €${buy.toFixed(2)}</div>`;
-      } else if (c.purchase?.type === 'SHARDS') {
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">⚗️ crafted</div>`;
-      } else if (c.purchase?.type === 'REWARD') {
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">🏆 Reward</div>`;
+        const d = val - buy, up = d >= 0, pct = (d / buy) * 100;
+        pnlChip = `<span style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;background:${up ? 'rgba(0,245,160,0.14)' : 'rgba(255,45,120,0.14)'};border:1px solid ${up ? 'rgba(0,245,160,0.4)' : 'rgba(255,45,120,0.4)'};color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${pct.toFixed(0)}%</span>`;
       }
+      const originTag = c.purchase?.type === 'SHARDS' ? '⚗️ crafted'
+                      : c.purchase?.type === 'REWARD' ? '🏆 reward'
+                      : (buy != null && buy > 0) ? `Paid €${buy.toFixed(2)}` : '';
 
-      return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s">
+      return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s" title="${esc(name)}${team ? ' · ' + esc(team) : ''}">
         <div class="card-img-wrap">
           <img class="card-img" src="${img}" alt="" onerror="this.style.display='none'">
           <span class="card-rarity ${rarity}">${rarityLabel}</span>
         </div>
         <div class="card-info">
-          <div class="card-name">${esc(name)}</div>
-          <div class="card-team">${esc(team)} · ${seasonTag}</div>
-          ${fmv
-            ? `<div class="card-fmv">€${fmv.toFixed(2)}</div>`
-            : (fmvData?.floor_price ?? fmvData?.sale_1)
-              ? `<div class="card-fmv" style="opacity:.7">~€${(fmvData.floor_price ?? fmvData.sale_1).toFixed(2)}</div>`
-              : `<div class="card-fmv no-data">// no data</div>`
-          }
-          ${buyLine}
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            ${fmv
+              ? `<div class="card-fmv" style="font-size:17px">€${fmv.toFixed(2)}</div>`
+              : val != null
+                ? `<div class="card-fmv" style="font-size:17px;opacity:.7">~€${val.toFixed(2)}</div>`
+                : `<div class="card-fmv no-data">// no data</div>`
+            }
+            ${pnlChip}
+          </div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-family:'Share Tech Mono',monospace;font-size:10.5px;color:var(--text2);margin-top:5px">
+            <span>${originTag}</span><span>${seasonTag}</span>
+          </div>
         </div>
       </div>`;
     }).join('');
