@@ -542,11 +542,11 @@
         <div class="p-stat-value" id="stat-value">—</div>
       </div>
       <div class="p-stat">
-        <div class="p-stat-label">// Investiert</div>
+        <div class="p-stat-label">// Invested</div>
         <div class="p-stat-value" id="stat-invested">—</div>
       </div>
       <div class="p-stat">
-        <div class="p-stat-label">// P&amp;L seit Kauf</div>
+        <div class="p-stat-label">// P&amp;L since buy</div>
         <div class="p-stat-value" id="stat-pnl">—</div>
       </div>
       <div class="p-stat">
@@ -603,13 +603,13 @@
     const btnL = document.getElementById('btn-logout');  if (btnL) btnL.style.display = 'none';
     ls.innerHTML = `
       <div class="login-icon">🎴</div>
-      <div class="login-title">Portfolio ansehen</div>
-      <div class="login-sub">Sorare-Managernamen eingeben — Sammlungen sind öffentlich, kein Login nötig.</div>
+      <div class="login-title">View a Portfolio</div>
+      <div class="login-sub">Enter a Sorare manager name — collections are public, no login required.</div>
       <div style="display:flex;gap:8px;margin-top:16px;justify-content:center;flex-wrap:wrap">
-        <input id="slug-input" placeholder="z. B. jr3hr" spellcheck="false"
+        <input id="slug-input" placeholder="e.g. jr3hr" spellcheck="false"
           style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;min-width:220px"
           onkeydown="if(event.key==='Enter')openManager()">
-        <button class="btn-sorare" onclick="openManager()">Laden</button>
+        <button class="btn-sorare" onclick="openManager()">Load</button>
       </div>
       <div id="slug-error" style="color:var(--down);font-size:12px;margin-top:10px;font-family:'Share Tech Mono',monospace"></div>`;
     const remembered = localStorage.getItem('sorion_manager');
@@ -646,7 +646,7 @@
     document.getElementById('portfolio-screen').style.display = 'block';
     const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
     const btnL = document.getElementById('btn-logout');
-    if (btnL) { btnL.style.display = ''; btnL.textContent = `${slug} · Wechseln`; }
+    if (btnL) { btnL.style.display = ''; btnL.textContent = `${slug} · Switch`; }
     showSkeletons();
     await loadCards(slug);
   }
@@ -680,8 +680,8 @@
       do {
         grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
           <div class="spinner"></div>
-          <div class="loading-text">Lade ${rarity}-Karten von ${esc(slug)}...</div>
-          <div class="loading-progress">${allCards.length} Karten geladen</div>
+          <div class="loading-text">Loading ${rarity} cards of ${esc(slug)}...</div>
+          <div class="loading-progress">${allCards.length} cards loaded</div>
         </div>`;
 
         const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
@@ -690,7 +690,7 @@
           body: JSON.stringify({ action: 'user_cards', slug, rarity, cursor }),
         });
         const data = await res.json();
-        if (data.error) { showManagerError(`Manager „${esc(slug)}" nicht gefunden`); return; }
+        if (data.error) { showManagerError(`Manager "${esc(slug)}" not found`); return; }
 
         for (const n of data?.nodes ?? []) {
           allCards.push({
@@ -712,7 +712,7 @@
       } while (cursor && page < 60);
     }
 
-    if (!allCards.length) { showManagerError(`Keine Karten gefunden — Managername korrekt?`); return; }
+    if (!allCards.length) { showManagerError(`No cards found — is the manager name correct?`); return; }
 
     await loadFMV();
     filterCards();
@@ -793,11 +793,11 @@
         const diff = val - buy;
         const pct  = (diff / buy) * 100;
         const col  = diff >= 0 ? 'var(--up)' : 'var(--down)';
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:${col};margin-top:2px">Kauf €${buy.toFixed(2)} → ${diff >= 0 ? '+' : ''}${pct.toFixed(0)}%</div>`;
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:${col};margin-top:2px">Paid €${buy.toFixed(2)} → ${diff >= 0 ? '+' : ''}${pct.toFixed(0)}%</div>`;
       } else if (buy != null && buy > 0) {
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">Kauf €${buy.toFixed(2)}</div>`;
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">Paid €${buy.toFixed(2)}</div>`;
       } else if (c.purchase?.type === 'SHARDS') {
-        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">⚗️ gecraftet</div>`;
+        buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">⚗️ crafted</div>`;
       } else if (c.purchase?.type === 'REWARD') {
         buyLine = `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--text2);margin-top:2px">🏆 Reward</div>`;
       }
