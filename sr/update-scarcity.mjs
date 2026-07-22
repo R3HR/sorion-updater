@@ -90,7 +90,15 @@ async function calcChanges(playerSlug, eligibility, fmv, now, hasEligibility) {
     const older = hist.filter(h => h.recorded_at <= target);
     return older.length ? older[older.length - 1].price : null;
   };
-  const p1 = priceAt(1), p7 = priceAt(7);
+  const p1 = priceAt(1);
+  let p7 = priceAt(7);
+  // Übergangsphase: flächendeckende Tages-History erst seit 21.07. — bis dahin
+  // ältesten verfügbaren Punkt (mind. 1 Tag alt) als 7d-Basis nehmen. Konvergiert
+  // von selbst zur echten 7-Tage-Basis, sobald die History gefüllt ist (~29.07.).
+  if (p7 == null && hist.length) {
+    const yesterday = new Date(now - 1 * 86400000).toISOString().split('T')[0];
+    if (hist[0].recorded_at <= yesterday) p7 = hist[0].price;
+  }
   return {
     change_24h: p1 > 0 ? parseFloat((((fmv - p1) / p1) * 100).toFixed(2)) : null,
     change_7d:  p7 > 0 ? parseFloat((((fmv - p7) / p7) * 100).toFixed(2)) : null,
@@ -105,7 +113,12 @@ async function main() {
   const migrated = !probe.error;
   if (!migrated) console.warn('Migration fehlt (migrations/2026-07-21_eligibility_and_changes.sql) — laufe im Alt-Modus (nur in_season, keine Prozente)');
 
-  const cols = migrated ? 'id, player_slug, eligibility' : 'id, player_slug';
+  // Accuracy-Tracking verfügbar? (migrations/2026-07-22_accuracy.sql)
+  const accProbe = await supabase.from('fmv_accuracy').select('id').limit(1);
+  const hasAccuracy = !accProbe.error;
+  if (!hasAccuracy) console.warn('fmv_accuracy-Tabelle fehlt — Accuracy-Tracking übersprungen');
+
+  const cols = migrated ? 'id, player_slug, eligibility, fmv, updated_at' : 'id, player_slug';
   const { data: players, error } = await supabase
     .from('card_prices')
     .select(cols)
@@ -126,6 +139,30 @@ async function main() {
       failed++; await sleep(DELAY_MS); continue;
     }
     const { sales, fetchedFloor } = result;
+
+    // ── Accuracy-Tracking: neue Sales seit dem letzten Lauf gegen den DAMALS
+    // geschätzten FMV loggen (kein Leakage — der aktuelle Lauf sieht den Sale,
+    // aber verglichen wird mit der Schätzung von vorher). Signiertes Delta.
+    if (hasAccuracy && player.fmv > 0 && player.updated_at) {
+      const prevAt = new Date(player.updated_at).getTime();
+      const newSales = sales.filter(s => s.eur > 0 && new Date(s.date).getTime() > prevAt);
+      if (newSales.length) {
+        const accRows = newSales.slice(0, 5).map(s => ({
+          player_slug: player.player_slug,
+          scarcity:    SCARCITY,
+          eligibility,
+          fmv_est:     player.fmv,
+          sale_price:  s.eur,
+          delta_pct:   parseFloat((((s.eur - player.fmv) / player.fmv) * 100).toFixed(2)),
+          est_at:      player.updated_at,
+          sale_at:     s.date,
+          hours_gap:   parseFloat(((new Date(s.date).getTime() - prevAt) / 3600000).toFixed(1)),
+        }));
+        const { error: accErr } = await supabase.from('fmv_accuracy').insert(accRows);
+        if (accErr) console.warn(`  Accuracy-Insert failed: ${accErr.message}`);
+      }
+    }
+
     const sorted = [...sales].sort((a, b) => a.eur - b.eur);
     const floorPrice = fetchedFloor ?? sorted[0]?.eur ?? null;
     const fmvRaw = calculateFMV(sales, floorPrice, Date.now(), eligibility === 'classic' ? CLASSIC_PROFILE : undefined);

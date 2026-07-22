@@ -112,3 +112,8 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 - SMTP-Kette Supabase→Resend funktioniert (Absender aktuell `noreply@craftlog.pro`, Domain verified). Debug-Lektion: Test-Signups mit `@example.com` schlagen fehl — Resend lehnt reservierte Domains ab, GoTrue macht daraus „Error sending confirmation email" (500). Für Tests immer echte Mail-Domains nehmen!
 - **Plan:** `sorion.pro` in Resend verifizieren (DNS beim Registrar) → Supabase-Sender auf `noreply@sorion.pro`/`SORION` umstellen. CraftLog braucht keine eigenen Auth-Mails mehr (nur noch Sorare-Login; E-Mail-Login-Formular dort ist Legacy → bei Gelegenheit ausbauen)
 - Sorion-gebrandete Templates liegen in `mail-templates/` (confirm-signup + reset-password) → in Supabase unter Authentication → Emails → Templates einfügen
+
+## Accuracy-Tracking + Movers-Fix (22.07.)
+
+- **`fmv_accuracy`-Tabelle** (Migration `2026-07-22_accuracy.sql`): Updater loggt jeden neuen Sale gegen den FMV des VORHERIGEN Laufs (kein Leakage) — signiertes `delta_pct`, `hours_gap` zum Filtern, getrennt nach Scarcity/Eligibility. Volle Abdeckung, null Extra-API-Calls. Auswertungs-Query steht als Kommentar in der Migrationsdatei (Median-|Delta| = Genauigkeit, Avg-Delta = Bias; Bias leicht positiv ist erwartbar — sellable-FMV schätzt bewusst konservativ)
+- **7d-Movers**: zeigen seit 21.07. ehrliche change_7d — waren leer, weil flächendeckende History erst seit 21.07. existiert. Übergangslösung: ältester verfügbarer History-Punkt (≥1 Tag) als Basis, konvergiert bis ~29.07. zur echten 7-Tage-Basis
