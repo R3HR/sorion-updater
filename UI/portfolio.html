@@ -714,6 +714,23 @@
 
     if (!allCards.length) { showManagerError(`No cards found — is the manager name correct?`); return; }
 
+    // Jede angesehene Sammlung füttert unsere DB: unbekannte Spieler werden
+    // an add-missing-players gemeldet (legt alle Scarcities/Eligibilities an,
+    // Updater bepreist sie dann). Fire-and-forget — bremst die Anzeige nicht.
+    try {
+      const uniquePlayers = [...new Map(allCards.filter(c => c.player?.slug).map(c => [c.player.slug, {
+        player_slug: c.player.slug,
+        player_name: c.player.displayName ?? null,
+        scarcity:    c.rarityTyped?.toLowerCase() || 'limited',
+        picture_url: c.player.pictureUrl ?? null,
+      }])).values()];
+      fetch(`${SUPABASE_URL}/functions/v1/add-missing-players`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({ players: uniquePlayers }),
+      }).catch(() => {});
+    } catch {}
+
     await loadFMV();
     filterCards();
     updateStats();
