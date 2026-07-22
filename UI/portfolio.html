@@ -583,6 +583,8 @@
 <script>
   const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
   const ANON_KEY     = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+  // Platzhalter für Karten ohne Bild (neue 26/27-Releases haben noch keine Fotos)
+  const PH_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 84'%3E%3Crect width='60' height='84' rx='5' fill='%231a1a2e'/%3E%3Crect x='.5' y='.5' width='59' height='83' rx='5' fill='none' stroke='%233a3a60'/%3E%3Ccircle cx='30' cy='32' r='11' fill='%23404060'/%3E%3Cpath d='M12 74c2-16 10-22 18-22s16 6 18 22' fill='%23404060'/%3E%3C/svg%3E";
 
   let allCards     = [];
   let filtered     = [];
@@ -832,7 +834,7 @@
 
       return `<div class="card-item" style="animation-delay:${(i%20)*0.03}s" title="${esc(name)}${team ? ' · ' + esc(team) : ''}">
         <div class="card-img-wrap">
-          <img class="card-img" src="${img}" alt="" onerror="this.style.display='none'">
+          <img class="card-img" src="${img || PH_IMG}" alt="" onerror="this.onerror=null;this.src=PH_IMG">
           <span class="card-rarity ${rarity}">${rarityLabel}</span>
         </div>
         <div class="card-info">

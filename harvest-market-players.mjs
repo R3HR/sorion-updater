@@ -110,11 +110,12 @@ async function fetchNames(slugs) {
         players(slugs: ${JSON.stringify(batch)}) {
           slug
           displayName
+          pictureUrl
           activeClub { shortName }
         }
       }`);
       for (const p of data.players ?? []) {
-        names.set(p.slug, { name: p.displayName, team: p.activeClub?.shortName ?? null });
+        names.set(p.slug, { name: p.displayName, team: p.activeClub?.shortName ?? null, picture: p.pictureUrl ?? null });
       }
     } catch (e) { console.warn(`Name-Batch failed: ${e.message}`); }
     await sleep(DELAY_MS);
@@ -165,6 +166,7 @@ async function main() {
       player_slug: m.player_slug,
       player_name: info?.name ?? m.player_slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
       team_name:   info?.team ?? null,
+      picture_url: info?.picture ?? null,
       scarcity:    m.scarcity,
       updated_at:  new Date(0).toISOString(), // epoch → Updater priorisiert
     };
