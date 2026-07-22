@@ -117,3 +117,7 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 
 - **`fmv_accuracy`-Tabelle** (Migration `2026-07-22_accuracy.sql`): Updater loggt jeden neuen Sale gegen den FMV des VORHERIGEN Laufs (kein Leakage) — signiertes `delta_pct`, `hours_gap` zum Filtern, getrennt nach Scarcity/Eligibility. Volle Abdeckung, null Extra-API-Calls. Auswertungs-Query steht als Kommentar in der Migrationsdatei (Median-|Delta| = Genauigkeit, Avg-Delta = Bias; Bias leicht positiv ist erwartbar — sellable-FMV schätzt bewusst konservativ)
 - **7d-Movers**: zeigen seit 21.07. ehrliche change_7d — waren leer, weil flächendeckende History erst seit 21.07. existiert. Übergangslösung: ältester verfügbarer History-Punkt (≥1 Tag) als Basis, konvergiert bis ~29.07. zur echten 7-Tage-Basis
+
+## Sprachen (Entscheidung 22.07.)
+
+Markt + Portfolio = Englisch (22.07. vereinheitlicht). Profilseite vorerst Deutsch. **Entscheidung Jonas:** kein Einzel-Übersetzen mehr — später kommt ein richtiger Sprachumschalter (wie CraftLog: DE/EN/ES/FR) als eigenes Projekt, weitere Sprachen dann dort. Bis dahin neue UI-Texte auf Englisch anlegen (außer Rechtstexte/legal.html: Deutsch).
