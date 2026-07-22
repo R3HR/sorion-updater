@@ -527,7 +527,7 @@
     <nav class="nav-links">
       <a class="nav-link" href="https://sorion.pro">Market</a>
       <a class="nav-link active" href="#">Portfolio</a>
-      <a class="nav-link" href="profile.html">Profile</a>
+      <a class="nav-link" href="#" onclick="openManagerSearch();return false;">Manager Search</a>
       <a class="nav-link" href="https://craftlog.pro">Craft_LOG</a>
       <button class="nav-cta" id="btn-logout" onclick="logout()" style="display:none">Logout</button>
       <button class="nav-cta" id="btn-connect" onclick="loginWithSorare()">Connect Sorare</button>
@@ -707,7 +707,7 @@
     document.getElementById('portfolio-screen').style.display = 'block';
     const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
     const btnL = document.getElementById('btn-logout');
-    if (btnL) { btnL.style.display = ''; btnL.textContent = `⌕ ${slug}`; btnL.onclick = openManagerSearch; }
+    if (btnL) { btnL.style.display = ''; btnL.textContent = `◉ ${slug}`; btnL.onclick = () => { window.location.href = 'profile.html'; }; }
     showSkeletons();
     await loadCards(slug);
   }
