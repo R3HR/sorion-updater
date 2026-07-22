@@ -1271,19 +1271,21 @@
 
   async function loadData() {
     document.getElementById('table-body').innerHTML = skeletonRows();
-    // Ladezeit-Optimierung (22.07.): nur bepreiste Zeilen, nur benoetigte Spalten,
-    // erste Seite sofort rendern, Rest parallel. Ohne count-Abfrage (Timeout-anfaellig):
-    // es wird geladen, bis eine Seite nicht mehr voll ist.
+    // Lade-Strategie (22.07. v3): erste Seite = Top-FMV (sofort sichtbar),
+    // Rest per ID-Bereichen (PK-Index, konstant schnell — tiefe OFFSETs liefen
+    // in DB-Timeouts und lieferten stillschweigend Teildaten, BUG-009b).
     const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
     const FILTER = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
-    const base = `${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&order=fmv.desc.nullslast,id.asc`;
     const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
-    const page = o => fetch(`${base}&limit=1000&offset=${o}`, { headers: H })
-      .then(r => r.ok ? r.json() : [])
-      .catch(() => []);
+    const fetchJson = async (url, retry = 1) => {
+      try {
+        const r = await fetch(url, { headers: H });
+        if (r.ok) return await r.json();
+      } catch {}
+      return retry > 0 ? fetchJson(url, retry - 1) : [];
+    };
 
     // Seitenwechsel-Cache: Marktdaten 5 Min in der Cache API halten
-    // (zu gross fuer localStorage) — Rueckkehr vom Portfolio laedt dann nichts neu.
     try {
       const cache = await caches.open('sorion-v1');
       const hit = await cache.match('/cache/market-data');
@@ -1300,25 +1302,26 @@
     } catch {}
 
     try {
-      // Erste Seite — Tabelle ist sofort benutzbar
-      allData = await page(0);
+      // 1) Top-1000 nach FMV — Tabelle sofort benutzbar
+      allData = await fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&order=fmv.desc.nullslast,id.asc&limit=1000`);
       if (!allData.length) throw new Error('empty');
       updateHeroStats();
       setScarcity('limited');
       renderMovers();
 
-      // Rest in parallelen 6er-Wellen, bis eine Seite unvoll ist
-      let offset = 1000, done = allData.length < 1000;
-      while (!done && offset < 200000) {
-        const offs = Array.from({ length: 6 }, (_, k) => offset + k * 1000);
-        offset += 6000;
-        const batches = await Promise.all(offs.map(page));
-        for (const b of batches) {
-          allData = allData.concat(b);
-          if (b.length < 1000) done = true;
-        }
+      // 2) Alles per ID-Bereichen nachladen (je 1000 IDs => nie ueber dem Row-Limit)
+      const maxRow = await fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?select=id&order=id.desc&limit=1`);
+      const maxId = maxRow[0]?.id ?? 0;
+      const ranges = [];
+      for (let a = 0; a <= maxId; a += 1000) ranges.push(a);
+      for (let i = 0; i < ranges.length; i += 8) {
+        const batches = await Promise.all(ranges.slice(i, i + 8).map(a =>
+          fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&id=gte.${a}&id=lt.${a + 1000}`)
+        ));
+        allData = allData.concat(...batches);
       }
-      // Dedupe (Updater schreiben waehrend des Ladens -> Zeilen koennen verrutschen)
+
+      // Dedupe (erste Seite ueberlappt mit den ID-Bereichen)
       allData = [...new Map(allData.map(r => [r.id, r])).values()];
       updateHeroStats();
       filterTable();
