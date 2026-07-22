@@ -75,4 +75,5 @@
 - **Ursachen:** (1) `count=exact` über 80k Zeilen konnte in Timeout laufen; (2) Tippfehler `filterData()` statt `filterTable()` — im neuen Loader UND im Toggle vom 21.07. (dort crashte jeder Klick lautlos).
 - **Fix:** Loader ohne count-Abfrage (lädt bis unvolle Seite, Fehler degradieren zu Teildaten statt Crash); Funktionsname korrigiert. Live verifiziert inkl. Toggle (8.183 Classic-Zeilen).
 - **Lektion:** UI-Interaktionen nach Einbau einmal wirklich KLICKEN (Toggle war nie getestet worden); `node --check`/`new Function` fängt nur Syntax, keine ReferenceErrors.
+- **Nachtrag (v3):** Die parallelen OFFSET-Abfragen liefen bei tiefen Offsets in DB-Timeouts → stillschweigend Teildaten (9k statt 38k). Umgestellt auf ID-Bereichs-Abfragen (PK-Index, konstant schnell). Dazu Seitenwechsel-Cache: Marktdaten 5 Min in der Cache API, Portfolio 10 Min in sessionStorage — Wechsel Markt↔Portfolio lädt nichts neu. Live verifiziert (38.303 Zeilen, Cache-Hit in <1s).
 - **Status:** ✅ behoben 2026-07-22
