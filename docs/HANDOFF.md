@@ -106,3 +106,9 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 **⚠️ Manuelle Schritte (Jonas):**
 1. `migrations/2026-07-22_profiles.sql` im SQL Editor ausführen — vorher funktioniert die Profilseite nicht (profiles-Tabelle fehlt)
 2. Supabase → Authentication → URL Configuration: **Site URL** `https://sorion.pro`, **Redirect URLs** `https://sorion.pro/profile.html` hinzufügen — sonst führen Bestätigungs-/Reset-Mails ins Leere. Dabei prüfen: „Confirm email" aktiv (empfohlen, Double-Opt-In)
+
+## Mail-Versand (22.07.) — Resend läuft, Domain-Umzug auf sorion.pro geplant
+
+- SMTP-Kette Supabase→Resend funktioniert (Absender aktuell `noreply@craftlog.pro`, Domain verified). Debug-Lektion: Test-Signups mit `@example.com` schlagen fehl — Resend lehnt reservierte Domains ab, GoTrue macht daraus „Error sending confirmation email" (500). Für Tests immer echte Mail-Domains nehmen!
+- **Plan:** `sorion.pro` in Resend verifizieren (DNS beim Registrar) → Supabase-Sender auf `noreply@sorion.pro`/`SORION` umstellen. CraftLog braucht keine eigenen Auth-Mails mehr (nur noch Sorare-Login; E-Mail-Login-Formular dort ist Legacy → bei Gelegenheit ausbauen)
+- Sorion-gebrandete Templates liegen in `mail-templates/` (confirm-signup + reset-password) → in Supabase unter Authentication → Emails → Templates einfügen
