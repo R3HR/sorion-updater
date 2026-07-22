@@ -1281,6 +1281,24 @@
     const page = o => fetch(`${base}&limit=1000&offset=${o}`, { headers: H })
       .then(r => r.ok ? r.json() : [])
       .catch(() => []);
+
+    // Seitenwechsel-Cache: Marktdaten 5 Min in der Cache API halten
+    // (zu gross fuer localStorage) — Rueckkehr vom Portfolio laedt dann nichts neu.
+    try {
+      const cache = await caches.open('sorion-v1');
+      const hit = await cache.match('/cache/market-data');
+      if (hit) {
+        const c = await hit.json();
+        if (Date.now() - c.ts < 5 * 60 * 1000 && c.rows?.length) {
+          allData = c.rows;
+          updateHeroStats();
+          setScarcity('limited');
+          renderMovers();
+          return;
+        }
+      }
+    } catch {}
+
     try {
       // Erste Seite — Tabelle ist sofort benutzbar
       allData = await page(0);
@@ -1305,6 +1323,10 @@
       updateHeroStats();
       filterTable();
       renderMovers();
+      try {
+        const cache = await caches.open('sorion-v1');
+        await cache.put('/cache/market-data', new Response(JSON.stringify({ ts: Date.now(), rows: allData }), { headers: { 'Content-Type': 'application/json' } }));
+      } catch {}
     } catch(e) {
       document.getElementById('table-body').innerHTML =
         `<tr class="empty-row"><td colspan="10">// ERROR: failed to load market data</td></tr>`;

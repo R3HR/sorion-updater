@@ -675,6 +675,18 @@
     const grid = document.getElementById('cards-grid');
     allCards = []; fmvCache = {};
 
+    // Seitenwechsel-Cache: Sammlung + FMVs 10 Min pro Manager (sessionStorage)
+    try {
+      const c = JSON.parse(sessionStorage.getItem('sorion_pf_cache'));
+      if (c && c.slug === slug && Date.now() - c.ts < 10 * 60 * 1000 && c.cards?.length) {
+        allCards = c.cards;
+        fmvCache = c.fmv || {};
+        filterCards();
+        updateStats();
+        return;
+      }
+    } catch {}
+
     for (const rarity of ['limited', 'rare', 'super_rare']) {
       let cursor = null, page = 0;
       do {
@@ -734,6 +746,9 @@
     await loadFMV();
     filterCards();
     updateStats();
+    try {
+      sessionStorage.setItem('sorion_pf_cache', JSON.stringify({ slug, ts: Date.now(), cards: allCards, fmv: fmvCache }));
+    } catch {}
   }
 
   async function loadFMV() {
