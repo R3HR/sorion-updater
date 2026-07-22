@@ -32,3 +32,13 @@ create policy "fmv_accuracy_public_read" on fmv_accuracy for select using (true)
 -- from fmv_accuracy
 -- where created_at > now() - interval '30 days' and hours_gap < 48
 -- group by 1, 2 order by 1, 2;
+
+-- View für die UI-Anzeige (RLS der Basistabelle greift via security_invoker)
+create or replace view fmv_accuracy_stats with (security_invoker = true) as
+select eligibility, scarcity,
+       count(*)::int as samples,
+       round((percentile_cont(0.5) within group (order by abs(delta_pct)))::numeric, 1) as median_abs_delta,
+       round(avg(delta_pct)::numeric, 1) as bias
+from fmv_accuracy
+where created_at > now() - interval '30 days' and hours_gap < 48
+group by 1, 2;

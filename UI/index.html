@@ -1068,9 +1068,13 @@
     font-size: 10px;
     color: #404060;
   }
+  @media (max-width: 480px) {
     .hero-stats { grid-template-columns: 1fr; }
     .logo-mark { font-size: 18px; }
   }
+
+  .acc-stats { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 600px) { .acc-stats { grid-template-columns: 1fr; } }
 
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -1152,6 +1156,25 @@
       <div class="hero-stat-label">// Last Updated</div>
       <div class="hero-stat-value" id="stat-updated" style="font-size:16px;padding-top:4px">—</div>
       <div class="hero-stat-sub">daily data refresh</div>
+    </div>
+  </div>
+
+  <!-- FMV Accuracy -->
+  <div class="hero-stats acc-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-label">// FMV-Genauigkeit · Limited</div>
+      <div class="hero-stat-value" id="acc-limited" style="font-size:17px;padding-top:3px">—</div>
+      <div class="hero-stat-sub">median. Abweichung In-Season · Classic (30d)</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-label">// FMV-Genauigkeit · Rare</div>
+      <div class="hero-stat-value" id="acc-rare" style="font-size:17px;padding-top:3px">—</div>
+      <div class="hero-stat-sub">median. Abweichung In-Season · Classic (30d)</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-label">// FMV-Genauigkeit · Super Rare</div>
+      <div class="hero-stat-value" id="acc-sr" style="font-size:17px;padding-top:3px">—</div>
+      <div class="hero-stat-sub">median. Abweichung In-Season · Classic (30d)</div>
     </div>
   </div>
 
@@ -1753,6 +1776,21 @@
   }
 
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── FMV-Genauigkeit (aus fmv_accuracy_stats-View; fehlt sie → Anzeige bleibt „—") ──
+  (async function loadAccuracy() {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/fmv_accuracy_stats?select=*`, { headers: { 'apikey': ANON_KEY } });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return;
+      const get = (sc, el) => rows.find(r => r.scarcity === sc && r.eligibility === el);
+      const fmt = r => r && r.samples >= 10 ? `±${Number(r.median_abs_delta).toFixed(1)}%` : '—';
+      for (const [sc, id] of [['limited','acc-limited'], ['rare','acc-rare'], ['super_rare','acc-sr']]) {
+        document.getElementById(id).textContent = `${fmt(get(sc, 'in_season'))} · ${fmt(get(sc, 'classic'))}`;
+      }
+    } catch {}
+  })();
 
   loadData();
 </script>
