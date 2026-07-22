@@ -77,3 +77,11 @@
 - **Lektion:** UI-Interaktionen nach Einbau einmal wirklich KLICKEN (Toggle war nie getestet worden); `node --check`/`new Function` fängt nur Syntax, keine ReferenceErrors.
 - **Nachtrag (v3):** Die parallelen OFFSET-Abfragen liefen bei tiefen Offsets in DB-Timeouts → stillschweigend Teildaten (9k statt 38k). Umgestellt auf ID-Bereichs-Abfragen (PK-Index, konstant schnell). Dazu Seitenwechsel-Cache: Marktdaten 5 Min in der Cache API, Portfolio 10 Min in sessionStorage — Wechsel Markt↔Portfolio lädt nichts neu. Live verifiziert (38.303 Zeilen, Cache-Hit in <1s).
 - **Status:** ✅ behoben 2026-07-22
+
+## BUG-010 — Fantasie-Listing wurde zum FMV (Corrie Ndaba, 731 €)
+
+- **Symptom:** Corrie Ndaba (Kilmarnock) stand mit FMV 731,23 € an der Spitze der Markttabelle — reale Sales lagen bei 2,94 €.
+- **Ursache (2 Formel-Löcher):** (1) Ohne qualifizierte Sales (alle älter als das Fenster) fiel `calculateFMV` blind auf den Floor zurück — der Floor war aber ein 731-€-Wunschpreis-Listing. (2) Auch mit Sales konnte ein überteuerter Floor den Blend nach OBEN ziehen (35 % Gewicht).
+- **Fix (FMV v3.1):** Ohne Sales → FMV null (ein Ask ist kein Marktpreis; Floor wird separat angezeigt). Floor ≥ Sales-Wert → Floor ignorieren (man verkauft durch Unterbieten zum Sales-Wert); Floor wirkt nur noch nach unten (Blend + Cap).
+- **Hinweis:** Betroffene Alt-Werte korrigieren sich beim nächsten Queue-Durchlauf der jeweiligen Zeile; das Accuracy-Tracking wird den Effekt der Regeländerung im Bias sichtbar machen.
+- **Status:** ✅ behoben 2026-07-22 (deployed)
