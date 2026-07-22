@@ -37,6 +37,7 @@ Sorion ist ein Sorare-Marktpreis-Tracker (FMV = Fair Market Value) für Fußball
 3. Alten Offline-Service „Sorion-Updater" (Terminal-Icon) in Railway löschen, falls noch vorhanden
 4. Sorare-OAuth-App: auf welchem Account liegt sie? (Für spätere Secret-Rotation; aktuell läuft das alte, nie geleakte Secret)
 5. Optional: `DELAY_MS` bei den 3 Updater-Services von 1500 auf 500 (Tempo ~58→~90 Zeilen/Min)
+6. Klein: Harvester um Foto-Nachpflege erweitern (Bestandszeilen mit `picture_url is null` batchweise via `players(slugs)` aktualisieren — neue Spieler bekommen Fotos seit 22.07. automatisch, Alt-Zeilen zeigen bis dahin den Platzhalter)
 
 ## TODO (priorisiert, Saisonstart August 2026)
 
