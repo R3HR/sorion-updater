@@ -1271,30 +1271,34 @@
 
   async function loadData() {
     document.getElementById('table-body').innerHTML = skeletonRows();
-    // Ladezeit-Optimierung (22.07.): nur bepreiste Zeilen (~38k statt 80k),
-    // nur benoetigte Spalten (-37%), erste Seite sofort rendern, Rest parallel.
+    // Ladezeit-Optimierung (22.07.): nur bepreiste Zeilen, nur benoetigte Spalten,
+    // erste Seite sofort rendern, Rest parallel. Ohne count-Abfrage (Timeout-anfaellig):
+    // es wird geladen, bis eine Seite nicht mehr voll ist.
     const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
     const FILTER = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
     const base = `${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&order=fmv.desc.nullslast,id.asc`;
     const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
+    const page = o => fetch(`${base}&limit=1000&offset=${o}`, { headers: H })
+      .then(r => r.ok ? r.json() : [])
+      .catch(() => []);
     try {
-      // Erste Seite + Gesamtzahl in einem Request — Tabelle ist sofort benutzbar
-      const first = await fetch(`${base}&limit=1000&offset=0`, { headers: { ...H, 'Prefer': 'count=exact' } });
-      if (!first.ok) throw new Error('Failed to load');
-      const total = parseInt((first.headers.get('content-range') ?? '0/0').split('/')[1], 10) || 0;
-      allData = await first.json();
+      // Erste Seite — Tabelle ist sofort benutzbar
+      allData = await page(0);
+      if (!allData.length) throw new Error('empty');
       updateHeroStats();
       setScarcity('limited');
       renderMovers();
 
-      // Rest parallel nachladen (Wellen a 6 Requests), danach final rendern
-      const offsets = [];
-      for (let o = 1000; o < total; o += 1000) offsets.push(o);
-      for (let i = 0; i < offsets.length; i += 6) {
-        const batches = await Promise.all(offsets.slice(i, i + 6).map(o =>
-          fetch(`${base}&limit=1000&offset=${o}`, { headers: H }).then(r => r.ok ? r.json() : [])
-        ));
-        allData = allData.concat(...batches);
+      // Rest in parallelen 6er-Wellen, bis eine Seite unvoll ist
+      let offset = 1000, done = allData.length < 1000;
+      while (!done && offset < 200000) {
+        const offs = Array.from({ length: 6 }, (_, k) => offset + k * 1000);
+        offset += 6000;
+        const batches = await Promise.all(offs.map(page));
+        for (const b of batches) {
+          allData = allData.concat(b);
+          if (b.length < 1000) done = true;
+        }
       }
       // Dedupe (Updater schreiben waehrend des Ladens -> Zeilen koennen verrutschen)
       allData = [...new Map(allData.map(r => [r.id, r])).values()];
