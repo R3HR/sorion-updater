@@ -88,7 +88,16 @@ async function sweepListings() {
   const found = new Set(); // "slug|scarcity"
   await sweepFeed(found, { field: 'liveAuctions',         cardsOf: 'anyCards { slug }' });
   await sweepFeed(found, { field: 'liveSingleSaleOffers', cardsOf: 'senderSide { anyCards { slug } }' });
-  return found;
+
+  // Sorare mintet jeden Spieler in ALLEN Seltenheiten — wer in einer auftaucht,
+  // bekommt bei uns alle drei (sonst fehlt z. B. limited, wenn nur die SR-Karte
+  // gerade am Markt war; Fall reno-munz).
+  const expanded = new Set();
+  for (const key of found) {
+    const slug = key.split('|')[0];
+    for (const sc of ['limited', 'rare', 'super_rare']) expanded.add(`${slug}|${sc}`);
+  }
+  return expanded;
 }
 
 // ── 2) Namen für neue Spieler nachladen (Batch, Depth 4) ──────────────────────
