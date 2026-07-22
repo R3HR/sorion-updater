@@ -1273,7 +1273,7 @@
     document.getElementById('table-body').innerHTML = skeletonRows();
     // Ladezeit-Optimierung (22.07.): nur bepreiste Zeilen (~38k statt 80k),
     // nur benoetigte Spalten (-37%), erste Seite sofort rendern, Rest parallel.
-    const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply';
+    const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
     const FILTER = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
     const base = `${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&order=fmv.desc.nullslast,id.asc`;
     const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
