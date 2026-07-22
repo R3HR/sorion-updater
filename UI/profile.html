@@ -18,6 +18,8 @@
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 10px; }
   .logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 20px; text-decoration: none; color: var(--text); }
   .logo span { color: var(--purple); }
+  .logo-cursor { animation: logoblink 1.2s steps(2) infinite; }
+  @keyframes logoblink { 50% { opacity: 0; } }
   nav a { font-family: 'Share Tech Mono', monospace; font-size: 12px; margin-left: 14px; text-decoration: none; color: var(--text2); }
   nav a:hover { color: var(--text); }
   h1 { font-family: 'Orbitron', monospace; font-size: 18px; margin-bottom: 20px; }
@@ -52,7 +54,7 @@
 <body>
 <div class="wrap">
   <header>
-    <a class="logo" href="index.html">SORION<span>_</span></a>
+    <a class="logo" href="index.html">SORION<span class="logo-cursor">_</span></a>
     <nav>
       <a href="index.html">Market</a>
       <a href="portfolio.html">Portfolio</a>

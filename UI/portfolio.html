@@ -512,6 +512,9 @@
   .pm-section { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .2em; color: var(--text2); text-transform: uppercase; margin: 16px 0 8px; }
   .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #404060; padding: 8px 0; }
 
+  .logo-mark { font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
+  .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
+  @keyframes logoblink { 50% { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -521,7 +524,7 @@
   <!-- Header -->
   <header>
     <a class="logo" href="https://sorion.pro">
-      <img src="logo.png" alt="SORION">
+      <div class="logo-mark">SORION<span class="logo-cursor">_</span></div>
       <div class="logo-sub">// Portfolio</div>
     </a>
     <nav class="nav-links">

@@ -135,7 +135,7 @@
 
   .logo-mark {
     font-family: 'Orbitron', monospace;
-    font-size: 26px;
+    font-size: 38px;
     font-weight: 900;
     letter-spacing: 4px;
     color: var(--text);
@@ -1088,6 +1088,8 @@
   .hero-stat:nth-child(4) { animation-delay: 0.26s; }
   .controls { animation: fadeUp 0.5s 0.3s cubic-bezier(0.16,1,0.3,1) both; }
   .table-wrap { animation: fadeUp 0.5s 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+  .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
+  @keyframes logoblink { 50% { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -1125,7 +1127,7 @@
 <div class="wrap">
   <header>
     <div class="logo">
-      <img src="logo.png" alt="SORION" style="height:72px;width:auto;object-fit:contain">
+      <div class="logo-mark">SORION<span class="logo-cursor">_</span></div>
       <div class="logo-sub">// Market Intelligence</div>
     </div>
     <nav class="nav-links">
