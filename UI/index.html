@@ -1166,12 +1166,12 @@
     <div class="hero-stat">
       <div class="hero-stat-label">// Avg FMV · Limited</div>
       <div class="hero-stat-value" id="stat-avg-ltd">—</div>
-      <div class="hero-stat-sub">weighted market value</div>
+      <div class="hero-stat-sub" id="stat-sub-ltd">weighted market value</div>
     </div>
     <div class="hero-stat">
       <div class="hero-stat-label">// Avg FMV · Rare</div>
       <div class="hero-stat-value" id="stat-avg-rar">—</div>
-      <div class="hero-stat-sub">weighted market value</div>
+      <div class="hero-stat-sub" id="stat-sub-rar">weighted market value</div>
     </div>
     <div class="hero-stat">
       <div class="hero-stat-label">// Last Updated</div>
@@ -1390,6 +1390,20 @@
     const avgRar = rar.length ? rar.reduce((s,r) => s+r.fmv,0)/rar.length : 0;
     document.getElementById('stat-avg-ltd').textContent = avgLtd ? `€${avgLtd.toFixed(2)}` : '—';
     document.getElementById('stat-avg-rar').textContent = avgRar ? `€${avgRar.toFixed(2)}` : '—';
+    // Marktbewegung: Median der 7d-Änderungen (robust gegen Rotations-Ausreißer)
+    const med7 = rows => {
+      const v = rows.map(r => r.change_7d).filter(x => x != null).sort((a, b) => a - b);
+      return v.length >= 20 ? v[Math.floor(v.length / 2)] : null;
+    };
+    const setDelta = (id, m) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (m == null) { el.textContent = 'weighted market value'; return; }
+      const up = m >= 0;
+      el.innerHTML = `weighted market value · <span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${m.toFixed(1)}% 7d</span>`;
+    };
+    setDelta('stat-sub-ltd', med7(ltd));
+    setDelta('stat-sub-rar', med7(rar));
     if (allData.length) {
       const latest = allData.reduce((a,b) => new Date(a.updated_at)>new Date(b.updated_at)?a:b);
       const d = new Date(latest.updated_at);
