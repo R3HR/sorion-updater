@@ -593,6 +593,31 @@
       <button class="p-filter ltd"    id="pf-limited" onclick="setFilter('limited')">◆ Limited</button>
       <button class="p-filter rar"    id="pf-rare"    onclick="setFilter('rare')">◆ Rare</button>
       <button class="p-filter sr"     id="pf-sr"      onclick="setFilter('super_rare')">◆ SR</button>
+      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
+      <button class="p-filter active" id="pfe-all" onclick="setElig2('all')">All</button>
+      <button class="p-filter" id="pfe-is" onclick="setElig2('in_season')">In-Season</button>
+      <button class="p-filter" id="pfe-cl" onclick="setElig2('classic')">Classic</button>
+      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
+      <button class="p-filter active" id="pfo-all" onclick="setOrigin('all')">All</button>
+      <button class="p-filter" id="pfo-buy" onclick="setOrigin('bought')">💰 Bought</button>
+      <button class="p-filter" id="pfo-craft" onclick="setOrigin('crafted')">⚗️ Crafted</button>
+      <button class="p-filter" id="pfo-rew" onclick="setOrigin('reward')">🏆 Reward</button>
+      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
+      <button class="p-filter active" id="pfp-all" onclick="setPnl('all')">All</button>
+      <button class="p-filter" id="pfp-win" onclick="setPnl('win')" style="color:var(--up)">▲ Winners</button>
+      <button class="p-filter" id="pfp-los" onclick="setPnl('los')" style="color:var(--down)">▼ Losers</button>
+      <select id="pf-sort" onchange="filterCards()"
+        style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:11px;padding:10px 12px;cursor:pointer">
+        <option value="">Sort: default</option>
+        <option value="pnlp_desc">P&L % ↓</option>
+        <option value="pnlp_asc">P&L % ↑</option>
+        <option value="pnla_desc">P&L € ↓</option>
+        <option value="val_desc">Value ↓</option>
+        <option value="buy_desc">Paid ↓</option>
+        <option value="date_desc">Newest buys</option>
+        <option value="d7_desc">7d trend ↓</option>
+        <option value="name_asc">Name A–Z</option>
+      </select>
       <span id="p-count" style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2)"></span>
     </div>
 
@@ -822,7 +847,7 @@
       for (let i = 0; i < slugs.length; i += 100) {
         const batch = slugs.slice(i, i + 100);
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(s => `"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name,eligibility,sale_1`,
+          `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(s => `"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name,eligibility,sale_1,change_7d`,
           { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
         );
         const data = await res.json();
@@ -844,12 +869,46 @@
     filterCards();
   }
 
+  // ── Filter-/Sortier-Zustand ────────────────────────────────
+  let fElig = 'all', fOrigin = 'all', fPnl = 'all';
+
+  function setPill(prefix, map, val) {
+    for (const [v, id] of Object.entries(map)) {
+      document.getElementById(id)?.classList.toggle('active', v === val);
+    }
+  }
+  function setElig2(v)  { fElig = v;   setPill('e', { all: 'pfe-all', in_season: 'pfe-is', classic: 'pfe-cl' }, v); filterCards(); }
+  function setOrigin(v) { fOrigin = v; setPill('o', { all: 'pfo-all', bought: 'pfo-buy', crafted: 'pfo-craft', reward: 'pfo-rew' }, v); filterCards(); }
+  function setPnl(v)    { fPnl = v;    setPill('p', { all: 'pfp-all', win: 'pfp-win', los: 'pfp-los' }, v); filterCards(); }
+
+  function cardData(c) {
+    const rarity = c.rarityTyped?.toLowerCase() || 'limited';
+    const d = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
+    const val = d ? (d.fmv ?? d.floor_price ?? d.sale_1 ?? null) : null;
+    const buy = c.purchase?.eur;
+    const pnl = (buy > 0 && val != null) ? { pct: ((val - buy) / buy) * 100, abs: val - buy } : null;
+    return { val, buy: buy > 0 ? buy : null, pnl, d7: d?.change_7d ?? null, date: c.purchase?.date ?? null };
+  }
+  function originOf(c) {
+    return c.purchase?.type === 'SHARDS' ? 'crafted'
+         : c.purchase?.type === 'REWARD' ? 'reward'
+         : (c.purchase?.eur > 0) ? 'bought' : 'other';
+  }
+
   function filterCards() {
     const search = document.getElementById('p-search').value.toLowerCase().trim();
 
     filtered = allCards.filter(c => {
       const rarity = c.rarityTyped?.toLowerCase() || '';
       if (activeFilter !== 'all' && rarity !== activeFilter) return false;
+      if (fElig !== 'all' && eligOf(c) !== fElig) return false;
+      if (fOrigin !== 'all' && originOf(c) !== fOrigin) return false;
+      if (fPnl !== 'all') {
+        const p = cardData(c).pnl;
+        if (!p) return false;
+        if (fPnl === 'win' && p.pct < 0) return false;
+        if (fPnl === 'los' && p.pct >= 0) return false;
+      }
       if (search) {
         const name = (c.player?.displayName || '').toLowerCase();
         const fmvData = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
@@ -858,6 +917,34 @@
       }
       return true;
     });
+
+    // Sortierung (nulls immer ans Ende)
+    const sort = document.getElementById('pf-sort')?.value || '';
+    if (sort) {
+      const key = c => {
+        const cd = cardData(c);
+        switch (sort) {
+          case 'pnlp_desc':
+          case 'pnlp_asc':  return cd.pnl?.pct ?? null;
+          case 'pnla_desc': return cd.pnl?.abs ?? null;
+          case 'val_desc':  return cd.val;
+          case 'buy_desc':  return cd.buy;
+          case 'date_desc': return cd.date ? new Date(cd.date).getTime() : null;
+          case 'd7_desc':   return cd.d7;
+          case 'name_asc':  return (c.player?.displayName || c.slug || '').toLowerCase();
+          default: return null;
+        }
+      };
+      const asc = sort.endsWith('_asc');
+      filtered.sort((a, b) => {
+        const ka = key(a), kb = key(b);
+        if (ka == null && kb == null) return 0;
+        if (ka == null) return 1;
+        if (kb == null) return -1;
+        if (typeof ka === 'string') return asc ? ka.localeCompare(kb) : kb.localeCompare(ka);
+        return asc ? ka - kb : kb - ka;
+      });
+    }
 
     renderCards();
     document.getElementById('p-count').textContent = `${filtered.length} cards`;
