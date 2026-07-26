@@ -2,6 +2,7 @@
 
 > Format: ID · Titel · Symptom · Ursache · Fix · Status
 > Sicherheitslücken & Crashes gehören nach [INCIDENTS.md](INCIDENTS.md).
+> ⚠️ Nummern-Kollision: Das Ökosystem-Register (`C:craft-logdocsBUGS.md`) vergibt EIGENE BUG-007–010 (Review-Befunde 08.07.) — bei Referenzen immer den Dateipfad nennen.
 
 ---
 
