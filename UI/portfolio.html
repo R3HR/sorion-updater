@@ -515,6 +515,20 @@
   .logo-mark { font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
   .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
   @keyframes logoblink { 50% { opacity: 0; } }
+  .p-sort {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .p-sort:hover { border-color: var(--purple2); color: var(--text); }
+  .p-sort.active { background: var(--surface2); border-color: var(--purple); color: var(--purple); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -606,22 +620,24 @@
       <button class="p-filter active" id="pfp-all" onclick="setPnl('all')">All</button>
       <button class="p-filter" id="pfp-win" onclick="setPnl('win')" style="color:var(--up)">▲ Winners</button>
       <button class="p-filter" id="pfp-los" onclick="setPnl('los')" style="color:var(--down)">▼ Losers</button>
-      <select id="pf-sort" onchange="filterCards()"
-        style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:11px;padding:10px 12px;cursor:pointer">
-        <option value="">Sort: default</option>
-        <option value="pnlp_desc">P&L % ↓</option>
-        <option value="pnlp_asc">P&L % ↑</option>
-        <option value="pnla_desc">P&L € ↓</option>
-        <option value="val_desc">Value ↓</option>
-        <option value="buy_desc">Paid ↓</option>
-        <option value="date_desc">Newest buys</option>
-        <option value="d7_desc">7d trend ↓</option>
-        <option value="name_asc">Name A–Z</option>
-      </select>
+      
       <span id="p-count" style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2)"></span>
     </div>
 
     <!-- Cards -->
+    <div class="p-controls">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--purple);letter-spacing:.2em">SORT BY:</span>
+      <button class="p-sort active" id="ps-none" onclick="setSort('')">Default</button>
+      <button class="p-sort" id="ps-gain" onclick="setSort('pnlp_desc')" title="Größter Gewinn seit Kauf zuerst">▲ Top Gains</button>
+      <button class="p-sort" id="ps-loss" onclick="setSort('pnlp_asc')" title="Größter Verlust seit Kauf zuerst">▼ Top Losses</button>
+      <button class="p-sort" id="ps-pnla" onclick="setSort('pnla_desc')" title="Größter Gewinn in Euro zuerst">€ P&amp;L</button>
+      <button class="p-sort" id="ps-val" onclick="setSort('val_desc')" title="Wertvollste Karte zuerst">Highest Value</button>
+      <button class="p-sort" id="ps-buy" onclick="setSort('buy_desc')" title="Höchster Kaufpreis zuerst">Highest Paid</button>
+      <button class="p-sort" id="ps-date" onclick="setSort('date_desc')" title="Zuletzt gekaufte zuerst">Newest Buys</button>
+      <button class="p-sort" id="ps-d7" onclick="setSort('d7_desc')" title="Bester 7-Tage-Trend zuerst">7d Trend</button>
+      <button class="p-sort" id="ps-name" onclick="setSort('name_asc')" title="Alphabetisch">A–Z</button>
+    </div>
+
     <div class="cards-grid" id="cards-grid"></div>
 
   </div>
@@ -870,7 +886,16 @@
   }
 
   // ── Filter-/Sortier-Zustand ────────────────────────────────
-  let fElig = 'all', fOrigin = 'all', fPnl = 'all';
+  let fElig = 'all', fOrigin = 'all', fPnl = 'all', fSort = '';
+
+  const SORT_IDS = { '': 'ps-none', pnlp_desc: 'ps-gain', pnlp_asc: 'ps-loss', pnla_desc: 'ps-pnla', val_desc: 'ps-val', buy_desc: 'ps-buy', date_desc: 'ps-date', d7_desc: 'ps-d7', name_asc: 'ps-name' };
+  function setSort(v) {
+    fSort = v;
+    for (const [key, id] of Object.entries(SORT_IDS)) {
+      document.getElementById(id)?.classList.toggle('active', key === v);
+    }
+    filterCards();
+  }
 
   function setPill(prefix, map, val) {
     for (const [v, id] of Object.entries(map)) {
@@ -919,7 +944,7 @@
     });
 
     // Sortierung (nulls immer ans Ende)
-    const sort = document.getElementById('pf-sort')?.value || '';
+    const sort = fSort;
     if (sort) {
       const key = c => {
         const cd = cardData(c);
