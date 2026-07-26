@@ -36,6 +36,7 @@ async function fetchData(playerSlug, eligibility) {
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
+        pictureUrl
         liveSingleSaleOffer { receiverSide { amounts { eurCents } } }
       }
     }
@@ -64,7 +65,9 @@ async function fetchData(playerSlug, eligibility) {
       if (data.errors) { console.warn(`  GraphQL error for ${playerSlug}: ${data.errors[0]?.message}`); return null; }
       const sales = (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100 }));
       const floorCents = data?.data?.player?.lowestPriceAnyCard?.liveSingleSaleOffer?.receiverSide?.amounts?.eurCents;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null };
+      // Kartenbild der RICHTIGEN Rarity/Eligibility (Backfill hatte Bilder quer kopiert, z. B. Yamal rare mit SR-Bild)
+      const cardPic = data?.data?.player?.lowestPriceAnyCard?.pictureUrl ?? null;
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -198,6 +201,7 @@ async function main() {
       sales_72h:   sales.filter(s => new Date(s.date) >= h72ago).length,
       sales_7d:    sales.filter(s => new Date(s.date) >= d7ago).length,
       updated_at:  new Date().toISOString(),
+      ...(result.cardPic ? { picture_url: result.cardPic } : {}), // nur setzen, wenn vorhanden — nie löschen
     };
     if (migrated) Object.assign(update, await calcChanges(player.player_slug, eligibility, fmv, now, migrated));
 
