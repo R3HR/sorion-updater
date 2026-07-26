@@ -134,10 +134,15 @@ async function main() {
   for (const player of players) {
     const eligibility = player.eligibility ?? 'in_season';
     const result = await fetchData(player.player_slug, eligibility);
-    if (!result || !result.sales.length) {
+    if (!result) {
+      // Echter Fehlschlag (API-Fehler): nichts überschreiben, nur Queue-Position
       await supabase.from('card_prices').update({ updated_at: new Date().toISOString() }).eq('id', player.id);
       failed++; await sleep(DELAY_MS); continue;
     }
+    // WICHTIG: leere Sales sind KEIN Fehlschlag, sondern ein Marktzustand —
+    // die Zeile wird voll verarbeitet (fmv→null via v3.1, alte Werte werden
+    // ÜBERSCHRIEBEN statt konserviert). Vorher blieben Troll-FMVs ewig stehen
+    // (BUG-011: Denholm 1999,99 € bei 0 Sales).
     const { sales, fetchedFloor } = result;
 
     // ── Accuracy-Tracking: neue Sales seit dem letzten Lauf gegen den DAMALS

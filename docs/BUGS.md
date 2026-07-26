@@ -85,3 +85,11 @@
 - **Fix (FMV v3.1):** Ohne Sales → FMV null (ein Ask ist kein Marktpreis; Floor wird separat angezeigt). Floor ≥ Sales-Wert → Floor ignorieren (man verkauft durch Unterbieten zum Sales-Wert); Floor wirkt nur noch nach unten (Blend + Cap).
 - **Hinweis:** Betroffene Alt-Werte korrigieren sich beim nächsten Queue-Durchlauf der jeweiligen Zeile; das Accuracy-Tracking wird den Effekt der Regeländerung im Bias sichtbar machen.
 - **Status:** ✅ behoben 2026-07-22 (deployed)
+
+## BUG-011 — Konservierte Troll-FMVs bei Spielern ohne Verkäufe
+
+- **Symptom:** Rare-In-Season-Tabelle führte Karteileichen mit absurden Werten an (Denholm FMV = Floor = 1.999,99 € bei letzten Sales um 5 €; Fati 847 € ohne jeden Sale) — massiver Glaubwürdigkeitsschaden.
+- **Ursache:** Der Updater behandelte „0 Sales von der API" als Fehlschlag und bumpte nur `updated_at` — alte FMV/Floor-Werte (aus der Vor-v3.1-Ära mit Floor-als-FMV) blieben dadurch für immer konserviert. Betraf v. a. frisch geflippte In-Season-Zeilen (neue Saison = noch keine Verkäufe).
+- **Fix:** Leere Sales = gültiger Marktzustand → Zeile wird voll verarbeitet und überschrieben (fmv wird via v3.1 zu null, Floor aktualisiert, Sales-Spalten geleert). Nur echte API-Fehler bumpen noch konservierend.
+- **Sofort-Bereinigung (SQL, optional):** siehe Session 26.07. — Verdachtszeilen nullen + epoch.
+- **Status:** ✅ Code deployed 2026-07-26 — Bestandszeilen korrigieren sich beim nächsten Queue-Durchlauf
