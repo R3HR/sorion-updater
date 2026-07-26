@@ -852,22 +852,34 @@
     filterCards();
     updateStats();
     try {
-      sessionStorage.setItem('sorion_pf_cache', JSON.stringify({ slug, ts: Date.now(), cards: allCards, fmv: fmvCache }));
+      if (fmvComplete) sessionStorage.setItem('sorion_pf_cache', JSON.stringify({ slug, ts: Date.now(), cards: allCards, fmv: fmvCache }));
+      else sessionStorage.removeItem('sorion_pf_cache'); // unvollständig → nächster Besuch lädt frisch
     } catch {}
   }
 
+  let fmvComplete = true; // false, wenn ein Batch trotz Retry scheiterte → dann kein Cache-Write
   async function loadFMV() {
     const slugs = [...new Set(allCards.map(c => c.player?.slug).filter(Boolean))];
+    fmvComplete = true;
     if (!slugs.length) return;
-    for (const rarity of ['limited', 'rare', 'super_rare']) {
-      for (let i = 0; i < slugs.length; i += 100) {
-        const batch = slugs.slice(i, i + 100);
+    const fetchBatch = async (rarity, batch, retry = 1) => {
+      try {
         const res = await fetch(
           `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(s => `"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name,eligibility,sale_1,change_7d`,
           { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
         );
-        const data = await res.json();
-        if (!Array.isArray(data)) continue;
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) return data;
+        }
+      } catch {}
+      if (retry > 0) return fetchBatch(rarity, batch, retry - 1);
+      fmvComplete = false; // Teilausfall merken — Werte fehlen für diesen Batch
+      return [];
+    };
+    for (const rarity of ['limited', 'rare', 'super_rare']) {
+      for (let i = 0; i < slugs.length; i += 100) {
+        const data = await fetchBatch(rarity, slugs.slice(i, i + 100));
         for (const row of data) fmvCache[`${row.player_slug}_${rarity}_${row.eligibility ?? 'in_season'}`] = row;
       }
     }
