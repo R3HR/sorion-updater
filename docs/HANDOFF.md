@@ -40,7 +40,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 
 ## ⚠️ Offene Aktionen für Jonas
 
-0. **price_history-Lockdown abschließen (27.07.):** Migration `migrations/2026-07-27_price_history_lockdown.sql` im Supabase SQL Editor ausführen. Frontend ist schon live (RPC + Fallback, bricht nichts). Danach ist die 1,6-Mio-Zeilen-Zeitreihe nicht mehr am Stück per öffentlichem Key abgreifbar. Verifikation: siehe Kommentare in der Migration. (Ökosystem-BUGS BUG-012.)
+0. **price_history-Lockdown — NOCH OFFEN (27.07.):** RPC `player_history` läuft ✅, Frontend ist live ✅ (RPC + Fallback). ABER: Die erste Migration hat den Bulk-Zugriff NICHT geschlossen — Live-Test zeigte weiter 1.589.335 Zeilen per publishable Key lesbar (`enable row level security` allein reichte nicht, es gab noch anon-SELECT-Grant/Policy). **TODO Jonas:** `migrations/2026-07-27_price_history_lockdown_FIX.sql` im SQL Editor ausführen (RLS force + alle Policies droppen + `revoke select from anon,authenticated`). Danach re-verifizieren (Befehle in der Datei). (Ökosystem-BUGS BUG-012.)
 1. **Impressum-Platzhalter füllen** (legal.html in `sorion-ui` UND `Craft_log`) — **Launch-Blocker!**
 2. SQL-Bereinigung BUG-011 ausführen (Session 26.07.: konservierte Alt-FMVs nullen) — falls noch nicht geschehen
 3. `SORARE_APIKEY` auch als Supabase-Secret setzen (`npx supabase secrets set SORARE_APIKEY=...`) — schnellere Portfolio-Ladezeiten, wichtig vor Promotion-Traffic
