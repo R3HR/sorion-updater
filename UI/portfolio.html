@@ -1141,17 +1141,35 @@
   function closeCard() { document.getElementById('pm-backdrop').classList.remove('open'); }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCard(); });
 
+  // price_history ist gegen Bulk-Abgriff gesperrt (RLS): spielergenau via RPC lesen.
+  // Fallback auf Direktabfrage nur solange die RPC noch nicht deployed ist (404).
+  async function fetchPlayerHistory(slug, scarcity, elig, days) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/player_history`, {
+        method: 'POST',
+        headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_slug: slug, p_scarcity: scarcity, p_elig: elig, p_days: days })
+      });
+      if (res.ok) return await res.json();
+      if (res.status === 404) {
+        const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+        const ep = elig ? `&eligibility=eq.${elig}` : '';
+        const r2 = await fetch(
+          `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${slug}&scarcity=eq.${scarcity}${ep}&recorded_at=gte.${since}&order=recorded_at.asc&select=price,recorded_at`,
+          { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+        );
+        return r2.ok ? await r2.json() : null;
+      }
+      return null;
+    } catch { return null; }
+  }
+
   async function loadCardTrend(c, rarity, fmvData) {
     const el = () => document.getElementById('pm-trend');
     const slug = c.player?.slug;
     if (!slug) { if (el()) el().innerHTML = '<div class="pm-nodata">// no data</div>'; return; }
     try {
-      const since = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${slug}&scarcity=eq.${rarity}&eligibility=eq.${eligOf(c)}&recorded_at=gte.${since}&order=recorded_at.asc&select=price,recorded_at`,
-        { headers: { 'apikey': ANON_KEY } }
-      );
-      const hist = res.ok ? await res.json() : [];
+      const hist = (await fetchPlayerHistory(slug, rarity, eligOf(c), 30)) || [];
       const now = fmvData?.fmv ?? null;
       if (!el()) return;
       if (!hist.length || now == null) { el().innerHTML = '<div class="pm-nodata">// price history builds up daily — check back soon</div>'; return; }

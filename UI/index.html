@@ -1437,7 +1437,7 @@
           !(r.team_name||'').toLowerCase().includes(search)) return false;
       return true;
     });
-    // change_24h/change_7d kommen zeitbasiert aus der DB (price_history, via update-scarcity.mjs)
+    // change_24h/change_7d kommen zeitbasiert aus der DB (bereits vorberechnet)
 
     filtered.sort((a,b) => {
       const av = a[sortKey]??-Infinity, bv = b[sortKey]??-Infinity;
@@ -1767,20 +1767,32 @@
     const key = `${playerSlug}_${scarcity}_${hasElig ? eligFilter : 'any'}`;
     if (historyCache[key]) return historyCache[key];
 
-    try {
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-      const sinceStr = since.toISOString().split('T')[0];
-      const eligParam = hasElig ? `&eligibility=eq.${eligFilter}` : '';
+    const data = await fetchPlayerHistory(playerSlug, scarcity, hasElig ? eligFilter : null, 30);
+    if (data) historyCache[key] = data;
+    return data;
+  }
 
-      const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${playerSlug}&scarcity=eq.${scarcity}${eligParam}&recorded_at=gte.${sinceStr}&order=recorded_at.asc&select=price,recorded_at`,
-        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
-      );
-      if (!res.ok) return null;
-      const data = await res.json();
-      historyCache[key] = data;
-      return data;
+  // price_history ist gegen Bulk-Abgriff gesperrt (RLS): spielergenau via RPC lesen.
+  // Fallback auf die Direktabfrage nur, solange die RPC noch nicht deployed ist (404) —
+  // danach ist der Fallback inert (RPC liefert die Daten).
+  async function fetchPlayerHistory(slug, scarcity, elig, days) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/player_history`, {
+        method: 'POST',
+        headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_slug: slug, p_scarcity: scarcity, p_elig: elig, p_days: days })
+      });
+      if (res.ok) return await res.json();
+      if (res.status === 404) {
+        const since = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+        const ep = elig ? `&eligibility=eq.${elig}` : '';
+        const r2 = await fetch(
+          `${SUPABASE_URL}/rest/v1/price_history?player_slug=eq.${slug}&scarcity=eq.${scarcity}${ep}&recorded_at=gte.${since}&order=recorded_at.asc&select=price,recorded_at`,
+          { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
+        );
+        return r2.ok ? await r2.json() : null;
+      }
+      return null;
     } catch { return null; }
   }
 
