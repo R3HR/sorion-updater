@@ -190,7 +190,12 @@ async function main() {
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/${fn}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SERVICE_KEY,
+          'Authorization': 'Bearer ' + SERVICE_KEY,
+          'X-Cron-Secret': process.env.CRON_SECRET ?? '',
+        },
         body: '{}',
       });
       console.log(`${fn}: HTTP ${res.status}`);
