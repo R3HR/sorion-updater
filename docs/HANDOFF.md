@@ -26,6 +26,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 - Updater pflegt bei jedem Durchlauf das rarity-korrekte Kartenbild mit (Backfill hatte Bilder quer kopiert)
 - Accuracy-Tracking läuft: jeder neue Sale wird gegen den vorher geschätzten FMV geloggt (`fmv_accuracy`), UI-Anzeige auf der Marktseite ab 10 Samples pro Zelle
 - Vollabdeckung: Spieler existieren immer in allen 3 Scarcities × 2 Eligibilities; Quellen: Seed + Harvester (Auktionen+Listings) + CraftLog-Import + **jede Portfolio-/Scout-Ansicht speist unbekannte Spieler ein**
+- **„Players Tracked" sinkt während des Saisonflips — KEIN Bug (geklärt 27.07.):** Die Marktseite zählt nur Zeilen mit fmv/floor/sale. Seit dem BUG-011-Fix werden In-Season-Zeilen der neuen Saison ehrlich geleert (keine Sales, oft kein Listing) statt Altwerte zu konservieren → ~19,8k sichtbar von 53,7k In-Season-Zeilen (27.07.). Die Spieler sind alle noch in der DB; die Zahl steigt von selbst, sobald 26/27-Karten gehandelt/gelistet werden. Classic wächst parallel (45k sichtbar).
 
 **Sorion-UI (alles live auf sorion.pro):**
 - Markt: schneller Loader (ID-Bereichs-Abfragen, erste Seite ~1 s, 5-Min-Cache in Cache API), In-Season/Classic-Toggle, ehrliche 24h/7d-Prozente, 7d-Marktbewegungs-Chips an den Avg-FMV-Boxen (Median), Accuracy-Zeile, Movers, Platzhalterbild für Karten ohne Foto
