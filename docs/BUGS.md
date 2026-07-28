@@ -94,3 +94,12 @@
 - **Fix:** Leere Sales = gültiger Marktzustand → Zeile wird voll verarbeitet und überschrieben (fmv wird via v3.1 zu null, Floor aktualisiert, Sales-Spalten geleert). Nur echte API-Fehler bumpen noch konservierend.
 - **Sofort-Bereinigung (SQL, optional):** siehe Session 26.07. — Verdachtszeilen nullen + epoch.
 - **Status:** ✅ Code deployed 2026-07-26 — Bestandszeilen korrigieren sich beim nächsten Queue-Durchlauf
+
+## BUG-012 — Nächtlicher „Deploy Crashed" (Railway, v. a. Update Rare)
+
+- **Symptom:** Railway schickte jede Nacht eine „Deploy Crashed"-Mail für den Service `Update Rare` (Projekt faithful-gentleness). Andere Scarcities meist unauffällig.
+- **Ursache:** Der Updater holt seine Batch mit `card_prices where scarcity=$1 order by updated_at asc limit $2`. Für diese WHERE+ORDER-Kombi fehlte ein Index → Postgres filtert+sortiert ~36k Zeilen. Unter nächtlicher Parallel-Last (3 Updater + Harvester gleichzeitig, `*/5`-Cron) lief die Query in den **statement_timeout (57014)**. Das Script wertete den Query-Fehler als fatal → `process.exit(1)`; wegen `restartPolicyType="never"` meldete Railway „Crashed". Am 28.07. live reproduziert (order-by-updated_at auf `limited` → 57014). Code/Config/Datenmenge aller drei Services sind identisch (~36k je Scarcity) → „nur Rare" liegt an Timing/Last bzw. evtl. einer rare-spezifischen Railway-Env-Var (BATCH_SIZE im Dashboard) — nicht am Code.
+- **Fix:** (1) **Index** `card_prices(scarcity, updated_at)` → Queue-Query wird Index-Scan, kein Timeout mehr (eigentlicher, code-unabhängiger Fix): `migrations/2026-07-28_card_prices_queue_index.sql`. (2) **Resilienz:** Batch-Query mit 3× Retry+Backoff, danach sauberer `return` (exit 0) statt `process.exit(1)` — ein transienter DB-Timeout meldet keinen Crash mehr, der nächste Cron-Tick übernimmt. In Root + limited/rare/sr-Kopien synchron deployed.
+- **Status durch Jonas:** Code deployed ✅ (Push 28.07.). **OFFEN: Index-Migration im SQL Editor ausführen** (danach ist die Crash-Ursache endgültig weg). Optional: im Railway-Dashboard prüfen, ob der rare-Service ein abweichendes `BATCH_SIZE` hat.
+- **Cleanup-Hinweis:** Die Alt-Ordner `limited/rare/sr/` enthalten Voll-Kopien des Scripts (jetzt mitgepflegt). Sauberer Zielzustand: alle 3 Services auf die Root-Configs `railway-*.toml` zeigen lassen, dann Ordner löschen (HANDOFF Offene Aktion). Bis dahin: Script-Änderungen IMMER in alle 4 Kopien.
+- **Status:** 🟠 Code live · Index-Migration ausstehend (Jonas)

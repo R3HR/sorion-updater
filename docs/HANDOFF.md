@@ -41,6 +41,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 ## ⚠️ Offene Aktionen für Jonas
 
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)
+0c. **Index-Migration ausführen (28.07.):** `migrations/2026-07-28_card_prices_queue_index.sql` im SQL Editor — behebt den nächtlichen „Deploy Crashed" (Update Rare) endgültig (Queue-Query lief in statement_timeout → exit(1)). Code-Fix (Retry statt Crash) ist schon deployed. Details: BUGS.md BUG-012.
 1. **Impressum-Platzhalter füllen** (legal.html in `sorion-ui` UND `Craft_log`) — **Launch-Blocker!**
 2. SQL-Bereinigung BUG-011 ausführen (Session 26.07.: konservierte Alt-FMVs nullen) — falls noch nicht geschehen
 3. `SORARE_APIKEY` auch als Supabase-Secret setzen (`npx supabase secrets set SORARE_APIKEY=...`) — schnellere Portfolio-Ladezeiten, wichtig vor Promotion-Traffic
