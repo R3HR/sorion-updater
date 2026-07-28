@@ -10,7 +10,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 
 | Komponente | Ort | Deployment |
 |---|---|---|
-| Preis-Updater (FMV) | `update-scarcity.mjs` + `lib/fmv.mjs` (Kopien in `limited/rare/sr/` — SYNC-PFLICHT!) | Railway, 3 Services, Cron `*/5 22-23,0-4,16-20 UTC`, Env: `SORARE_APIKEY`, `DELAY_MS=1500`, `BATCH_SIZE=120` |
+| Preis-Updater (FMV) | `update-scarcity.mjs` + `lib/fmv.mjs` (EINE Quelle im Repo-Root — Dubletten `limited/rare/sr/` am 28.07. entfernt) | Railway, 3 Services (Update Limited/Rare/SR), alle bauen aus dem Repo-Root via `railway-<s>.toml`, keine Root Directory. Cron `*/5 22-23,0-4,16-20 UTC`, Env: `SORARE_APIKEY`, `DELAY_MS=1500`, `BATCH_SIZE=120` |
 | Market-Harvester | `harvest-market-players.mjs` | Railway, täglich 05:30, `HARVEST_HOURS=26`; Quellen: liveAuctions + liveSingleSaleOffers; triggert danach update-pool/update-prices |
 | Seed (in-season Spieler) | `seed-all-players.mjs` | Railway, manueller Trigger |
 | Sorion-UI (Markt/Portfolio/Profil/Legal) | `UI/*` kanonisch; **live aus PUBLIC Repo `sorion-ui`** (`C:\craft-log\sorion-ui`) | GitHub Pages → **sorion.pro**. Nach UI-Änderung: nach sorion-ui kopieren + BEIDE Repos pushen. CDN-Cache ~10 Min (`?v=x` zum Sofort-Testen) |
@@ -46,7 +46,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 2. SQL-Bereinigung BUG-011 ausführen (Session 26.07.: konservierte Alt-FMVs nullen) — falls noch nicht geschehen
 3. `SORARE_APIKEY` auch als Supabase-Secret setzen (`npx supabase secrets set SORARE_APIKEY=...`) — schnellere Portfolio-Ladezeiten, wichtig vor Promotion-Traffic
 4. Neue Sorare-OAuth-App beantragen (beide Redirect-URIs: craftlog.pro + sorion.pro) — Grundlage für Stufe 3 (Notifications) und Secret-Hygiene
-5. **Dubletten `limited/rare/sr/` konsolidieren (28.07. vorbereitet):** Diese 3 Ordner sind git-getrackte Voll-Kopien des Updater-Scripts (jede mit eigener `railway.toml` → `node update-scarcity.mjs <scarcity>`), parallel zu den Root-Configs `railway-limited/rare/sr.toml` (identischer Start-Command). **Check je Service im Railway-Dashboard** (Service → Settings → „Root Directory" / „Config-as-code path"): zeigt er auf den Repo-Root (nutzt `railway-<s>.toml`) oder auf den Unterordner `<s>/`? **Wenn alle 3 auf Root zeigen:** `git rm -r limited rare sr` (dann ist `update-scarcity.mjs` im Root die einzige Quelle — keine 4-fach-Sync mehr). **Wenn ein Service auf seinen Unterordner zeigt:** vorher in Railway auf Root umstellen, dann löschen. Bis dahin: Script-Änderungen in ALLE 4 Kopien (Root + 3 Ordner). Ergebnis dem HANDOFF melden.
+5. ✅ **Dubletten `limited/rare/sr/` entfernt (28.07.):** Per Railway Settings→Build bestätigt, dass alle 3 Services (Update Limited/Rare/SR) aus dem Repo-Root via `/railway-<s>.toml` bauen (keine Root Directory gesetzt). Ordner per `git rm -r` gelöscht → `update-scarcity.mjs`/`lib/fmv.mjs` existieren nur noch einmal (Root). Keine 4-fach-Sync mehr.
 
 ## Roadmap → Launch (Plan: Saisonstart + ~3 Tage stabil)
 
@@ -70,11 +70,11 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 - **Update-Queue**: ältestes `updated_at` zuerst; epoch = Sofort-Priorität. 0-Sales-Zeilen werden voll verarbeitet (nicht konserviert!)
 - **GitHub Pages CDN cached ~10 Min** — nach Deploys `?v=x` zum Testen; Nutzer heilen sich von selbst
 - **UI-Patches**: Dateien haben teils CRLF (git autocrlf) — Patch-Scripts per Write-Tool als .mjs-Datei schreiben (NIE komplexe Templates durch bash/sed quälen), vorher LF-normalisieren, Anker prüfen, `new Function`-Syntaxcheck; UI-Interaktionen danach im Browser WIRKLICH klicken (Lektion BUG-009)
-- **FMV-Historie**: v1 Index-Gewichte → v2 steiler → v3 Zeit-Decay+Cap → v3.1 (Ask≠Preis, Floor nur abwärts). Formel NUR in `lib/fmv.mjs` + Ordner-Kopien syncen
+- **FMV-Historie**: v1 Index-Gewichte → v2 steiler → v3 Zeit-Decay+Cap → v3.1 (Ask≠Preis, Floor nur abwärts). Formel lebt an genau EINER Stelle: `lib/fmv.mjs` (Root)
 
 ## Regeln
 
-- FMV-Logik nur in `lib/fmv.mjs` (+ `cp` in die 3 Ordner-Kopien)
+- FMV-Logik nur in `lib/fmv.mjs` (Repo-Root — es gibt keine Ordner-Kopien mehr)
 - UI-Änderung = kanonische Datei + `sorion-ui`/`Craft_log` + `Sorion_pro/UI` synchron pushen
 - Keine Secrets in Code/Git; Keys mit `sb_`-Präfix sind aktuell, alles mit `eyJ` ist Legacy/tot
 - Neue UI-Texte Englisch (legal.html Deutsch)
