@@ -46,7 +46,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 2. SQL-Bereinigung BUG-011 ausführen (Session 26.07.: konservierte Alt-FMVs nullen) — falls noch nicht geschehen
 3. `SORARE_APIKEY` auch als Supabase-Secret setzen (`npx supabase secrets set SORARE_APIKEY=...`) — schnellere Portfolio-Ladezeiten, wichtig vor Promotion-Traffic
 4. Neue Sorare-OAuth-App beantragen (beide Redirect-URIs: craftlog.pro + sorion.pro) — Grundlage für Stufe 3 (Notifications) und Secret-Hygiene
-5. Repo-Aufräumen: Ordner `limited/rare/sr` löschen sobald Root-Configs verifiziert die einzigen sind; alter Offline-Service in Railway
+5. **Dubletten `limited/rare/sr/` konsolidieren (28.07. vorbereitet):** Diese 3 Ordner sind git-getrackte Voll-Kopien des Updater-Scripts (jede mit eigener `railway.toml` → `node update-scarcity.mjs <scarcity>`), parallel zu den Root-Configs `railway-limited/rare/sr.toml` (identischer Start-Command). **Check je Service im Railway-Dashboard** (Service → Settings → „Root Directory" / „Config-as-code path"): zeigt er auf den Repo-Root (nutzt `railway-<s>.toml`) oder auf den Unterordner `<s>/`? **Wenn alle 3 auf Root zeigen:** `git rm -r limited rare sr` (dann ist `update-scarcity.mjs` im Root die einzige Quelle — keine 4-fach-Sync mehr). **Wenn ein Service auf seinen Unterordner zeigt:** vorher in Railway auf Root umstellen, dann löschen. Bis dahin: Script-Änderungen in ALLE 4 Kopien (Root + 3 Ordner). Ergebnis dem HANDOFF melden.
 
 ## Roadmap → Launch (Plan: Saisonstart + ~3 Tage stabil)
 
