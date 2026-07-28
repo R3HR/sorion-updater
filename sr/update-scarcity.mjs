@@ -122,13 +122,29 @@ async function main() {
   if (!hasAccuracy) console.warn('fmv_accuracy-Tabelle fehlt — Accuracy-Tracking übersprungen');
 
   const cols = migrated ? 'id, player_slug, eligibility, fmv, updated_at' : 'id, player_slug';
-  const { data: players, error } = await supabase
-    .from('card_prices')
-    .select(cols)
-    .eq('scarcity', SCARCITY)
-    .order('updated_at', { ascending: true })
-    .limit(BATCH_SIZE);
-  if (error) { console.error(error.message); process.exit(1); }
+  // Queue-Query mit Retry: WHERE scarcity ORDER BY updated_at LIMIT n lief unter
+  // naechtlicher Parallel-Last in den statement_timeout (57014). Root-Cause-Fix ist der
+  // Index card_prices(scarcity, updated_at) — migrations/2026-07-28_card_prices_queue_index.sql.
+  // Bis der greift (und fuer echte transiente Timeouts): 3 Versuche mit Backoff, danach
+  // SAUBERER Abbruch (return -> exit 0) statt process.exit(1), damit Railway keinen
+  // "Deploy Crashed" meldet — der naechste Cron-Tick uebernimmt die Zeilen ohnehin.
+  let players = null, qErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await supabase
+      .from('card_prices')
+      .select(cols)
+      .eq('scarcity', SCARCITY)
+      .order('updated_at', { ascending: true })
+      .limit(BATCH_SIZE);
+    if (!res.error) { players = res.data; qErr = null; break; }
+    qErr = res.error;
+    console.warn(`Batch-Query Versuch ${attempt}/3 fehlgeschlagen: ${qErr.message}`);
+    await sleep(2000 * attempt);
+  }
+  if (qErr) {
+    console.error(`Batch-Query nach 3 Versuchen fehlgeschlagen — sauberer Abbruch (kein Crash): ${qErr.message}`);
+    return;
+  }
   console.log(`Processing ${players.length} ${SCARCITY} rows...`);
 
   let updated = 0, failed = 0;
