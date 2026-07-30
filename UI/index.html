@@ -1410,9 +1410,10 @@
     }
   }
 
-  // Avg-FMV-Bewegungs-Chip: Tagesdurchschnitte aus price_history (Aggregat-RPC),
-  // Vergleich letzter Tag vs. Tag ~7d davor. Label zeigt den ECHTEN Abstand (z. B. "6d"),
-  // solange die Historie noch keine vollen 7 Tage hergibt. Cache pro scarcity+eligibility.
+  // Avg-FMV-Bewegungs-Chip: GEPAARTER Korb-Vergleich via market_move-RPC — dieselben
+  // Spieler in beiden Zeitfenstern (sonst misst man die rotierende Stichprobe des
+  // Updaters, nicht den Markt: Tagesdurchschnitte sprangen 6,38→25,96 €).
+  // Kein Ergebnis (zu wenig gepaarte Daten / RPC fehlt) => kein Chip statt falscher Zahl.
   const avgMoveCache = {};
   async function loadAvgMoveChip(elId, scarcity) {
     const el = document.getElementById(elId);
@@ -1421,25 +1422,19 @@
     const key = `${scarcity}_${elig}`;
     try {
       if (!(key in avgMoveCache)) {
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/market_avg_history`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/market_move`, {
           method: 'POST',
           headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ p_scarcity: scarcity, p_elig: elig, p_days: 10 })
+          body: JSON.stringify({ p_scarcity: scarcity, p_elig: elig, p_days: 7 })
         });
         avgMoveCache[key] = res.ok ? await res.json() : null;
       }
-      const days = (avgMoveCache[key] || []).filter(d => d.n >= 50);
       if (eligFilter !== elig) return; // Nutzer hat inzwischen umgeschaltet
-      if (days.length < 2) { el.innerHTML = ''; return; }
-      const latest = days[days.length - 1];
-      const target = new Date(new Date(latest.day).getTime() - 7 * 86400000);
-      let ref = days[0];
-      for (const d of days) { if (new Date(d.day) <= target) ref = d; }
-      const gap = Math.round((new Date(latest.day) - new Date(ref.day)) / 86400000);
-      if (gap < 3) { el.innerHTML = ''; return; }
-      const pct = ((latest.avg_price - ref.avg_price) / ref.avg_price) * 100;
+      const row = (avgMoveCache[key] || [])[0];
+      if (!row || row.pct == null) { el.innerHTML = ''; return; }
+      const pct = Number(row.pct);
       const up = pct >= 0;
-      el.innerHTML = `<span style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;background:${up ? 'rgba(0,245,160,0.14)' : 'rgba(255,45,120,0.14)'};border:1px solid ${up ? 'rgba(0,245,160,0.4)' : 'rgba(255,45,120,0.4)'};color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${pct.toFixed(1)}% ${gap}d</span>`;
+      el.innerHTML = `<span title="Same-basket change: ${row.players} players priced in both windows" style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;background:${up ? 'rgba(0,245,160,0.14)' : 'rgba(255,45,120,0.14)'};border:1px solid ${up ? 'rgba(0,245,160,0.4)' : 'rgba(255,45,120,0.4)'};color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${Math.abs(pct).toFixed(1)}% ${row.days_gap}d</span>`;
     } catch { el.innerHTML = ''; }
   }
 
