@@ -4,11 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SORION — Impressum & Datenschutz</title>
-<!-- Privacy-friendly analytics by Plausible -->
-<script async src="https://plausible.io/js/pa-H3tHJiKjs3uv9_v92tzER.js"></script>
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
 <script>
-  window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-  plausible.init()
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
 </script>
 <link href="fonts/fonts.css" rel="stylesheet">
 <style>
@@ -59,8 +68,9 @@
   <h3>2. Hosting & Server-Logfiles</h3>
   <p>Beim Aufruf dieser Website verarbeitet der Hosting-Anbieter automatisch technische Zugriffsdaten (u. a. IP-Adresse, Zeitpunkt, aufgerufene Ressource, User-Agent), soweit dies für die Auslieferung der Seite technisch erforderlich ist (Art. 6 Abs. 1 lit. f DSGVO). Hosting-Anbieter: <span class="todo">[HOSTING-ANBIETER, z. B. Netlify/Vercel/GitHub Pages, inkl. Sitz]</span>.</p>
 
-  <h3>3. Webanalyse (Plausible)</h3>
-  <p>Wir nutzen Plausible Analytics (Plausible Insights OÜ, Estland/EU), eine datenschutzfreundliche Webanalyse <strong>ohne Cookies</strong> und ohne geräteübergreifendes Tracking. IP-Adressen werden nicht gespeichert, sondern nur kurzzeitig zur Erzeugung anonymer Aggregatdaten verarbeitet. Rechtsgrundlage: berechtigtes Interesse an der Reichweitenmessung (Art. 6 Abs. 1 lit. f DSGVO).</p>
+  <h3>3. Reichweitenmessung (eigene Statistik, ohne Dritt-Dienst)</h3>
+  <p>Wir messen die Nutzung dieser Website mit einer <strong>selbst betriebenen Statistik</strong> — es kommt kein externer Analyse-Dienst zum Einsatz, und es werden <strong>keine Cookies</strong> gesetzt. Erfasst werden pro Aufruf: die aufgerufene Seite, der Name der genutzten Funktion (z. B. „Manager-Suche"), der <em>Host</em> der verweisenden Seite, Land und Gerätetyp (mobil/Desktop) sowie ein pseudonymes Kennzeichen.</p>
+  <p>Dieses Kennzeichen ist ein <strong>Hash-Wert</strong>, der aus IP-Adresse, Browser-Kennung und einem täglich wechselnden Zusatzwert gebildet wird. <strong>IP-Adresse und Browser-Kennung werden nicht gespeichert</strong>, sondern ausschließlich flüchtig zur Bildung dieses Werts verwendet; ein Rückschluss auf die IP-Adresse oder eine Wiedererkennung über mehrere Tage oder Geräte hinweg ist damit nicht möglich. Die Daten liegen auf unserer eigenen Datenbank (Supabase, siehe Ziffer 4) und werden nicht an Dritte weitergegeben. Speicherdauer: maximal 400 Tage. Rechtsgrundlage: berechtigtes Interesse an einer datensparsamen Reichweitenmessung (Art. 6 Abs. 1 lit. f DSGVO).</p>
 
   <h3>4. Datenbank & Backend (Supabase)</h3>
   <p>Markt- und Preisdaten werden über Supabase (Supabase Inc.) bereitgestellt. Beim Laden der Daten wird deine IP-Adresse technisch bedingt an Supabase übermittelt. Serverstandort: <span class="todo">[SUPABASE-REGION, z. B. eu-central-1 (Frankfurt) — im Supabase-Dashboard nachsehen]</span>.</p>
