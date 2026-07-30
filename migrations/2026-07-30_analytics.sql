@@ -38,7 +38,7 @@ returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce(
     lower(coalesce(auth.jwt() -> 'user_metadata' ->> 'email', auth.jwt() ->> 'email', ''))
-      in ('jonasrehr@gmail.com'),
+      in ('jonas.rehr@outlook.de'),
     false)
 $$;
 grant execute on function public.is_analytics_admin() to anon, authenticated;
