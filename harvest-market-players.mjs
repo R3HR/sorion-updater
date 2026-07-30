@@ -201,6 +201,15 @@ async function main() {
       console.log(`${fn}: HTTP ${res.status}`);
     } catch (e) { console.warn(`${fn} failed: ${e.message}`); }
   }
+
+  // Tages-Snapshot des Gesamtmarkts (market_daily) — Basis der Avg-FMV-Bewegung.
+  // Muss aus card_prices kommen: price_history ist nur ein Änderungs-Log (rotierende
+  // Teilmenge), taugt nicht für Tag-gegen-Tag-Vergleiche. Idempotent pro Tag.
+  try {
+    const { data, error } = await supabase.rpc('snapshot_market_daily');
+    if (error) console.warn(`snapshot_market_daily failed: ${error.message}`);
+    else console.log(`snapshot_market_daily: ${data} Gruppen geschrieben`);
+  } catch (e) { console.warn(`snapshot_market_daily failed: ${e.message}`); }
 }
 
 main().catch(console.error);
