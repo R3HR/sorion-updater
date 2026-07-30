@@ -404,17 +404,16 @@
 
   thead th {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--purple);
+    color: #c99aff; /* helleres Lila als var(--purple) — besserer Kontrast auf dunklem Grund */
     padding: 14px 16px;
     text-align: left;
     cursor: pointer;
     user-select: none;
     white-space: nowrap;
     transition: color 0.15s;
-    opacity: 0.8;
   }
 
   thead th:hover { color: var(--text); opacity: 1; }
@@ -1270,7 +1269,7 @@
 
   <div class="footer">
     <span>SORION // Sorare Market Intelligence</span>
-    <span>Not affiliated with Sorare · FMV-Werte sind unverbindliche Schätzungen, keine Anlageberatung · <a href="legal.html" style="color:inherit">Impressum & Datenschutz</a></span>
+    <span>Not affiliated with Sorare · FMV values are non-binding estimates, not financial advice · <a href="legal.html" style="color:inherit">Legal & Privacy</a></span>
   </div>
 </div>
 
@@ -1396,20 +1395,11 @@
     const avgRar = rar.length ? rar.reduce((s,r) => s+r.fmv,0)/rar.length : 0;
     document.getElementById('stat-avg-ltd').textContent = avgLtd ? `€${avgLtd.toFixed(2)}` : '—';
     document.getElementById('stat-avg-rar').textContent = avgRar ? `€${avgRar.toFixed(2)}` : '—';
-    // Marktbewegung: Median der 7d-Änderungen (robust gegen Rotations-Ausreißer)
-    const med7 = rows => {
-      const v = rows.map(r => r.change_7d).filter(x => x != null).sort((a, b) => a - b);
-      return v.length >= 20 ? v[Math.floor(v.length / 2)] : null;
-    };
-    const setChip = (id, m) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      if (m == null) { el.innerHTML = ''; return; }
-      const up = m >= 0;
-      el.innerHTML = `<span style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;background:${up ? 'rgba(0,245,160,0.14)' : 'rgba(255,45,120,0.14)'};border:1px solid ${up ? 'rgba(0,245,160,0.4)' : 'rgba(255,45,120,0.4)'};color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${m.toFixed(1)}% 7d</span>`;
-    };
-    setChip('stat-chip-ltd', med7(ltd));
-    setChip('stat-chip-rar', med7(rar));
+    // Marktbewegung: Veränderung des DURCHSCHNITTS-FMV (heute vs. ~7 Tage zuvor)
+    // aus price_history via Aggregat-RPC — muss zum angezeigten Avg-Wert passen.
+    // (Vorher: Median der Einzelkarten-7d-Änderungen — anderer Wert, wirkte "random".)
+    loadAvgMoveChip('stat-chip-ltd', 'limited');
+    loadAvgMoveChip('stat-chip-rar', 'rare');
     if (allData.length) {
       const latest = allData.reduce((a,b) => new Date(a.updated_at)>new Date(b.updated_at)?a:b);
       const d = new Date(latest.updated_at);
@@ -1418,6 +1408,39 @@
       document.getElementById('updated-at').textContent =
         '// updated ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     }
+  }
+
+  // Avg-FMV-Bewegungs-Chip: Tagesdurchschnitte aus price_history (Aggregat-RPC),
+  // Vergleich letzter Tag vs. Tag ~7d davor. Label zeigt den ECHTEN Abstand (z. B. "6d"),
+  // solange die Historie noch keine vollen 7 Tage hergibt. Cache pro scarcity+eligibility.
+  const avgMoveCache = {};
+  async function loadAvgMoveChip(elId, scarcity) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    const elig = eligFilter;
+    const key = `${scarcity}_${elig}`;
+    try {
+      if (!(key in avgMoveCache)) {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/market_avg_history`, {
+          method: 'POST',
+          headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_scarcity: scarcity, p_elig: elig, p_days: 10 })
+        });
+        avgMoveCache[key] = res.ok ? await res.json() : null;
+      }
+      const days = (avgMoveCache[key] || []).filter(d => d.n >= 50);
+      if (eligFilter !== elig) return; // Nutzer hat inzwischen umgeschaltet
+      if (days.length < 2) { el.innerHTML = ''; return; }
+      const latest = days[days.length - 1];
+      const target = new Date(new Date(latest.day).getTime() - 7 * 86400000);
+      let ref = days[0];
+      for (const d of days) { if (new Date(d.day) <= target) ref = d; }
+      const gap = Math.round((new Date(latest.day) - new Date(ref.day)) / 86400000);
+      if (gap < 3) { el.innerHTML = ''; return; }
+      const pct = ((latest.avg_price - ref.avg_price) / ref.avg_price) * 100;
+      const up = pct >= 0;
+      el.innerHTML = `<span style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;background:${up ? 'rgba(0,245,160,0.14)' : 'rgba(255,45,120,0.14)'};border:1px solid ${up ? 'rgba(0,245,160,0.4)' : 'rgba(255,45,120,0.4)'};color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${pct.toFixed(1)}% ${gap}d</span>`;
+    } catch { el.innerHTML = ''; }
   }
 
   function setScarcity(sc) {
