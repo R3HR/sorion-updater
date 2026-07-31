@@ -4,11 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SORION — Sorare Market Intelligence</title>
-<!-- Privacy-friendly analytics by Plausible -->
-<script async src="https://plausible.io/js/pa-H3tHJiKjs3uv9_v92tzER.js"></script>
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
 <script>
-  window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-  plausible.init()
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
 </script>
 <link href="fonts/fonts.css" rel="stylesheet">
 <style>
@@ -1224,7 +1233,13 @@
 
   <div class="controls">
     <div class="search-wrap">
-      <input class="search-input" id="search" type="text" placeholder="search player or team..." oninput="filterTable()">
+      <input class="search-input" id="search" type="text" placeholder="search player..." oninput="filterTable()">
+    </div>
+    <div style="position:relative">
+      <input class="search-input" id="club" type="text" list="clublist" autocomplete="off"
+             placeholder="all clubs — type or pick…" oninput="filterTable()"
+             style="min-width:210px">
+      <datalist id="clublist"></datalist>
     </div>
     <div class="filter-btn-group" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="filter-btn ltd active" id="btn-ltd" onclick="setScarcity('limited')">◆ Limited</button>
@@ -1310,6 +1325,7 @@
   function rowElig(r) { return r.eligibility ?? 'in_season'; }
 
   function setEligibility(e) {
+    if (window.track) track('elig_toggle');
     eligFilter = e;
     document.getElementById('btn-inseason').classList.toggle('active', e === 'in_season');
     document.getElementById('btn-classic').classList.toggle('active', e === 'classic');
@@ -1346,6 +1362,7 @@
           updateHeroStats();
           setScarcity('limited');
           renderMovers();
+          populateClubs();
           return;
         }
       }
@@ -1358,6 +1375,7 @@
       updateHeroStats();
       setScarcity('limited');
       renderMovers();
+      populateClubs();
 
       // 2) Alles per ID-Bereichen nachladen (je 1000 IDs => nie ueber dem Row-Limit)
       const maxRow = await fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?select=id&order=id.desc&limit=1`);
@@ -1376,6 +1394,7 @@
       updateHeroStats();
       filterTable();
       renderMovers();
+      populateClubs();
       try {
         const cache = await caches.open('sorion-v1');
         await cache.put('/cache/market-data', new Response(JSON.stringify({ ts: Date.now(), rows: allData }), { headers: { 'Content-Type': 'application/json' } }));
@@ -1438,7 +1457,24 @@
     } catch { el.innerHTML = ''; }
   }
 
+
+  // Vereins-Vorschlaege aus den geladenen Daten (nach Spielerzahl sortiert, damit die
+  // grossen Clubs oben stehen). Zeilen ohne team_name werden uebersprungen — deren
+  // Metadaten fuellt der Updater mittlerweile bei jedem Durchlauf nach.
+  function populateClubs() {
+    const dl = document.getElementById('clublist');
+    if (!dl || !allData.length) return;
+    const counts = new Map();
+    for (const r of allData) {
+      const t = r.team_name;
+      if (t) counts.set(t, (counts.get(t) || 0) + 1);
+    }
+    const clubs = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+    dl.innerHTML = clubs.map(([name]) => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
+  }
+
   function setScarcity(sc) {
+    if (window.track) track('scarcity_switch');
     scarcityFilter = sc;
     ['ltd','rar','sr','all'].forEach(k => document.getElementById('btn-'+k).classList.remove('active'));
     const map = {limited:'ltd',rare:'rar',super_rare:'sr',all:'all'};
@@ -1448,11 +1484,18 @@
 
   function filterTable() {
     const search = document.getElementById('search').value.toLowerCase().trim();
+    const club   = (document.getElementById('club')?.value || '').toLowerCase().trim();
     filtered = allData.filter(r => {
       if (rowElig(r) !== eligFilter) return false;
       if (scarcityFilter !== 'all' && r.scarcity !== scarcityFilter) return false;
       if (search && !r.player_name.toLowerCase().includes(search) &&
           !(r.team_name||'').toLowerCase().includes(search)) return false;
+      // Club-Filter: exakter Treffer (Auswahl aus der Liste) oder Teiltreffer (Tippen)
+      if (club) {
+        const t = (r.team_name || '').toLowerCase();
+        if (!t) return false;                       // Zeilen ohne Verein passen zu keinem Club
+        if (t !== club && !t.includes(club)) return false;
+      }
       return true;
     });
     // change_24h/change_7d kommen zeitbasiert aus der DB (bereits vorberechnet)
@@ -1952,6 +1995,7 @@
   }
 
   async function msFetchManager(slug, onProgress) {
+    if (window.track) track('manager_search');
     try {
       const c = JSON.parse(sessionStorage.getItem('sorion_ms_cache'));
       if (c && c.slug === slug && Date.now() - c.ts < 10 * 60 * 1000) return c;

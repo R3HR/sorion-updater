@@ -35,6 +35,7 @@ async function fetchData(playerSlug, eligibility) {
   const inSeason   = eligibility === 'classic' ? 'false' : 'true';
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
+      activeClub { name domesticLeague { name } }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
         liveSingleSaleOffer { receiverSide { amounts { eurCents } } }
@@ -67,7 +68,11 @@ async function fetchData(playerSlug, eligibility) {
       const floorCents = data?.data?.player?.lowestPriceAnyCard?.liveSingleSaleOffer?.receiverSide?.amounts?.eurCents;
       // Kartenbild der RICHTIGEN Rarity/Eligibility (Backfill hatte Bilder quer kopiert, z. B. Yamal rare mit SR-Bild)
       const cardPic = data?.data?.player?.lowestPriceAnyCard?.pictureUrl ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic };
+      // Verein/Liga: fuellt die Luecke fuer Zeilen, die nie ueber update-prices liefen
+      // (27 % der sichtbaren Zeilen hatten keinen Verein -> Club-Filter waere loechrig)
+      const teamName   = data?.data?.player?.activeClub?.name ?? null;
+      const leagueName = data?.data?.player?.activeClub?.domesticLeague?.name ?? null;
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, teamName, leagueName };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -218,6 +223,8 @@ async function main() {
       sales_7d:    sales.filter(s => new Date(s.date) >= d7ago).length,
       updated_at:  new Date().toISOString(),
       ...(result.cardPic ? { picture_url: result.cardPic } : {}), // nur setzen, wenn vorhanden — nie löschen
+      ...(result.teamName ? { team_name: result.teamName } : {}),
+      ...(result.leagueName ? { league_name: result.leagueName } : {}),
     };
     if (migrated) Object.assign(update, await calcChanges(player.player_slug, eligibility, fmv, now, migrated));
 
