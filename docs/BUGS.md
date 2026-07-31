@@ -103,3 +103,15 @@
 - **Index eingespielt + verifiziert (28.07.):** Nach `create index idx_card_prices_scarcity_updated` fiel die Queue-Query bei `limited` von 3,28 s (vorher Timeout) auf konstant <1 s, alle Scarcities gleichauf (Rest = HTTP-Overhead). Root-Cause behoben; Code-Resilienz (Retry statt exit) zusätzlich deployed.
 - **Cleanup erledigt (28.07.):** Die Alt-Ordner `limited/rare/sr/` (Voll-Kopien) wurden entfernt, nachdem via Railway Settings→Build bestätigt war, dass alle 3 Services aus dem Repo-Root bauen. `update-scarcity.mjs` existiert nur noch einmal → keine Mehrfach-Sync mehr.
 - **Status:** ✅ geschlossen 2026-07-28 (Code deployed + Index eingespielt & verifiziert)
+
+## BUG-013 — Liga-Filter/Ranking: vier UI-Fehler, die nur im Browser sichtbar waren
+
+- **Symptom (Jonas, 31.07.):** (a) Liga-Dropdown ohne Funktion, (b) Ranking-Panel nur als leerer Platz, (c) Klick auf 🇩🇪 Bundesliga lieferte auch Sturm Graz und Rapid Wien, (d) Menü öffnete **hinter** der Spielertabelle.
+- **Ursachen:**
+  1. **CSS-Namenskollision:** Das neue Ranking-Panel nutzte `.lg-panel` — dieselbe Klasse wie das Länder-Dropdown, das `display:none` als Grundzustand hat. Panel blieb unsichtbar, obwohl die Rasterspalte Platz reservierte.
+  2. **Doppelte `pickLeague`-Definition:** Die spätere (neue) Version überschrieb die des Dropdowns und referenzierte nie deklarierte Variablen (`leagueCountry`, `leagueSet`) → ReferenceError bei jedem Klick.
+  3. **Land wurde verworfen:** `pickLeague` setzte `countryFilter = league ? null : country`, `filterTable` verglich nur den Namen. Sorare vergibt denselben Liganamen mehrfach (24 Fälle: „Bundesliga" DE+AT, „Premier League" in 9 Ländern).
+  4. **Stapel-Kontext:** `.controls` und `.table-wrap` erzeugen beide über die `fadeUp`-Animation (transform) einen Stapel-Kontext auf Ebene 0. Ohne z-index gewinnt der spätere im DOM → Tabelle über dem Menü, unabhängig vom z-index *innerhalb* des Dropdowns.
+- **Fix:** eigene `lr-*`-Klassen fürs Ranking; Duplikat entfernt und ans bestehende Auswahl-Modell angebunden; Land wird mitgeführt und geprüft — **Pflicht nur bei mehrdeutigen Liganamen** (zur Laufzeit aus den Daten ermittelt), bei eindeutigen Namen bleiben Zeilen ohne Land erhalten und werden im Ranking zugeschlagen; `.controls` bekommt `position:relative; z-index:40`, `.table-wrap` `z-index:1`.
+- **Lektion (Wiederholung von BUG-009):** `new Function`/`node --check` finden weder ReferenceErrors noch CSS-Kollisionen noch Stapel-Fehler. **UI-Änderungen an dieser Seite ab jetzt lokal servieren und wirklich klicken** (`node`-Einzeiler als Static-Server + Browser). Verifiziert wurde: DE 236 Treffer (nur `de`), AT 90 (nur `at`), NL 188; Ranking-Klick filtert und hebt auf; `elementFromPoint` im gesamten Überlappungsbereich → Menü oben.
+- **Status:** ✅ behoben 2026-07-31 (alle vier Punkte live verifiziert)
