@@ -1149,12 +1149,19 @@
 
 
   /* ── Liga-Ranking (rechte Spalte) ─────────────────────────────── */
-  .top-grid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 14px; align-items: start; }
+  .top-grid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 14px; align-items: stretch; }
   @media (max-width: 1150px) { .top-grid { grid-template-columns: 1fr; } }
-  .lr-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .lr-wrap { position: relative; margin-bottom: 24px; }
+  .lr-panel { position: absolute; inset: 0; background: var(--surface); border: 1px solid var(--border);
+              border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+  /* Einspaltig (schmale Fenster): normaler Fluss mit fester Hoehe */
+  @media (max-width: 1150px) {
+    .lr-wrap { position: static; }
+    .lr-panel { position: static; height: 420px; }
+  }
   .lr-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
   .lr-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--purple); }
-  .lr-body { max-height: 430px; overflow-y: auto; }
+  .lr-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
   .lr-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center;
             padding: 9px 14px; border-bottom: 1px solid rgba(42,42,69,.5); cursor: pointer; transition: background .12s; }
   .lr-row:last-child { border-bottom: none; }
@@ -1165,6 +1172,12 @@
   .lr-sub  { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text2); margin-top: 2px; }
   .lr-val  { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--text); text-align: right; }
   .lr-bar  { height: 3px; background: linear-gradient(90deg, var(--purple), #8040cc); border-radius: 2px; margin-top: 4px; }
+  .lr-sc { display: flex; gap: 3px; margin-left: auto; }
+  .lr-sc button { background: none; border: 1px solid var(--border); color: var(--text2); border-radius: 4px;
+                  font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .06em;
+                  padding: 3px 6px; cursor: pointer; transition: all .12s; }
+  .lr-sc button:hover { color: var(--text); border-color: var(--border2); }
+  .lr-sc button.active { color: var(--purple); border-color: var(--purple); background: rgba(176,96,255,.1); }
   .lr-empty { padding: 18px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #505080; }
 
 </style>
@@ -1286,13 +1299,19 @@
    </div>
 
    <!-- Liga-Ranking nach Gesamtwert -->
-   <aside class="lr-panel">
+   <aside class="lr-wrap"><div class="lr-panel">
      <div class="lr-head">
        <span style="color:var(--purple)">◆</span>
        <span class="lr-title" id="lr-title">Leagues by value</span>
+       <span class="lr-sc">
+         <button id="lrsc-all" class="active" onclick="setRankScarcity('all')">ALL</button>
+         <button id="lrsc-limited"    onclick="setRankScarcity('limited')">L</button>
+         <button id="lrsc-rare"       onclick="setRankScarcity('rare')">R</button>
+         <button id="lrsc-super_rare" onclick="setRankScarcity('super_rare')">SR</button>
+       </span>
      </div>
      <div class="lr-body" id="lr-body"><div class="lr-empty">// loading…</div></div>
-   </aside>
+   </div></aside>
   </div>
 
   <div class="controls">
@@ -1404,6 +1423,7 @@
   let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
   let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
   let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
+  let rankScarcity = 'all';          // Rarity-Auswahl NUR fuer das Liga-Ranking
   let countryFilter = null;     // Land der LIGA, z. B. 'de' (NICHT die Nationalität des Spielers) // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
 
   function rowElig(r) { return r.eligibility ?? 'in_season'; }
@@ -1727,11 +1747,21 @@
                  : v >= 1e3 ? '€' + (v / 1e3).toFixed(1) + 'k'
                  : '€' + v.toFixed(0);
 
+  // Eigener Rarity-Umschalter fuers Ranking (unabhaengig von der Tabelle darunter)
+  function setRankScarcity(sc) {
+    rankScarcity = sc;
+    for (const k of ['all', 'limited', 'rare', 'super_rare']) {
+      document.getElementById('lrsc-' + k)?.classList.toggle('active', k === sc);
+    }
+    renderLeagues();
+  }
+
   function renderLeagues() {
     const body = document.getElementById('lr-body');
     if (!body) return;
     const title = document.getElementById('lr-title');
-    if (title) title.textContent = 'Leagues by value · ' + (eligFilter === 'classic' ? 'Classic' : 'In-Season');
+    const scLabel = { all: 'all cards', limited: 'Limited', rare: 'Rare', super_rare: 'Super Rare' }[rankScarcity];
+    if (title) title.textContent = (eligFilter === 'classic' ? 'Classic' : 'In-Season') + ' · ' + scLabel;
 
     // Welche Liganamen sind mehrdeutig? "Bundesliga" gibt es in DE und AT,
     // "Premier League" in 9 Laendern. Nur dort ist das Land zwingend (siehe filterTable).
@@ -1748,6 +1778,7 @@
     const agg = new Map();
     for (const r of allData) {
       if (rowElig(r) !== eligFilter) continue;
+      if (rankScarcity !== 'all' && r.scarcity !== rankScarcity) continue;
       if (!r.league_name || !r.fmv) continue;
       const country = r.league_country || soleCountryOf.get(r.league_name) || null;
       const key = (country || '--') + '|' + r.league_name;
