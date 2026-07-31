@@ -36,7 +36,7 @@ async function fetchData(playerSlug, eligibility) {
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
       anyPositions
-      activeClub { name domesticLeague { name } }
+      activeClub { name domesticLeague { name country { code } } }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
         liveSingleSaleOffer { receiverSide { amounts { eurCents } } }
@@ -74,7 +74,9 @@ async function fetchData(playerSlug, eligibility) {
       const position   = data?.data?.player?.anyPositions?.[0] ?? null; // Goalkeeper|Defender|Midfielder|Forward
       const teamName   = data?.data?.player?.activeClub?.name ?? null;
       const leagueName = data?.data?.player?.activeClub?.domesticLeague?.name ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, teamName, leagueName, position };
+      // Land der LIGA (nicht die Nationalität des Spielers — das ist player.country!)
+      const leagueCountry = data?.data?.player?.activeClub?.domesticLeague?.country?.code ?? null;
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, teamName, leagueName, position, leagueCountry };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -228,6 +230,7 @@ async function main() {
       ...(result.teamName ? { team_name: result.teamName } : {}),
       ...(result.leagueName ? { league_name: result.leagueName } : {}),
       ...(result.position ? { position: result.position } : {}),
+      ...(result.leagueCountry ? { league_country: result.leagueCountry } : {}),
     };
     if (migrated) Object.assign(update, await calcChanges(player.player_slug, eligibility, fmv, now, migrated));
 

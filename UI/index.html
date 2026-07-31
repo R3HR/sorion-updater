@@ -1116,6 +1116,37 @@
   .btn-sorare { display: inline-flex; align-items: center; gap: 10px; background: transparent; border: 1px solid var(--purple); color: var(--purple); font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 10px 18px; border-radius: 6px; cursor: pointer; }
   .btn-sorare:hover { background: var(--purple); color: var(--bg); }
 
+
+  /* ── Land → Liga Auswahl ───────────────────────────────────────── */
+  .lg-dd { position: relative; display: inline-block; }
+  .lg-panel {
+    display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
+    min-width: 240px; max-height: 380px; overflow-y: auto; padding: 5px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.55);
+  }
+  .lg-panel.open { display: block; }
+  .lg-row {
+    position: relative; font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    color: var(--text); padding: 8px 11px; border-radius: 5px; cursor: pointer;
+    white-space: nowrap; display: flex; align-items: center; gap: 9px;
+  }
+  .lg-row:hover { background: var(--surface3); color: var(--purple); }
+  .lg-count { margin-left: auto; color: #505080; font-size: 10px; }
+  .lg-arrow { color: #505080; margin-left: 2px; }
+  .lg-sub {
+    display: none; position: absolute; left: 100%; top: -5px; margin-left: 2px;
+    background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
+    min-width: 215px; max-height: 340px; overflow-y: auto; padding: 5px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.55); z-index: 31;
+  }
+  .lg-has-sub:hover > .lg-sub { display: block; }
+  .lg-has-sub:hover > .lg-sub.flip { left: auto; right: 100%; margin: 0 2px 0 0; }
+  @media (max-width: 720px) {
+    .lg-sub { position: static; display: block; border: none; box-shadow: none;
+              padding: 0 0 0 16px; min-width: 0; max-height: none; }
+  }
+
 </style>
 </head>
 <body>
@@ -1241,10 +1272,12 @@
              style="min-width:210px">
       <datalist id="clublist"></datalist>
     </div>
-    <div style="position:relative">
-      <input class="search-input" id="league" type="text" list="leaguelist" autocomplete="off"
-             placeholder="all leagues…" oninput="filterTable()" style="min-width:180px">
-      <datalist id="leaguelist"></datalist>
+    <div class="lg-dd">
+      <button class="filter-btn" id="lg-btn" onclick="toggleLeagueMenu(event)">🌍 All leagues ▾</button>
+      <div class="lg-panel" id="lg-panel">
+        <div class="lg-row" onclick="pickLeague(null, null)">All leagues</div>
+        <div id="lg-countries"></div>
+      </div>
     </div>
     <div class="filter-btn-group" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="filter-btn ltd active" id="btn-ltd" onclick="setScarcity('limited')">◆ Limited</button>
@@ -1334,7 +1367,9 @@
   let scarcityFilter = 'limited';
   let eligFilter = 'in_season';
   let posFilter  = null;   // null = alle Positionen
-  let clubSet = new Set(), leagueSet = new Set();  // bekannte Namen (klein) für exakte Treffer // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
+  let clubSet = new Set();      // bekannte Vereinsnamen (klein) -> exakte Auswahl vs. Tippen
+  let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
+  let countryFilter = null;     // Land der LIGA, z. B. 'de' (NICHT die Nationalität des Spielers) // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
 
   function rowElig(r) { return r.eligibility ?? 'in_season'; }
 
@@ -1354,7 +1389,17 @@
     // Lade-Strategie (22.07. v3): erste Seite = Top-FMV (sofort sichtbar),
     // Rest per ID-Bereichen (PK-Index, konstant schnell — tiefe OFFSETs liefen
     // in DB-Timeouts und lieferten stillschweigend Teildaten, BUG-009b).
-    const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,position,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
+    // Neue Spalten (position/league_country) existieren erst nach der jeweiligen Migration.
+    // Fehlt eine, antwortet PostgREST mit 400 und die GANZE Seite bliebe leer — daher
+    // einmal proben und andernfalls ohne die neuen Spalten laden (Lektion 30.07.).
+    const COLS_BASE = 'id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
+    const COLS_NEW  = 'position,league_country';
+    let SELECT = 'select=' + COLS_BASE + ',' + COLS_NEW;
+    try {
+      const probe = await fetch(`${SUPABASE_URL}/rest/v1/card_prices?select=${COLS_NEW}&limit=1`,
+        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } });
+      if (!probe.ok) SELECT = 'select=' + COLS_BASE;
+    } catch { SELECT = 'select=' + COLS_BASE; }
     const FILTER = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
     const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
     const fetchJson = async (url, retry = 1) => {
@@ -1487,13 +1532,7 @@
     const clubs = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     dl.innerHTML = clubs.map(([name]) => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
 
-    // Ligen (alphabetisch — überschaubare Zahl)
-    const ll = document.getElementById('leaguelist');
-    if (ll) {
-      const leagues = [...new Set(allData.map(r => r.league_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-      leagueSet = new Set(leagues.map(n => n.toLowerCase()));
-      ll.innerHTML = leagues.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
-    }
+    buildLeagueMenu();
 
     // Positions-Filter erst anbieten, wenn der Updater die Spalte gefüllt hat —
     // sonst würde ein Klick in eine leere Tabelle filtern (Sweep dauert ~2-3 Tage).
@@ -1515,6 +1554,124 @@
     filterTable();
   }
 
+
+  // ── Land → Liga Menü ────────────────────────────────────────────────────
+  // WICHTIG: Grundlage ist league_country (Land der LIGA) — NICHT die Nationalität
+  // des Spielers. Beispiel: Heung-min Son ist Koreaner, spielt aber in der MLS (us).
+  const FLAG_X = {
+    'gb-eng': '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}',
+    'gb-sct': '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}',
+    'gb-wls': '\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}',
+    'gb-nir': '\u{1F1EC}\u{1F1E7}',
+  };
+  const NAME_X = { 'gb-eng': 'England', 'gb-sct': 'Scotland', 'gb-wls': 'Wales', 'gb-nir': 'Northern Ireland' };
+
+  function flagOf(code) {
+    if (!code || code === '\u2014') return '\u{1F3F3}\u{FE0F}';
+    if (FLAG_X[code]) return FLAG_X[code];
+    if (code.length !== 2) return '\u{1F3F3}\u{FE0F}';
+    return String.fromCodePoint(...[...code.toUpperCase()].map(c => 127397 + c.charCodeAt(0)));
+  }
+  function countryName(code) {
+    if (!code || code === '\u2014') return 'Other';
+    if (NAME_X[code]) return NAME_X[code];
+    try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code.toUpperCase()) || code; }
+    catch { return code; }
+  }
+
+  function toggleLeagueMenu(ev) {
+    if (ev) ev.stopPropagation();
+    document.getElementById('lg-panel').classList.toggle('open');
+  }
+  document.addEventListener('click', e => {
+    const p = document.getElementById('lg-panel');
+    if (p && !e.target.closest('.lg-dd')) p.classList.remove('open');
+  });
+
+  function pickLeague(league, country) {
+    leagueFilter = league;
+    countryFilter = league ? null : country;
+    const btn = document.getElementById('lg-btn');
+    if (btn) {
+      btn.textContent = league  ? flagOf(country) + ' ' + league + ' \u25BE'
+                      : country ? flagOf(country) + ' ' + countryName(country) + ' \u25BE'
+                      : '\u{1F30D} All leagues \u25BE';
+      btn.classList.toggle('active', !!(league || country));
+    }
+    document.getElementById('lg-panel').classList.remove('open');
+    currentPage = 1;
+    filterTable();
+  }
+
+  // Menü aus den geladenen Daten bauen: Land -> dessen Ligen (mit Anzahl Einträge).
+  // Per DOM erzeugt, damit Namen mit Anführungszeichen/Apostroph nicht escapen müssen.
+  function buildLeagueMenu() {
+    const host = document.getElementById('lg-countries');
+    if (!host || !allData.length) return;
+
+    const tree = new Map();                    // country -> Map(league -> count)
+    for (const r of allData) {
+      if (!r.league_name) continue;
+      const c = r.league_country || '\u2014';  // noch ohne Land (Sweep läuft) -> "Other"
+      if (!tree.has(c)) tree.set(c, new Map());
+      const m = tree.get(c);
+      m.set(r.league_name, (m.get(r.league_name) || 0) + 1);
+    }
+    host.innerHTML = '';
+    if (!tree.size) return;
+
+    const row = (label, count, cls) => {
+      const d = document.createElement('div');
+      d.className = 'lg-row' + (cls ? ' ' + cls : '');
+      const t = document.createElement('span');
+      t.textContent = label;
+      d.appendChild(t);
+      if (count != null) {
+        const c = document.createElement('span');
+        c.className = 'lg-count';
+        c.textContent = count;
+        d.appendChild(c);
+      }
+      return d;
+    };
+
+    const countries = [...tree.entries()]
+      .map(([c, m]) => [c, m, [...m.values()].reduce((a, b) => a + b, 0)])
+      .sort((a, b) => (a[0] === '\u2014') - (b[0] === '\u2014') || countryName(a[0]).localeCompare(countryName(b[0])));
+
+    for (const [code, leagues, total] of countries) {
+      const cRow = row(flagOf(code) + '  ' + countryName(code), total, 'lg-has-sub');
+      cRow.onclick = () => pickLeague(null, code);
+      const arrow = document.createElement('span');
+      arrow.className = 'lg-arrow';
+      arrow.textContent = '\u203A';
+      cRow.appendChild(arrow);
+
+      const sub = document.createElement('div');
+      sub.className = 'lg-sub';
+      const all = row('All ' + countryName(code), null);
+      all.style.color = 'var(--text2)';
+      all.onclick = e => { e.stopPropagation(); pickLeague(null, code); };
+      sub.appendChild(all);
+
+      for (const [name, n] of [...leagues.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))) {
+        const lRow = row(name, n);
+        lRow.onclick = e => { e.stopPropagation(); pickLeague(name, code); };
+        sub.appendChild(lRow);
+      }
+      cRow.appendChild(sub);
+      host.appendChild(cRow);
+    }
+
+    // Untermenüs am rechten Fensterrand nach links klappen
+    requestAnimationFrame(() => {
+      for (const sub of host.querySelectorAll('.lg-sub')) {
+        const r = sub.parentElement.getBoundingClientRect();
+        if (r.right + 240 > window.innerWidth) sub.classList.add('flip');
+      }
+    });
+  }
+
   function setScarcity(sc) {
     if (window.track) track('scarcity_switch');
     scarcityFilter = sc;
@@ -1527,7 +1684,6 @@
   function filterTable() {
     const search = document.getElementById('search').value.toLowerCase().trim();
     const club   = (document.getElementById('club')?.value || '').toLowerCase().trim();
-    const league = (document.getElementById('league')?.value || '').toLowerCase().trim();
     filtered = allData.filter(r => {
       if (rowElig(r) !== eligFilter) return false;
       if (scarcityFilter !== 'all' && r.scarcity !== scarcityFilter) return false;
@@ -1539,11 +1695,8 @@
         if (!t) return false;                       // Zeilen ohne Verein passen zu keinem Club
         if (clubSet.has(club) ? t !== club : !t.includes(club)) return false;
       }
-      if (league) {
-        const l = (r.league_name || '').toLowerCase();
-        if (!l) return false;
-        if (leagueSet.has(league) ? l !== league : !l.includes(league)) return false;
-      }
+      if (leagueFilter) { if (r.league_name !== leagueFilter) return false; }
+      else if (countryFilter) { if ((r.league_country || '—') !== countryFilter) return false; }
       if (posFilter && r.position !== posFilter) return false;
       return true;
     });
