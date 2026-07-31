@@ -306,6 +306,8 @@
     gap: 10px;
     margin-bottom: 14px;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 40;          /* ueber .table-wrap — sonst oeffnet das Liga-Menue hinter der Tabelle */
   }
 
   .search-wrap {
@@ -394,6 +396,7 @@
     overflow: hidden;
     box-shadow: 0 0 40px rgba(176,96,255,0.05);
     position: relative;
+    z-index: 1;
   }
 
   .table-wrap::before {
