@@ -1,0 +1,9 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Kader-Abgleich: zieht die Spieler aller Sorare-Clubs und legt fehlende an.
+# Ohne cronSchedule = manueller Trigger (wie seed). Empfehlung: 1x pro Woche laufen
+# lassen (Transfers/Neuzugaenge), z. B. cronSchedule = "0 4 * * 1".
+startCommand = "node sync-club-rosters.mjs"
+restartPolicyType = "never"
