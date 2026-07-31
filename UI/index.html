@@ -1241,6 +1241,11 @@
              style="min-width:210px">
       <datalist id="clublist"></datalist>
     </div>
+    <div style="position:relative">
+      <input class="search-input" id="league" type="text" list="leaguelist" autocomplete="off"
+             placeholder="all leagues…" oninput="filterTable()" style="min-width:180px">
+      <datalist id="leaguelist"></datalist>
+    </div>
     <div class="filter-btn-group" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="filter-btn ltd active" id="btn-ltd" onclick="setScarcity('limited')">◆ Limited</button>
       <button class="filter-btn rar" id="btn-rar" onclick="setScarcity('rare')">◆ Rare</button>
@@ -1249,6 +1254,13 @@
       <span style="width:1px;background:var(--border);margin:0 4px"></span>
       <button class="filter-btn active" id="btn-inseason" onclick="setEligibility('in_season')">In-Season</button>
       <button class="filter-btn"        id="btn-classic"  onclick="setEligibility('classic')">Classic</button>
+      <span id="pos-group" style="display:none;gap:8px">
+        <span style="width:1px;background:var(--border);margin:0 4px;display:inline-block;height:20px;vertical-align:middle"></span>
+        <button class="filter-btn" id="btn-pos-Goalkeeper" onclick="setPosition('Goalkeeper')">GK</button>
+        <button class="filter-btn" id="btn-pos-Defender"   onclick="setPosition('Defender')">DEF</button>
+        <button class="filter-btn" id="btn-pos-Midfielder" onclick="setPosition('Midfielder')">MID</button>
+        <button class="filter-btn" id="btn-pos-Forward"    onclick="setPosition('Forward')">FWD</button>
+      </span>
     </div>
     <div class="updated-at" id="updated-at"></div>
   </div>
@@ -1320,7 +1332,9 @@
   let allData = [], filtered = [], sortKey = 'fmv', sortDir = -1, currentPage = 1;
   const PAGE_SIZE = 50;
   let scarcityFilter = 'limited';
-  let eligFilter = 'in_season'; // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
+  let eligFilter = 'in_season';
+  let posFilter  = null;   // null = alle Positionen
+  let clubSet = new Set(), leagueSet = new Set();  // bekannte Namen (klein) für exakte Treffer // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
 
   function rowElig(r) { return r.eligibility ?? 'in_season'; }
 
@@ -1340,7 +1354,7 @@
     // Lade-Strategie (22.07. v3): erste Seite = Top-FMV (sofort sichtbar),
     // Rest per ID-Bereichen (PK-Index, konstant schnell — tiefe OFFSETs liefen
     // in DB-Timeouts und lieferten stillschweigend Teildaten, BUG-009b).
-    const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
+    const SELECT = 'select=id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,position,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
     const FILTER = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
     const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
     const fetchJson = async (url, retry = 1) => {
@@ -1469,8 +1483,36 @@
       const t = r.team_name;
       if (t) counts.set(t, (counts.get(t) || 0) + 1);
     }
+    clubSet = new Set([...counts.keys()].map(n => n.toLowerCase()));
     const clubs = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
     dl.innerHTML = clubs.map(([name]) => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
+
+    // Ligen (alphabetisch — überschaubare Zahl)
+    const ll = document.getElementById('leaguelist');
+    if (ll) {
+      const leagues = [...new Set(allData.map(r => r.league_name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+      leagueSet = new Set(leagues.map(n => n.toLowerCase()));
+      ll.innerHTML = leagues.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+    }
+
+    // Positions-Filter erst anbieten, wenn der Updater die Spalte gefüllt hat —
+    // sonst würde ein Klick in eine leere Tabelle filtern (Sweep dauert ~2-3 Tage).
+    const grp = document.getElementById('pos-group');
+    if (grp) {
+      const withPos = allData.reduce((n, r) => n + (r.position ? 1 : 0), 0);
+      grp.style.display = withPos > 100 ? 'inline-flex' : 'none';
+    }
+  }
+
+
+  // Position: erneuter Klick auf die aktive Position hebt den Filter wieder auf.
+  function setPosition(p) {
+    posFilter = (posFilter === p) ? null : p;
+    for (const k of ['Goalkeeper', 'Defender', 'Midfielder', 'Forward']) {
+      document.getElementById('btn-pos-' + k)?.classList.toggle('active', posFilter === k);
+    }
+    currentPage = 1;
+    filterTable();
   }
 
   function setScarcity(sc) {
@@ -1485,6 +1527,7 @@
   function filterTable() {
     const search = document.getElementById('search').value.toLowerCase().trim();
     const club   = (document.getElementById('club')?.value || '').toLowerCase().trim();
+    const league = (document.getElementById('league')?.value || '').toLowerCase().trim();
     filtered = allData.filter(r => {
       if (rowElig(r) !== eligFilter) return false;
       if (scarcityFilter !== 'all' && r.scarcity !== scarcityFilter) return false;
@@ -1494,8 +1537,14 @@
       if (club) {
         const t = (r.team_name || '').toLowerCase();
         if (!t) return false;                       // Zeilen ohne Verein passen zu keinem Club
-        if (t !== club && !t.includes(club)) return false;
+        if (clubSet.has(club) ? t !== club : !t.includes(club)) return false;
       }
+      if (league) {
+        const l = (r.league_name || '').toLowerCase();
+        if (!l) return false;
+        if (leagueSet.has(league) ? l !== league : !l.includes(league)) return false;
+      }
+      if (posFilter && r.position !== posFilter) return false;
       return true;
     });
     // change_24h/change_7d kommen zeitbasiert aus der DB (bereits vorberechnet)

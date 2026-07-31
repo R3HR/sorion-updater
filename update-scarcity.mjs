@@ -35,6 +35,7 @@ async function fetchData(playerSlug, eligibility) {
   const inSeason   = eligibility === 'classic' ? 'false' : 'true';
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
+      anyPositions
       activeClub { name domesticLeague { name } }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
@@ -70,9 +71,10 @@ async function fetchData(playerSlug, eligibility) {
       const cardPic = data?.data?.player?.lowestPriceAnyCard?.pictureUrl ?? null;
       // Verein/Liga: fuellt die Luecke fuer Zeilen, die nie ueber update-prices liefen
       // (27 % der sichtbaren Zeilen hatten keinen Verein -> Club-Filter waere loechrig)
+      const position   = data?.data?.player?.anyPositions?.[0] ?? null; // Goalkeeper|Defender|Midfielder|Forward
       const teamName   = data?.data?.player?.activeClub?.name ?? null;
       const leagueName = data?.data?.player?.activeClub?.domesticLeague?.name ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, teamName, leagueName };
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, teamName, leagueName, position };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -225,6 +227,7 @@ async function main() {
       ...(result.cardPic ? { picture_url: result.cardPic } : {}), // nur setzen, wenn vorhanden — nie löschen
       ...(result.teamName ? { team_name: result.teamName } : {}),
       ...(result.leagueName ? { league_name: result.leagueName } : {}),
+      ...(result.position ? { position: result.position } : {}),
     };
     if (migrated) Object.assign(update, await calcChanges(player.player_slug, eligibility, fmv, now, migrated));
 
