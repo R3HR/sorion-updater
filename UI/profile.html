@@ -4,11 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SORION — Profil</title>
-<!-- Privacy-friendly analytics by Plausible -->
-<script async src="https://plausible.io/js/pa-H3tHJiKjs3uv9_v92tzER.js"></script>
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
 <script>
-  window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-  plausible.init()
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
 </script>
 <link href="fonts/fonts.css" rel="stylesheet">
 <style>
@@ -55,6 +64,23 @@
   .checkbox-row input { margin-top: 3px; }
   .divider { height: 1px; background: var(--border); margin: 16px 0; }
   .footer { text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); margin-top: 40px; }
+
+  /* ── Scrollbalken an das dunkle Design angleichen ─────────────── */
+  html, .lr-body, .lg-panel, .table-wrap, .m-cards, .pm, .lr-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(176,96,255,.35) transparent;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(176,96,255,.28);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(176,96,255,.55); background-clip: content-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
 </style>
 </head>
 <body>
@@ -215,6 +241,7 @@
 
   // ── Auth-Aktionen ───────────────────────────────────────────
   async function doSignup() {
+    if (window.track) track('signup_done');
     if (!document.getElementById('su-privacy').checked) { msg('su-msg', 'Bitte Datenschutzerklärung bestätigen'); return; }
     const email = document.getElementById('su-email').value.trim();
     const pass  = document.getElementById('su-pass').value;
@@ -230,6 +257,7 @@
   }
 
   async function doLogin() {
+    if (window.track) track('login_done');
     const email = document.getElementById('login-email').value.trim();
     const pass  = document.getElementById('login-pass').value;
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {

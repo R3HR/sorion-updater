@@ -4,11 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SORION — Portfolio</title>
-<!-- Privacy-friendly analytics by Plausible -->
-<script async src="https://plausible.io/js/pa-H3tHJiKjs3uv9_v92tzER.js"></script>
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
 <script>
-  window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-  plausible.init()
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
 </script>
 <link href="fonts/fonts.css" rel="stylesheet">
 <style>
@@ -535,6 +544,23 @@
   }
   .p-sort:hover { border-color: var(--purple2); color: var(--text); }
   .p-sort.active { background: var(--surface2); border-color: var(--purple); color: var(--purple); font-weight: 700; }
+
+  /* ── Scrollbalken an das dunkle Design angleichen ─────────────── */
+  html, .lr-body, .lg-panel, .table-wrap, .m-cards, .pm, .lr-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(176,96,255,.35) transparent;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(176,96,255,.28);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(176,96,255,.55); background-clip: content-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
 </style>
 </head>
 <body>
@@ -752,6 +778,7 @@
   }
 
   async function showPortfolio(slug) {
+    if (window.track) track('portfolio_view');
     currentSlug = slug;
     document.getElementById('login-screen').style.display     = 'none';
     document.getElementById('portfolio-screen').style.display = 'block';
@@ -1098,6 +1125,7 @@
   }
 
   function openCard(i) {
+    if (window.track) track('card_detail');
     const c = filtered[i];
     if (!c) return;
     const rarity  = c.rarityTyped?.toLowerCase() || 'limited';
@@ -1236,6 +1264,7 @@
   }
 
   async function msFetchManager(slug, onProgress) {
+    if (window.track) track('manager_search');
     try {
       const c = JSON.parse(sessionStorage.getItem('sorion_ms_cache'));
       if (c && c.slug === slug && Date.now() - c.ts < 10 * 60 * 1000) return c;
