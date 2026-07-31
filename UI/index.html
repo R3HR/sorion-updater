@@ -1151,21 +1151,21 @@
   /* ── Liga-Ranking (rechte Spalte) ─────────────────────────────── */
   .top-grid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 14px; align-items: start; }
   @media (max-width: 1150px) { .top-grid { grid-template-columns: 1fr; } }
-  .lg-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .lg-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-  .lg-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--purple); }
-  .lg-body { max-height: 430px; overflow-y: auto; }
-  .lg-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center;
+  .lr-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .lr-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .lr-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--purple); }
+  .lr-body { max-height: 430px; overflow-y: auto; }
+  .lr-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center;
             padding: 9px 14px; border-bottom: 1px solid rgba(42,42,69,.5); cursor: pointer; transition: background .12s; }
-  .lg-row:last-child { border-bottom: none; }
-  .lg-row:hover { background: var(--surface2); }
-  .lg-row.active { background: rgba(176,96,255,.12); }
-  .lg-flag { font-size: 14px; line-height: 1; }
-  .lg-name { font-family: 'Exo 2', sans-serif; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lg-sub  { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text2); margin-top: 2px; }
-  .lg-val  { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--text); text-align: right; }
-  .lg-bar  { height: 3px; background: linear-gradient(90deg, var(--purple), #8040cc); border-radius: 2px; margin-top: 4px; }
-  .lg-empty { padding: 18px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #505080; }
+  .lr-row:last-child { border-bottom: none; }
+  .lr-row:hover { background: var(--surface2); }
+  .lr-row.active { background: rgba(176,96,255,.12); }
+  .lr-flag { font-size: 14px; line-height: 1; }
+  .lr-name { font-family: 'Exo 2', sans-serif; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lr-sub  { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text2); margin-top: 2px; }
+  .lr-val  { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--text); text-align: right; }
+  .lr-bar  { height: 3px; background: linear-gradient(90deg, var(--purple), #8040cc); border-radius: 2px; margin-top: 4px; }
+  .lr-empty { padding: 18px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #505080; }
 
 </style>
 </head>
@@ -1286,12 +1286,12 @@
    </div>
 
    <!-- Liga-Ranking nach Gesamtwert -->
-   <aside class="lg-panel">
-     <div class="lg-head">
+   <aside class="lr-panel">
+     <div class="lr-head">
        <span style="color:var(--purple)">◆</span>
-       <span class="lg-title" id="lg-title">Leagues by value</span>
+       <span class="lr-title" id="lr-title">Leagues by value</span>
      </div>
-     <div class="lg-body" id="lg-body"><div class="lg-empty">// loading…</div></div>
+     <div class="lr-body" id="lr-body"><div class="lr-empty">// loading…</div></div>
    </aside>
   </div>
 
@@ -1402,6 +1402,8 @@
   let posFilter  = null;   // null = alle Positionen
   let clubSet = new Set();      // bekannte Vereinsnamen (klein) -> exakte Auswahl vs. Tippen
   let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
+  let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
+  let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
   let countryFilter = null;     // Land der LIGA, z. B. 'de' (NICHT die Nationalität des Spielers) // Zeilen ohne eligibility-Spalte (vor Migration) gelten als in_season
 
   function rowElig(r) { return r.eligibility ?? 'in_season'; }
@@ -1624,7 +1626,9 @@
 
   function pickLeague(league, country) {
     leagueFilter = league;
-    countryFilter = league ? null : country;
+    // Land IMMER mitfuehren: AT und DE heissen beide "Bundesliga" — ohne Land
+    // lieferte ein Klick auf 🇩🇪 Bundesliga auch Sturm Graz und Rapid Wien.
+    countryFilter = country ?? null;
     const btn = document.getElementById('lg-btn');
     if (btn) {
       btn.textContent = league  ? flagOf(country) + ' ' + league + ' \u25BE'
@@ -1724,52 +1728,60 @@
                  : '€' + v.toFixed(0);
 
   function renderLeagues() {
-    const body = document.getElementById('lg-body');
+    const body = document.getElementById('lr-body');
     if (!body) return;
-    const title = document.getElementById('lg-title');
+    const title = document.getElementById('lr-title');
     if (title) title.textContent = 'Leagues by value · ' + (eligFilter === 'classic' ? 'Classic' : 'In-Season');
 
-    const agg = new Map();   // "land|liga" -> {name, country, sum, n}
+    // Welche Liganamen sind mehrdeutig? "Bundesliga" gibt es in DE und AT,
+    // "Premier League" in 9 Laendern. Nur dort ist das Land zwingend (siehe filterTable).
+    const byName = new Map();
+    for (const r of allData) {
+      if (!r.league_name || !r.league_country) continue;
+      if (!byName.has(r.league_name)) byName.set(r.league_name, new Set());
+      byName.get(r.league_name).add(r.league_country);
+    }
+    ambiguousLeagues = new Set([...byName].filter(([, c]) => c.size > 1).map(([n]) => n));
+    soleCountryOf = new Map([...byName].filter(([, c]) => c.size === 1).map(([n, c]) => [n, [...c][0]]));
+
+    // Schluessel = Land + Liga: Sorare nennt AT und DE beide "Bundesliga".
+    const agg = new Map();
     for (const r of allData) {
       if (rowElig(r) !== eligFilter) continue;
       if (!r.league_name || !r.fmv) continue;
-      const country = r.league_country || null;
+      const country = r.league_country || soleCountryOf.get(r.league_name) || null;
       const key = (country || '--') + '|' + r.league_name;
       const e = agg.get(key) || { name: r.league_name, country, sum: 0, n: 0 };
       e.sum += r.fmv; e.n++;
       agg.set(key, e);
     }
     const rows = [...agg.values()].sort((a, b) => b.sum - a.sum);
-    if (!rows.length) { body.innerHTML = '<div class="lg-empty">// no league data yet</div>'; return; }
+    if (!rows.length) { body.innerHTML = '<div class="lr-empty">// no league data yet</div>'; return; }
 
     const max = rows[0].sum;
-    const current = (document.getElementById('league')?.value || '').toLowerCase().trim();
     body.innerHTML = rows.map(e => {
-      const active = e.name.toLowerCase() === current && (leagueCountry === e.country || !leagueCountry);
-      const arg = JSON.stringify([e.name, e.country]).replace(/"/g, '&quot;');
+      const active = leagueFilter
+        ? (leagueFilter === e.name && (!countryFilter || countryFilter === e.country))
+        : (!!countryFilter && countryFilter === e.country);
+      const arg = `${JSON.stringify(e.name)}, ${JSON.stringify(e.country)}`.replace(/"/g, '&quot;');
       return `
-      <div class="lg-row ${active ? 'active' : ''}" onclick='pickLeague(...${arg})' title="${esc(e.name)}${e.country ? ' (' + esc(e.country) + ')' : ''} — ${e.n} cards priced">
-        <span class="lg-flag">${flagOf(e.country)}</span>
+      <div class="lr-row ${active ? 'active' : ''}" onclick='pickLeagueFromRank(${arg})' title="${esc(e.name)}${e.country ? ' (' + esc(e.country) + ')' : ''} — ${e.n} cards priced">
+        <span class="lr-flag">${flagOf(e.country)}</span>
         <div style="min-width:0">
-          <div class="lg-name">${esc(e.name)}</div>
-          <div class="lg-sub">${e.n.toLocaleString('en-GB')} cards</div>
-          <div class="lg-bar" style="width:${Math.max(3, (e.sum / max) * 100)}%"></div>
+          <div class="lr-name">${esc(e.name)}</div>
+          <div class="lr-sub">${e.n.toLocaleString('en-GB')} cards</div>
+          <div class="lr-bar" style="width:${Math.max(3, (e.sum / max) * 100)}%"></div>
         </div>
-        <div class="lg-val">${eur0(e.sum)}</div>
+        <div class="lr-val">${eur0(e.sum)}</div>
       </div>`;
     }).join('');
   }
 
-  // Klick auf eine Liga setzt den Liga-Filter inkl. LAND (erneuter Klick hebt ihn auf).
-  // Ohne das Land wuerde "Bundesliga" auch die oesterreichische Liga mitfiltern.
-  function pickLeague(name, country) {
-    const inp = document.getElementById('league');
-    if (!inp) return;
-    const off = inp.value.toLowerCase().trim() === name.toLowerCase() && leagueCountry === (country || null);
-    inp.value = off ? '' : name;
-    leagueCountry = off ? null : (country || null);
-    currentPage = 1;
-    filterTable();
+  // Klick im Ranking: nutzt die BESTEHENDE Auswahl-Logik (Land+Liga). Erneuter Klick
+  // auf dieselbe Liga hebt den Filter wieder auf.
+  function pickLeagueFromRank(name, country) {
+    if (leagueFilter === name) pickLeague(null, null);
+    else pickLeague(name, country);
     renderLeagues();
     document.querySelector('.table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -1797,7 +1809,18 @@
         if (!t) return false;                       // Zeilen ohne Verein passen zu keinem Club
         if (clubSet.has(club) ? t !== club : !t.includes(club)) return false;
       }
-      if (leagueFilter) { if (r.league_name !== leagueFilter) return false; }
+      if (leagueFilter) {
+        if (r.league_name !== leagueFilter) return false;
+        if (countryFilter) {
+          if (r.league_country) {
+            if (r.league_country !== countryFilter) return false;
+          } else if (ambiguousLeagues.has(leagueFilter)) {
+            // Name in mehreren Laendern vergeben und Land der Zeile noch unbekannt
+            // (Updater fuellt nach) -> lieber weglassen als falsch zuordnen.
+            return false;
+          }
+        }
+      }
       else if (countryFilter) { if ((r.league_country || '—') !== countryFilter) return false; }
       if (posFilter && r.position !== posFilter) return false;
       return true;
