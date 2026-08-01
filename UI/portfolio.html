@@ -561,6 +561,26 @@
   ::-webkit-scrollbar-thumb:hover { background: rgba(176,96,255,.55); background-clip: content-box; }
   ::-webkit-scrollbar-corner { background: transparent; }
 
+
+  /* ── Trade History ───────────────────────────────────────────── */
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tab { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text2);
+         font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+         padding: 9px 16px; cursor: pointer; transition: all .15s; }
+  .tab:hover { color: var(--text); border-color: var(--border2); }
+  .tab.active { color: var(--purple); border-color: var(--purple); background: var(--purple-glow); }
+  .th-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
+  table.th-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  .th-table th { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+                 color: #c99aff; text-align: right; padding: 12px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .th-table th:first-child, .th-table td:first-child { text-align: left; }
+  .th-table td { font-family: 'Share Tech Mono', monospace; font-size: 12px; padding: 11px 14px; text-align: right;
+                 border-bottom: 1px solid rgba(42,42,69,.5); white-space: nowrap; }
+  .th-table tr:last-child td { border-bottom: none; }
+  .th-player { font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--text); }
+  .th-sub { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text2); margin-top: 2px; }
+  .th-empty { padding: 26px 16px; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: #505080; text-align: center; }
+  .th-note { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); margin-top: 10px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -633,6 +653,12 @@
     </div>
 
     <!-- Controls -->
+    <div class="tabs">
+      <button class="tab active" id="tab-cards"  onclick="setTab('cards')">Cards</button>
+      <button class="tab"        id="tab-trades" onclick="setTab('trades')">Trade History</button>
+    </div>
+
+    <div id="view-cards">
     <div class="p-controls">
       <input class="p-search" id="p-search" type="text" placeholder="search player or team..." oninput="filterCards()">
       <button class="p-filter active" id="pf-all"     onclick="setFilter('all')">All</button>
@@ -674,6 +700,27 @@
     </div>
 
     <div class="cards-grid" id="cards-grid"></div>
+    </div><!-- /view-cards -->
+
+    <div id="view-trades" style="display:none">
+      <div class="portfolio-stats" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr))">
+        <div class="p-stat"><div class="p-stat-label">// Trades closed</div><div class="p-stat-value" id="th-count">—</div></div>
+        <div class="p-stat"><div class="p-stat-label">// Invested</div><div class="p-stat-value" id="th-invested">—</div></div>
+        <div class="p-stat"><div class="p-stat-label" id="th-pnl-label">// Realized · net</div><div class="p-stat-value" id="th-pnl">—</div></div>
+        <div class="p-stat"><div class="p-stat-label">// Fees paid</div><div class="p-stat-value" id="th-fees">—</div></div>
+        <div class="p-stat"><div class="p-stat-label">// Win rate</div><div class="p-stat-value" id="th-winrate">—</div></div>
+      </div>
+      <div class="th-wrap">
+        <table class="th-table">
+          <thead><tr>
+            <th>Player</th><th>Bought</th><th>Sold</th><th>Held</th>
+            <th>Buy</th><th>Sell gross</th><th>Sell net</th><th>P&amp;L</th>
+          </tr></thead>
+          <tbody id="th-body"><tr><td class="th-empty" colspan="8">// loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="th-note" id="th-note"></div>
+    </div>
 
   </div>
 
@@ -978,6 +1025,135 @@
     }
     updateStats();
     filterCards();
+    if (tradesLoaded) renderTrades();   // NET/GROSS gilt auch fuer realisierte Trades
+  }
+
+  // ── Trade History: realisierte Trades (Kauf -> Verkauf) ──────────────────
+  // Quellen (oeffentlich, via sorare-oauth/user_trades): Verkaeufe, gekaufte Angebote,
+  // gewonnene Auktionen. Zuordnung ueber den Karten-Slug; als Einstand gilt der letzte
+  // Kauf VOR dem jeweiligen Verkauf (Karten koennen mehrfach gehandelt worden sein).
+  let tradesLoaded = false, tradeRows = [], tradeNoCost = 0;
+
+  function setTab(t) {
+    document.getElementById('tab-cards').classList.toggle('active', t === 'cards');
+    document.getElementById('tab-trades').classList.toggle('active', t === 'trades');
+    document.getElementById('view-cards').style.display  = t === 'cards' ? '' : 'none';
+    document.getElementById('view-trades').style.display = t === 'trades' ? '' : 'none';
+    if (t === 'trades') {
+      if (window.track) track('trade_history');
+      if (!tradesLoaded) loadTrades();
+    }
+  }
+
+  async function fetchTradeKind(slug, kind) {
+    const out = [];
+    let cursor = null;
+    for (let page = 0; page < 40; page++) {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({ action: 'user_trades', slug, kind, cursor }),
+      });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      out.push(...(d.nodes ?? []));
+      if (!d.pageInfo?.hasNextPage) break;
+      cursor = d.pageInfo.endCursor;
+    }
+    return out;
+  }
+
+  const playerFromSlug = cs => {
+    const m = String(cs).match(/^(.+)-(\d{4})-(limited|rare|super[-_]rare|unique)-(\d+)$/);
+    return m ? m[1].replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : cs;
+  };
+
+  async function loadTrades() {
+    const body = document.getElementById('th-body');
+    body.innerHTML = '<tr><td class="th-empty" colspan="8">// loading trade history…</td></tr>';
+    try {
+      const [sold, bought, won] = await Promise.all([
+        fetchTradeKind(currentSlug, 'sold'),
+        fetchTradeKind(currentSlug, 'bought'),
+        fetchTradeKind(currentSlug, 'won'),
+      ]);
+      const buys = new Map();
+      for (const b of [...bought.map(x => ({ ...x, via: 'offer' })), ...won.map(x => ({ ...x, via: 'auction' }))]) {
+        if (!buys.has(b.card)) buys.set(b.card, []);
+        buys.get(b.card).push(b);
+      }
+      for (const arr of buys.values()) arr.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      tradeRows = []; tradeNoCost = 0;
+      for (const sl of sold) {
+        const before = (buys.get(sl.card) ?? []).filter(b => new Date(b.date) < new Date(sl.date));
+        const buy = before.length ? before[before.length - 1] : null;
+        if (!buy) { tradeNoCost++; continue; }
+        tradeRows.push({
+          card: sl.card, rarity: sl.rarity,
+          buyEur: buy.eur, buyDate: buy.date, via: buy.via,
+          sellEur: sl.eur, sellDate: sl.date,
+          heldDays: Math.max(0, Math.round((new Date(sl.date) - new Date(buy.date)) / 86400000)),
+        });
+      }
+      tradesLoaded = true;
+      renderTrades();
+    } catch (e) {
+      body.innerHTML = `<tr><td class="th-empty" colspan="8">// ${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  function renderTrades() {
+    const body = document.getElementById('th-body');
+    const rows = [...tradeRows].sort((a, b) => new Date(b.sellDate) - new Date(a.sellDate));
+    const d = x => new Date(x).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+
+    let invested = 0, pnlNet = 0, pnlGross = 0, fees = 0, wins = 0;
+    for (const r of rows) {
+      const net = r.sellEur * (1 - MARKET_FEE);
+      invested += r.buyEur; pnlGross += r.sellEur - r.buyEur; pnlNet += net - r.buyEur;
+      fees += r.sellEur * MARKET_FEE;
+      if ((netMode ? net : r.sellEur) - r.buyEur > 0) wins++;
+    }
+    const pnl = netMode ? pnlNet : pnlGross;
+
+    document.getElementById('th-count').textContent    = rows.length || '—';
+    document.getElementById('th-invested').textContent = rows.length ? `€${invested.toFixed(2)}` : '—';
+    document.getElementById('th-fees').textContent     = rows.length ? `€${fees.toFixed(2)}` : '—';
+    document.getElementById('th-winrate').textContent  = rows.length ? `${Math.round(wins / rows.length * 100)}%` : '—';
+    document.getElementById('th-pnl-label').textContent = netMode ? `// Realized · net of ${feePct()}% fee` : '// Realized · gross';
+    const pEl = document.getElementById('th-pnl');
+    if (rows.length) {
+      const pct = invested > 0 ? (pnl / invested) * 100 : 0;
+      pEl.textContent = `${pnl >= 0 ? '+' : ''}€${pnl.toFixed(2)} (${pnl >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
+      pEl.style.color = pnl >= 0 ? 'var(--up)' : 'var(--down)';
+    } else { pEl.textContent = '—'; pEl.style.color = ''; }
+
+    document.getElementById('th-note').innerHTML = tradeNoCost
+      ? `// ${tradeNoCost} sold card${tradeNoCost === 1 ? '' : 's'} without a purchase record (reward, craft or trade) — excluded, no euro cost basis.`
+      : '';
+
+    if (!rows.length) {
+      body.innerHTML = '<tr><td class="th-empty" colspan="8">// no completed trades found</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const net = r.sellEur * (1 - MARKET_FEE);
+      const gain = (netMode ? net : r.sellEur) - r.buyEur;
+      const pct = r.buyEur > 0 ? (gain / r.buyEur) * 100 : 0;
+      const col = gain >= 0 ? 'var(--up)' : 'var(--down)';
+      return `<tr>
+        <td><div class="th-player">${esc(playerFromSlug(r.card))}</div>
+            <div class="th-sub">${esc(r.rarity ?? '')} · ${r.via === 'auction' ? 'auction' : 'offer'}</div></td>
+        <td>${d(r.buyDate)}</td>
+        <td>${d(r.sellDate)}</td>
+        <td style="color:var(--text2)">${r.heldDays}d</td>
+        <td>€${r.buyEur.toFixed(2)}</td>
+        <td style="color:var(--text2)">€${r.sellEur.toFixed(2)}</td>
+        <td>€${net.toFixed(2)}</td>
+        <td style="color:${col};font-weight:700">${gain >= 0 ? '+' : ''}€${gain.toFixed(2)}<div class="th-sub" style="color:${col}">${gain >= 0 ? '+' : ''}${pct.toFixed(0)}%</div></td>
+      </tr>`;
+    }).join('');
   }
 
   function cardData(c) {
