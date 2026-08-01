@@ -147,7 +147,12 @@
       <div class="hint" id="pr-email-line"></div>
       <label>Anzeigename</label>
       <input type="text" id="pr-name" maxlength="40">
-      <label>Sorare-Managername (für dein Portfolio)</label>
+      <label>Sorare-Konto</label>
+      <div id="pr-link-box" style="background:#1a1a2e;border:1px solid #2a2a45;border-radius:6px;padding:12px 14px;margin-bottom:10px">
+        <div id="pr-link-state" class="hint" style="margin:0">// wird geladen…</div>
+        <button class="ghost" id="pr-link-btn" style="margin-top:10px;display:none" onclick="connectSorare()">Mit Sorare verbinden</button>
+      </div>
+      <label>Sorare-Managername (falls nicht verbunden)</label>
       <input type="text" id="pr-slug" placeholder="z. B. jr3hr" spellcheck="false">
       <button onclick="saveProfile()">Speichern</button>
       <button class="ghost" onclick="openPortfolio()">→ Mein Portfolio öffnen</button>
@@ -302,14 +307,47 @@
     if (!res.ok) { clearSession(); show('auth-view'); return; }
     currentUser = await res.json();
     document.getElementById('pr-email-line').textContent = `Eingeloggt als ${currentUser.email}`;
+    // Sorare-Verknüpfung: der per OAuth NACHGEWIESENE Slug schlägt den getippten.
+    // Ist er verifiziert, sperren wir das Textfeld — sonst könnte man den Nachweis
+    // durch einen fremden Slug überschreiben.
+    window.renderSorareLink = (row) => {
+      const st  = document.getElementById('pr-link-state');
+      const btn = document.getElementById('pr-link-btn');
+      const inp = document.getElementById('pr-slug');
+      if (!st || !btn) return;
+      if (row?.sorare_verified && row?.sorare_slug) {
+        st.innerHTML = '✓ verbunden als <b style="color:#e8e8ff">' + String(row.sorare_slug).replace(/[<>]/g, '') + '</b>'
+                     + (row.sorare_linked_at ? ' · seit ' + new Date(row.sorare_linked_at).toLocaleDateString('de-DE') : '');
+        st.style.color = '#00f5a0';
+        btn.textContent = 'Neu verbinden';
+        btn.style.display = '';
+        if (inp) { inp.disabled = true; inp.title = 'Durch die Sorare-Verbindung festgelegt'; }
+      } else {
+        st.innerHTML = 'Noch nicht verbunden. Mit der Verbindung weisen wir nach, dass dir der Managername wirklich gehört — Voraussetzung für gespeicherte Portfolios.';
+        st.style.color = '';
+        btn.textContent = 'Mit Sorare verbinden';
+        btn.style.display = '';
+        if (inp) inp.disabled = false;
+      }
+    };
+
+    window.connectSorare = () => {
+      const CLIENT_ID = 'JwRtoOABm0DtyOM5_xDKlFaF2-gp7uUAS4bQeQcuUjw';
+      const CB = 'https://sorion.pro/auth/callback';
+      location.href = 'https://sorare.com/oauth/authorize?client_id=' + CLIENT_ID
+        + '&redirect_uri=' + encodeURIComponent(CB) + '&response_type=code&scope=';
+    };
+
     // Profilzeile laden (oder anlegen)
     const pRes = await authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}&select=*`);
     const rows = await pRes.json();
     if (Array.isArray(rows) && rows.length) {
       document.getElementById('pr-name').value = rows[0].display_name ?? '';
       document.getElementById('pr-slug').value = rows[0].sorare_slug ?? '';
+      renderSorareLink(rows[0]);
     } else {
       await authFetch('/rest/v1/profiles', { method: 'POST', body: JSON.stringify({ user_id: currentUser.id }) });
+      renderSorareLink(null);
     }
     show('profile-view');
   }

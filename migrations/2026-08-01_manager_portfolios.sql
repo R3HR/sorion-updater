@@ -66,6 +66,15 @@ create policy manager_trades_read on public.manager_trades for select to anon, a
 grant select on public.manager_sync, public.manager_cards, public.manager_trades to anon, authenticated;
 -- Kein insert/update/delete fuer anon/authenticated: nur der Service-Key (Function) schreibt.
 
+-- ── 4b) Sorare-Konto MIT dem Sorion-Profil verknuepfen (statt Zweitkonto) ───
+-- Entscheidung Jonas 01.08.: Der Sorare-Login soll kein eigener Kontotyp sein, sondern
+-- ein NACHWEIS, dass dem Nutzer der Manager-Slug gehoert. Grund: ein spaeteres
+-- Premium-Modell braucht EINE Konto-Identitaet — sonst zahlt jemand auf Konto A und
+-- nutzt Konto B. `sorare_verified` unterscheidet den nachgewiesenen Slug vom manuell
+-- eingetippten (heute kann jeder jeden fremden Slug eintragen).
+alter table public.profiles add column if not exists sorare_verified boolean not null default false;
+alter table public.profiles add column if not exists sorare_linked_at timestamptz;
+
 -- ── 5) Konto-Loeschung: gespiegeltes Portfolio mitloeschen ──────────────────
 -- Kein FK moeglich (Schluessel ist der Sorare-Slug, nicht die user_id), daher als
 -- Funktion, die `delete-account` zusaetzlich aufruft.
