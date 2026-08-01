@@ -32,19 +32,52 @@ Das ist der Unterschied zwischen einem Preis-Tracker und einem Trading-Tool.
 - Quelle für erhaltene Essence je Manager
 - Zeitliche Zuordnung zum eingesetzten Kapital (Rendite auf welchen Zeitraum?)
 
-**Ausbaustufe (Jonas: „sehr komplex, aber interessant"):** Erlöse **einzelnen
-Karten** zuordnen — welche Karte hat welches Preisgeld/welche Essence verdient.
-Damit ließe sich pro Karte eine echte Rendite ausweisen, nicht nur fürs Gesamtdepot.
-Herausforderung: Preisgeld hängt an der **Aufstellung** (Lineup), nicht an einer
-einzelnen Karte; eine faire Zuordnung braucht eine Regel (z. B. gleichmäßig auf die
-aufgestellten Karten, oder gewichtet nach Score-Beitrag).
+**Ausbaustufe — Zuordnung zu einzelnen Karten (Regel von Jonas, 02.08.):**
+Jede Karte einer Aufstellung erzielt eine Punktzahl. Man summiert die Punkte der
+Aufstellung, berechnet den prozentualen Anteil jeder Karte und verteilt die
+gewonnene Essence bzw. das Preisgeld **anteilig nach Punkte-Beitrag**.
 
-**Offene Fragen:**
-- Liefert die API Rewards/Payouts pro Manager rückwirkend und öffentlich (wie
-  `tokenOwner` und `soldSingleSaleTokenOffers`) oder nur mit OAuth-Token?
-- Reicht die Historie weit genug zurück?
+```
+Anteil(Karte) = Punkte(Karte) / Summe aller Punkte der Aufstellung
+Ertrag(Karte) = Anteil(Karte) × (Essence + Preisgeld dieser Aufstellung)
+```
 
-**Aufwand:** Grundstufe (Depot-Ebene) mittel · Kartenebene hoch
+Beispiel aus der Praxis (Screenshot Jonas): Aufstellung „Klassisch / All Star",
+3.198 Punkte, 4 Punkte an ~100 Essence vorbei. Bei sieben Karten mit 81/37/83/65/
+68/40/43 Punkten bekäme Samuel Dahl (83) den größten Anteil, Serge-Philippe
+Raux-Yao (37) den kleinsten.
+
+**API-Recherche (02.08., im Schema geprüft + live getestet):**
+Die Datenkette existiert vollständig — Jonas' Vermutung „die API gibt das nicht her"
+trifft für die *Struktur* nicht zu:
+
+| Feld | Inhalt |
+|---|---|
+| `user.rewardedRankings` (paginiert) | belohnte Platzierungen |
+| → `so5Lineup.so5Appearances` | `score`, `captain`, `anyCard { slug }` — **genau die Einzelpunkte** |
+| → `so5Rewards` | `amount { eurCents }` (Preisgeld) + `coinAmount` (Coins/Essence) |
+| → `so5Fixture.slug` | Zuordnung zum Spieltag |
+
+**ABER — der entscheidende Haken:** Die Abfrage läuft fehlerfrei durch, liefert
+aber **ohne OAuth-Token 0 Einträge**, getestet an zwei unabhängigen Managern
+(jr3hr, djkoeft). Das ist ein starker Hinweis, dass die Belohnungsdaten an den
+angemeldeten Nutzer gebunden sind — anders als Sammlung, Kaufpreise und Verkäufe,
+die öffentlich sind. **Nicht bewiesen**, aber wahrscheinlich.
+
+**Konsequenz, falls sich das bestätigt:** Die Rendite-Rechnung ginge **nur für
+verknüpfte Nutzer** — was gut passt, denn die Sorare-Verknüpfung existiert seit
+01.08. Und es ist genau die Art Funktion, die ein Premium-Modell trägt: Sie
+funktioniert nur mit verbundenem Konto und liefert etwas, das kein anderes Tool
+zeigt.
+
+**Nächster Schritt zur Klärung (5 Minuten, kein Ausbau):** Dieselbe Abfrage mit
+Jonas' OAuth-Token wiederholen (er ist seit 01.08. verknüpft). Kommen Daten →
+Idee ist umsetzbar, dann klären, wie weit die Historie zurückreicht. Kommen keine →
+Idee ist tot, bevor Aufwand hineinfließt.
+
+**Aufwand:** Grundstufe (Depot-Ebene) mittel · Kartenebene hoch — und laut Jonas
+zusätzlich zeitintensiv, weil alle vergangenen Aufstellungen durchlaufen werden
+müssten (paginiert, ein Spieltag nach dem anderen).
 
 ---
 
