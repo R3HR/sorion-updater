@@ -1470,7 +1470,7 @@
     // Fehlt eine, antwortet PostgREST mit 400 und die GANZE Seite bliebe leer — daher
     // einmal proben und andernfalls ohne die neuen Spalten laden (Lektion 30.07.).
     const COLS_BASE = 'id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
-    const COLS_NEW  = 'position,league_country';
+    const COLS_NEW  = 'position,league_country,last_sale_at';
     let SELECT = 'select=' + COLS_BASE + ',' + COLS_NEW;
     try {
       const probe = await fetch(`${SUPABASE_URL}/rest/v1/card_prices?select=${COLS_NEW}&limit=1`,
@@ -1894,6 +1894,23 @@
     filterTable();
   }
 
+  // "6,72 EUR" sagt wenig, wenn unklar ist, ob der Verkauf gestern oder vor drei
+  // Wochen war. Alter kompakt darunter, Volldatum im Tooltip.
+  function saleAge(ts) {
+    if (!ts) return null;
+    const d = Math.floor((Date.now() - new Date(ts)) / 86400000);
+    if (d <= 0) return 'today';
+    if (d === 1) return '1d ago';
+    if (d < 30) return d + 'd ago';
+    if (d < 365) return Math.round(d / 30) + 'mo ago';
+    return Math.round(d / 365) + 'y ago';
+  }
+  const saleAgeColor = ts => {
+    if (!ts) return 'var(--text2)';
+    const d = Math.floor((Date.now() - new Date(ts)) / 86400000);
+    return d <= 3 ? 'var(--up)' : d <= 14 ? 'var(--text2)' : '#7a6a90';   // alt = gedaempft
+  };
+
   function renderTable() {
     const tbody  = document.getElementById('table-body');
     const start  = (currentPage-1)*PAGE_SIZE;
@@ -1932,7 +1949,7 @@
         <td class="col-tier"><span class="tier-badge">${tier}</span></td>
         <td class="fmv-price">${fmv}</td>
         <td class="price col-floor">${floor}</td>
-        <td class="price">${last}</td>
+        <td class="price">${last}${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${saleAgeColor(r.last_sale_at)};margin-top:2px" title="${new Date(r.last_sale_at).toLocaleString('en-GB')}">${saleAge(r.last_sale_at)}</div>` : ''}</td>
         <td class="price">${avg}</td>
         <td class="col-liq">
           <div class="liq-wrap">
@@ -2012,7 +2029,7 @@
           </div>
           <div class="m-card-stat">
             <div class="m-card-stat-label">Last Sale</div>
-            <div class="m-card-stat-val">${last}</div>
+            <div class="m-card-stat-val">${last}</div>${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${saleAgeColor(r.last_sale_at)}">${saleAge(r.last_sale_at)}</div>` : ''}
           </div>
           <div class="m-card-stat">
             <div class="m-card-stat-label">Avg Sales</div>

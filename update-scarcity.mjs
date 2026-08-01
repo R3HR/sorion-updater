@@ -138,6 +138,11 @@ async function main() {
   const hasAccuracy = !accProbe.error;
   if (!hasAccuracy) console.warn('fmv_accuracy-Tabelle fehlt — Accuracy-Tracking übersprungen');
 
+  // Spalte last_sale_at vorhanden? (migrations/2026-08-02_last_sale_date.sql)
+  const lsProbe = await supabase.from('card_prices').select('last_sale_at').limit(1);
+  const hasLastSale = !lsProbe.error;
+  if (!hasLastSale) console.warn('Spalte last_sale_at fehlt — Verkaufsdatum wird übersprungen');
+
   const cols = migrated ? 'id, player_slug, eligibility, fmv, updated_at' : 'id, player_slug';
   // Queue-Query mit Retry: WHERE scarcity ORDER BY updated_at LIMIT n lief unter
   // naechtlicher Parallel-Last in den statement_timeout (57014). Root-Cause-Fix ist der
@@ -240,6 +245,10 @@ async function main() {
       sale_1: sales[0]?.eur ?? null, sale_2: sales[1]?.eur ?? null,
       sale_3: sales[2]?.eur ?? null, sale_4: sales[3]?.eur ?? null,
       sale_5: sales[4]?.eur ?? null,
+      // Datum des juengsten Verkaufs: "6,72 EUR" sagt wenig, wenn unklar ist, ob
+      // der Verkauf gestern oder vor drei Wochen war (Liquiditaets-Kontext).
+      // Nur setzen, wenn die Spalte da ist — sonst scheitert JEDES Update.
+      ...(hasLastSale ? { last_sale_at: sales[0]?.date ?? null } : {}),
       avg_sales:   sales.length ? parseFloat((sales.slice(0, 10).reduce((s, p) => s + p.eur, 0) / Math.min(sales.length, 10)).toFixed(2)) : null,
       sales_count: sales.filter(s => new Date(s.date) >= h24ago).length,
       sales_72h:   sales.filter(s => new Date(s.date) >= h72ago).length,
