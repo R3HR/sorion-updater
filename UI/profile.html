@@ -174,7 +174,7 @@
 
     <div class="card">
       <h2>Deine Daten (DSGVO)</h2>
-      <div class="hint">Exportiere alle bei uns gespeicherten Daten als JSON (Art. 20 DSGVO) oder lösche dein Konto vollständig und unwiderruflich (Art. 17 DSGVO) — inklusive Profil und Watchlist.</div>
+      <div class="hint">Exportiere alle bei uns gespeicherten Daten als JSON (Art. 20 DSGVO) oder lösche dein Konto vollständig und unwiderruflich (Art. 17 DSGVO) — inklusive Profil, Watchlist und gespeichertem Portfolio.</div>
       <button class="ghost" onclick="exportData()">Daten exportieren</button>
       <button class="danger" onclick="deleteAccount()">Konto endgültig löschen</button>
       <div class="msg" id="data-msg"></div>
@@ -396,11 +396,28 @@
       authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}&select=*`),
       authFetch(`/rest/v1/watchlist?user_id=eq.${currentUser.id}&select=*`),
     ]);
+    const profile = await pRes.json();
+    // Gespiegeltes Portfolio gehoert mit in den Export (Art. 20 DSGVO). Es haengt
+    // am Sorare-Slug, nicht an der user_id — daher separat nachladen.
+    const slug = profile?.[0]?.sorare_slug;
+    let cards = [], trades = [], sync = [];
+    if (slug) {
+      const q = encodeURIComponent(String(slug).toLowerCase());
+      const [cRes, tRes, sRes] = await Promise.all([
+        authFetch(`/rest/v1/manager_cards?sorare_slug=eq.${q}&select=*`),
+        authFetch(`/rest/v1/manager_trades?sorare_slug=eq.${q}&select=*`),
+        authFetch(`/rest/v1/manager_sync?sorare_slug=eq.${q}&select=*`),
+      ]);
+      cards  = cRes.ok ? await cRes.json() : [];
+      trades = tRes.ok ? await tRes.json() : [];
+      sync   = sRes.ok ? await sRes.json() : [];
+    }
     const payload = {
       exported_at: new Date().toISOString(),
       account:   await uRes.json(),
-      profile:   await pRes.json(),
+      profile,
       watchlist: await wRes.json(),
+      portfolio: { sync, cards, trades },
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
