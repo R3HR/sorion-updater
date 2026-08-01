@@ -58,22 +58,35 @@ trifft für die *Struktur* nicht zu:
 | → `so5Rewards` | `amount { eurCents }` (Preisgeld) + `coinAmount` (Coins/Essence) |
 | → `so5Fixture.slug` | Zuordnung zum Spieltag |
 
-**ABER — der entscheidende Haken:** Die Abfrage läuft fehlerfrei durch, liefert
-aber **ohne OAuth-Token 0 Einträge**, getestet an zwei unabhängigen Managern
-(jr3hr, djkoeft). Das ist ein starker Hinweis, dass die Belohnungsdaten an den
-angemeldeten Nutzer gebunden sind — anders als Sammlung, Kaufpreise und Verkäufe,
-die öffentlich sind. **Nicht bewiesen**, aber wahrscheinlich.
+**ABER — der entscheidende Haken: die Daten sind an den angemeldeten Nutzer gebunden.**
+Belegt durch zwei unabhängige Beobachtungen:
 
-**Konsequenz, falls sich das bestätigt:** Die Rendite-Rechnung ginge **nur für
-verknüpfte Nutzer** — was gut passt, denn die Sorare-Verknüpfung existiert seit
-01.08. Und es ist genau die Art Funktion, die ein Premium-Modell trägt: Sie
-funktioniert nur mit verbundenem Konto und liefert etwas, das kein anderes Tool
-zeigt.
+1. `user.rewardedRankings` läuft fehlerfrei durch, liefert ohne OAuth-Token aber
+   **0 Einträge** — getestet an drei Managern: jr3hr, djkoeft und **sorare_jens**
+   (letzterer hat laut Jonas in GW94 deutlich abgeräumt; auch dort 0).
+2. Der Typ `So5Leaderboard` bietet ausschließlich `mySo5Lineups` und
+   `mySo5Rankings` — das Präfix „my" sagt es direkt. Es gibt **kein** Feld, über
+   das man Aufstellungen oder Platzierungen FREMDER Manager lesen könnte.
+   Öffentlich sind nur `rewardPool` und `rewardedLineupsCount` (eine reine Zahl).
 
-**Nächster Schritt zur Klärung (5 Minuten, kein Ausbau):** Dieselbe Abfrage mit
-Jonas' OAuth-Token wiederholen (er ist seit 01.08. verknüpft). Kommen Daten →
-Idee ist umsetzbar, dann klären, wie weit die Historie zurückreicht. Kommen keine →
-Idee ist tot, bevor Aufwand hineinfließt.
+Damit ist auch der Umweg über den Spieltag versperrt: weder vom Nutzer noch vom
+Leaderboard aus kommt man an fremde Aufstellungen. Anders als Sammlung, Kaufpreise
+und Verkäufe, die öffentlich sind.
+
+**Konsequenz — und die ist eher ein Vorteil:** Die Rendite-Rechnung geht **nur für
+Nutzer mit verknüpftem Sorare-Konto**. Das passt doppelt:
+- Die Verknüpfung existiert seit 01.08. (`link_sorare`), die Voraussetzung ist also da.
+- Es ist genau die Sorte Funktion, die ein **Premium-Modell** trägt: ohne verbundenes
+  Konto technisch unmöglich, und kein anderes Tool kann sie ohne dieselbe Hürde bauen.
+
+Was dagegen **nicht** geht: fremde Manager auf ihre Rendite hin scouten. Die
+Manager Search bleibt auf Sammlung, Kaufpreise und Trades beschränkt.
+
+**Nächster Schritt (5 Minuten, kein Ausbau):** Dieselbe Abfrage einmal mit Jonas'
+OAuth-Token wiederholen. Kommen Daten → umsetzbar, dann klären, wie weit die
+Historie zurückreicht (Jonas' zweiter Einwand: alle vergangenen Spieltage
+durchzugehen dauert). Kommen auch mit Token keine → Idee ist tot, bevor Aufwand
+hineinfließt.
 
 **Aufwand:** Grundstufe (Depot-Ebene) mittel · Kartenebene hoch — und laut Jonas
 zusätzlich zeitintensiv, weil alle vergangenen Aufstellungen durchlaufen werden
