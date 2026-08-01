@@ -1,7 +1,7 @@
 # SORION — Handoff & Status
 
 > Zentrale Übergabedatei für alle Bots/Agents. **Vor jeder Arbeit lesen, nach jeder Arbeit aktualisieren — auch bei kleinen Sessions!**
-> Bugs → [BUGS.md](BUGS.md) · Crashes/Sicherheit → [INCIDENTS.md](INCIDENTS.md)
+> Bugs → [BUGS.md](BUGS.md) · Crashes/Sicherheit → [INCIDENTS.md](INCIDENTS.md) · Vorgemerkte Konzepte → [IDEAS.md](IDEAS.md)
 > Ökosystem-Ebene (geteilte Infra, CraftLog, Sicherheits-Review mit OFFENEN Befunden): `C:/craft-log/docs/HANDOFF.md` — bei Backend-Arbeit BEIDE lesen!
 
 ## Projekt-Überblick

@@ -16,3 +16,5 @@ Sorare-Marktpreis-Tracker (FMV) für Fußball-Karten. Node.js-Scripts auf Railwa
 - Keine Secrets in Code oder Git — nur `process.env` / `Deno.env.get`.
 - Push auf `main` löst Railway-Deploys aus. Nichts Halbfertiges pushen.
 - Edge Functions liegen außerhalb dieses Repos: `C:\craft-log\supabase\functions\` (Deploy: `supabase functions deploy <name>`).
+
+- Vorgemerkte Konzepte (nicht in Arbeit): [docs/IDEAS.md](docs/IDEAS.md)
