@@ -713,6 +713,11 @@
         <div class="p-stat"><div class="p-stat-label">// Fees paid</div><div class="p-stat-value" id="th-fees">—</div></div>
         <div class="p-stat"><div class="p-stat-label">// Win rate</div><div class="p-stat-value" id="th-winrate">—</div></div>
       </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <button class="p-filter" id="th-free-btn" onclick="toggleFreeCards()"
+                title="Karten aus Rewards, Craft oder Tausch — ohne Kaufpreis, daher P&L 0">+ Free cards</button>
+        <span id="th-free-note" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2)"></span>
+      </div>
       <div class="th-wrap">
         <table class="th-table">
           <thead><tr>
@@ -1120,6 +1125,8 @@
   // gewonnene Auktionen. Zuordnung ueber den Karten-Slug; als Einstand gilt der letzte
   // Kauf VOR dem jeweiligen Verkauf (Karten koennen mehrfach gehandelt worden sein).
   let tradesLoaded = false, tradeRows = [], tradeNoCost = 0;
+  let tradeFreeRows = [];      // verkauft, aber nie gekauft: Reward, Craft, Tausch
+  let showFree = false;        // Toggle "Free cards" in der Trade History
 
   function setTab(t) {
     document.getElementById('tab-cards').classList.toggle('active', t === 'cards');
@@ -1149,10 +1156,20 @@
       if (!res.ok) throw new Error('could not load trades');
       const rows = await res.json();
 
-      tradeRows = []; tradeNoCost = 0;
+      tradeRows = []; tradeFreeRows = []; tradeNoCost = 0;
       for (const r of rows) {
-        // Ohne Kaufbeleg (Reward/Craft/Tausch) gibt es keinen Euro-Einstand — separat ausweisen
-        if (r.buy_eur == null) { tradeNoCost++; continue; }
+        // Ohne Kaufbeleg (Reward, Craft, Tausch) gibt es keinen Euro-Einstand.
+        // Frueher fielen diese Zeilen raus — sie sind aber echtes Geld und
+        // werden jetzt auf Wunsch mit angezeigt (Einstand 0, P&L 0).
+        if (r.buy_eur == null) {
+          tradeNoCost++;
+          tradeFreeRows.push({
+            card: r.card_slug, rarity: r.rarity, free: true,
+            buyEur: null, buyDate: null, via: null,
+            sellEur: Number(r.sell_eur), sellDate: r.sold_at, heldDays: null,
+          });
+          continue;
+        }
         tradeRows.push({
           card: r.card_slug, rarity: r.rarity,
           buyEur: Number(r.buy_eur), buyDate: r.buy_at, via: r.buy_via,
@@ -1167,16 +1184,30 @@
     }
   }
 
+  function toggleFreeCards() {
+    showFree = !showFree;
+    const b = document.getElementById('th-free-btn');
+    if (b) {
+      b.classList.toggle('active', showFree);
+      b.textContent = showFree ? '− Free cards' : '+ Free cards';
+    }
+    renderTrades();
+  }
+
   function renderTrades() {
     const body = document.getElementById('th-body');
-    const rows = [...tradeRows].sort((a, b) => new Date(b.sellDate) - new Date(a.sellDate));
+    const rows = [...tradeRows, ...(showFree ? tradeFreeRows : [])]
+      .sort((a, b) => new Date(b.sellDate) - new Date(a.sellDate));
     const d = x => new Date(x).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 
-    let invested = 0, pnlNet = 0, pnlGross = 0, fees = 0, wins = 0;
+    let invested = 0, pnlNet = 0, pnlGross = 0, fees = 0, wins = 0, bezahlte = 0;
+    let freeProceeds = 0;
     for (const r of rows) {
       const net = r.sellEur * (1 - MARKET_FEE);
-      invested += r.buyEur; pnlGross += r.sellEur - r.buyEur; pnlNet += net - r.buyEur;
       fees += r.sellEur * MARKET_FEE;
+      if (r.free) { freeProceeds += netMode ? net : r.sellEur; continue; }  // kein Einstand -> keine Rendite
+      bezahlte++;
+      invested += r.buyEur; pnlGross += r.sellEur - r.buyEur; pnlNet += net - r.buyEur;
       if ((netMode ? net : r.sellEur) - r.buyEur > 0) wins++;
     }
     const pnl = netMode ? pnlNet : pnlGross;
@@ -1184,7 +1215,7 @@
     document.getElementById('th-count').textContent    = rows.length || '—';
     document.getElementById('th-invested').textContent = rows.length ? `€${invested.toFixed(2)}` : '—';
     document.getElementById('th-fees').textContent     = rows.length ? `€${fees.toFixed(2)}` : '—';
-    document.getElementById('th-winrate').textContent  = rows.length ? `${Math.round(wins / rows.length * 100)}%` : '—';
+    document.getElementById('th-winrate').textContent  = bezahlte ? `${Math.round(wins / bezahlte * 100)}%` : '—';
     document.getElementById('th-pnl-label').textContent = netMode ? `// Realized · net of ${feePct()}% fee` : '// Realized · gross';
     const pEl = document.getElementById('th-pnl');
     if (rows.length) {
@@ -1193,9 +1224,16 @@
       pEl.style.color = pnl >= 0 ? 'var(--up)' : 'var(--down)';
     } else { pEl.textContent = '—'; pEl.style.color = ''; }
 
-    document.getElementById('th-note').innerHTML = tradeNoCost
-      ? `// ${tradeNoCost} sold card${tradeNoCost === 1 ? '' : 's'} without a purchase record (reward, craft or trade) — excluded, no euro cost basis.`
-      : '';
+    const freeNote = document.getElementById('th-free-note');
+    if (freeNote) {
+      freeNote.innerHTML = !tradeNoCost ? ''
+        : showFree
+          ? `${tradeNoCost} free card${tradeNoCost === 1 ? '' : 's'} included · proceeds <b style="color:var(--up)">€${freeProceeds.toFixed(2)}</b> (not counted in return %, no capital was tied up)`
+          : `${tradeNoCost} sold card${tradeNoCost === 1 ? '' : 's'} from rewards, craft or trades are hidden`;
+    }
+    const btn = document.getElementById('th-free-btn');
+    if (btn) btn.style.display = tradeNoCost ? '' : 'none';
+    document.getElementById('th-note').innerHTML = '';
 
     if (!rows.length) {
       body.innerHTML = '<tr><td class="th-empty" colspan="8">// no completed trades found</td></tr>';
@@ -1203,6 +1241,21 @@
     }
     body.innerHTML = rows.map(r => {
       const net = r.sellEur * (1 - MARKET_FEE);
+      if (r.free) {
+        // Kein Einstand -> P&L 0. Der Erloes steht in den Verkaufsspalten,
+        // geht also nicht verloren; er verzerrt nur die Rendite nicht.
+        return `<tr style="opacity:.82">
+          <td><div class="th-player">${esc(playerFromSlug(r.card))}</div>
+              <div class="th-sub">${esc(r.rarity ?? '')} · <span style="color:var(--limited)">free</span></div></td>
+          <td style="color:var(--text2)">—</td>
+          <td>${d(r.sellDate)}</td>
+          <td style="color:var(--text2)">—</td>
+          <td style="color:var(--text2)">—</td>
+          <td style="color:var(--text2)">€${r.sellEur.toFixed(2)}</td>
+          <td>€${net.toFixed(2)}</td>
+          <td style="color:var(--text2);font-weight:700">€0.00<div class="th-sub">no cost</div></td>
+        </tr>`;
+      }
       const gain = (netMode ? net : r.sellEur) - r.buyEur;
       const pct = r.buyEur > 0 ? (gain / r.buyEur) * 100 : 0;
       const col = gain >= 0 ? 'var(--up)' : 'var(--down)';
