@@ -87,6 +87,7 @@
       const link = await linkRes.json();
       if (!linkRes.ok) throw new Error(link.error || 'linking failed');
 
+      try { localStorage.setItem('sorion_own', String(link.sorare_slug).toLowerCase()); } catch {}
       done('// connected as <b>' + String(link.sorare_slug).replace(/[<>]/g, '') + '</b><br>your portfolio is now tied to this account.' + backToProfile, 'ok');
       setTimeout(() => { location.href = '../profile.html'; }, 2200);
     } catch (e) {

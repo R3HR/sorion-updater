@@ -789,8 +789,7 @@
     const ls = document.getElementById('login-screen');
     ls.style.display = 'flex';
     document.getElementById('portfolio-screen').style.display = 'none';
-    const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
-    const btnL = document.getElementById('btn-logout');  if (btnL) btnL.style.display = 'none';
+    renderHeader();   // Login-/Profil-Knopf bleibt sichtbar
     ls.innerHTML = `
       <div class="login-icon">🎴</div>
       <div class="login-title">View a Portfolio</div>
@@ -823,9 +822,73 @@
     showLogin();
   }
 
+  // Eigene Identitaet (eingeloggter Nutzer) — strikt getrennt vom gerade
+  // betrachteten Manager. Vorher uebernahm der Header den fremden Slug und
+  // "sorion_manager" wurde beim Ansehen fremder Portfolios ueberschrieben,
+  // sodass "Portfolio" spaeter beim Fremden landete.
+  let ownSlug = null;
+
+  async function resolveOwnSlug() {
+    ownSlug = localStorage.getItem('sorion_own') || null;
+    let session = null;
+    try { session = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
+    if (!session?.access_token) return ownSlug;
+    try {
+      const meRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + session.access_token },
+      });
+      if (!meRes.ok) return ownSlug;
+      const me = await meRes.json();
+      const pRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${me.id}&select=sorare_slug`, {
+        headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + session.access_token },
+      });
+      const rows = pRes.ok ? await pRes.json() : [];
+      const slug = rows?.[0]?.sorare_slug;
+      if (slug) { ownSlug = String(slug).toLowerCase(); localStorage.setItem('sorion_own', ownSlug); }
+    } catch {}
+    return ownSlug;
+  }
+
+  function renderHeader() {
+    const btnL = document.getElementById('btn-logout');
+    const btnC = document.getElementById('btn-connect');
+    if (btnC) btnC.style.display = 'none';
+    if (btnL) {
+      btnL.style.display = '';
+      btnL.textContent = ownSlug ? `◉ ${ownSlug.toUpperCase()}` : 'Login';
+      btnL.onclick = () => { window.location.href = 'profile.html'; };
+      btnL.title = ownSlug ? 'Dein Sorion-Profil' : 'Anmelden';
+    }
+    // "Portfolio" fuehrt immer zum EIGENEN Portfolio
+    const navPf = document.querySelector('.nav-link.active');
+    if (navPf) navPf.setAttribute('href', ownSlug ? `portfolio.html?manager=${encodeURIComponent(ownSlug)}` : 'portfolio.html');
+  }
+
+  // Hinweis, wenn man ein FREMDES Portfolio ansieht — inkl. Rueckweg
+  function renderViewingBanner(slug) {
+    let el = document.getElementById('viewing-banner');
+    const foreign = ownSlug && slug && slug.toLowerCase() !== ownSlug;
+    if (!foreign) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'viewing-banner';
+      el.style.cssText = "font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);"
+        + 'background:var(--surface);border:1px solid var(--border);border-radius:6px;'
+        + 'padding:9px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+      const ps = document.getElementById('portfolio-screen');
+      ps.insertBefore(el, ps.firstChild);
+    }
+    el.innerHTML = `👤 viewing <b style="color:var(--text)">${esc(slug.toUpperCase())}</b>`
+      + ` <a href="portfolio.html?manager=${encodeURIComponent(ownSlug)}" style="color:var(--purple);margin-left:auto">← back to my portfolio</a>`;
+  }
+
   async function init() {
     // Reihenfolge: URL-Parameter → gemerkter Manager (auch vom Sorion-Profil gesetzt) → Eingabemaske
+    await resolveOwnSlug();
+    renderHeader();
+    // Eigenes Portfolio hat Vorrang vor dem zuletzt angesehenen fremden
     const slug = new URLSearchParams(window.location.search).get('manager')
+              || ownSlug
               || localStorage.getItem('sorion_manager');
     if (slug) showPortfolio(slug.toLowerCase()); else showLogin();
   }
@@ -836,8 +899,8 @@
     document.getElementById('login-screen').style.display     = 'none';
     document.getElementById('portfolio-screen').style.display = 'block';
     const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
-    const btnL = document.getElementById('btn-logout');
-    if (btnL) { btnL.style.display = ''; btnL.textContent = `◉ ${slug}`; btnL.onclick = () => { window.location.href = 'profile.html'; }; }
+    renderHeader();          // Header zeigt DICH, nicht den betrachteten Manager
+    renderViewingBanner(slug);
     showSkeletons();
     await loadCards(slug);
   }

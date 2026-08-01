@@ -359,7 +359,12 @@
       updated_at:   new Date().toISOString(),
     };
     const res = await authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}`, { method: 'PATCH', body: JSON.stringify(body) });
-    if (res.ok && body.sorare_slug) localStorage.setItem('sorion_manager', body.sorare_slug); // Portfolio merkt sich den Manager
+    // 'sorion_own' = MEIN Manager (Identitaet), 'sorion_manager' = zuletzt angesehener.
+    // Getrennt, damit das Ansehen fremder Portfolios die eigene Zuordnung nicht ueberschreibt.
+    if (res.ok && body.sorare_slug) {
+      localStorage.setItem('sorion_own', String(body.sorare_slug).toLowerCase());
+      localStorage.setItem('sorion_manager', body.sorare_slug);
+    }
     msg('pr-msg', res.ok ? 'Gespeichert ✓' : 'Speichern fehlgeschlagen', res.ok);
   }
 
