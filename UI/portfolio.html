@@ -615,7 +615,7 @@
         <div class="p-stat-value" id="stat-invested">—</div>
       </div>
       <div class="p-stat">
-        <div class="p-stat-label">// P&amp;L since buy</div>
+        <div class="p-stat-label" id="stat-pnl-label">// P&amp;L · net of 5% fee</div>
         <div class="p-stat-value" id="stat-pnl">—</div>
       </div>
       <div class="p-stat">
@@ -639,6 +639,9 @@
       <button class="p-filter ltd"    id="pf-limited" onclick="setFilter('limited')">◆ Limited</button>
       <button class="p-filter rar"    id="pf-rare"    onclick="setFilter('rare')">◆ Rare</button>
       <button class="p-filter sr"     id="pf-sr"      onclick="setFilter('super_rare')">◆ SR</button>
+      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
+      <button class="p-filter active" id="pf-net" onclick="toggleNetMode()"
+              title="P&L nach 5 % Sorare-Marktgebühr — das, was du beim Verkauf wirklich erhältst">NET −5%</button>
       <span style="width:1px;align-self:stretch;background:var(--border)"></span>
       <button class="p-filter active" id="pfe-all" onclick="setElig2('all')">All</button>
       <button class="p-filter" id="pfe-is" onclick="setElig2('in_season')">In-Season</button>
@@ -951,13 +954,41 @@
   function setOrigin(v) { fOrigin = v; setPill('o', { all: 'pfo-all', bought: 'pfo-buy', crafted: 'pfo-craft', reward: 'pfo-rew' }, v); filterCards(); }
   function setPnl(v)    { fPnl = v;    setPill('p', { all: 'pfp-all', win: 'pfp-win', los: 'pfp-los' }, v); filterCards(); }
 
+  // Sorare zieht beim Verkauf eine Marktgebuehr ab ("Marktgebuehr inkl. Steuerabgaben,
+  // falls zutreffend" -> "Du erhaeltst"). Unsere Sale-Preise und damit der FMV sind
+  // BRUTTO (das, was der Kaeufer gezahlt hat) — die Gebuehr steckt nirgends in den Daten.
+  // Einzige Stellschraube, falls Sorare den Satz aendert:
+  const MARKET_FEE = 0.05;
+  const feePct = () => (MARKET_FEE * 100).toFixed(0);
+  // Netto-Modus: was tatsaechlich bei einem Verkauf herauskaeme.
+  let netMode = true;
+  const sellValue = v => (v == null ? null : (netMode ? v * (1 - MARKET_FEE) : v));
+  // Preis, den man aufrufen muss, um den Einkauf wieder hereinzuholen (NICHT Kauf x 1,05).
+  const breakEven = buy => (buy > 0 ? buy / (1 - MARKET_FEE) : null);
+
+  function toggleNetMode() {
+    netMode = !netMode;
+    const b = document.getElementById('pf-net');
+    if (b) {
+      b.textContent = netMode ? `NET −${feePct()}%` : 'GROSS';
+      b.classList.toggle('active', netMode);
+      b.title = netMode
+        ? `P&L nach ${feePct()} % Sorare-Marktgebuehr — das, was du beim Verkauf wirklich erhaeltst`
+        : 'P&L auf Bruttobasis (ohne Marktgebuehr)';
+    }
+    updateStats();
+    filterCards();
+  }
+
   function cardData(c) {
     const rarity = c.rarityTyped?.toLowerCase() || 'limited';
     const d = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
     const val = d ? (d.fmv ?? d.floor_price ?? d.sale_1 ?? null) : null;
     const buy = c.purchase?.eur;
-    const pnl = (buy > 0 && val != null) ? { pct: ((val - buy) / buy) * 100, abs: val - buy } : null;
-    return { val, buy: buy > 0 ? buy : null, pnl, d7: d?.change_7d ?? null, date: c.purchase?.date ?? null };
+    // P&L gegen den ERLOES rechnen (netMode), nicht gegen den Marktpreis
+    const net = sellValue(val);
+    const pnl = (buy > 0 && net != null) ? { pct: ((net - buy) / buy) * 100, abs: net - buy } : null;
+    return { val, net, buy: buy > 0 ? buy : null, pnl, d7: d?.change_7d ?? null, date: c.purchase?.date ?? null };
   }
   function originOf(c) {
     return c.purchase?.type === 'SHARDS' ? 'crafted'
@@ -1043,8 +1074,9 @@
       const val = fmv ?? fmvData?.floor_price ?? fmvData?.sale_1 ?? null;
       const buy = c.purchase?.eur;
       let pnlChip = '';
-      if (buy != null && buy > 0 && val != null) {
-        const d = val - buy, up = d >= 0, pct = (d / buy) * 100;
+      const sellV = sellValue(val);   // im Netto-Modus abzueglich Marktgebuehr
+      if (buy != null && buy > 0 && sellV != null) {
+        const d = sellV - buy, up = d >= 0, pct = (d / buy) * 100;
         pnlChip = `<span style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;background:${up ? 'rgba(0,245,160,0.14)' : 'rgba(255,45,120,0.14)'};border:1px solid ${up ? 'rgba(0,245,160,0.4)' : 'rgba(255,45,120,0.4)'};color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${pct.toFixed(0)}%</span>`;
       }
       const originTag = c.purchase?.type === 'SHARDS' ? '⚗️ crafted'
@@ -1093,7 +1125,8 @@
       const buy = c.purchase?.eur;
       if (buy != null && buy > 0) {
         invested += buy;
-        if (v) { pnl += v - buy; pnlBasis += buy; }
+        const sv = sellValue(v);
+        if (v) { pnl += sv - buy; pnlBasis += buy; }
       }
     }
 
@@ -1105,6 +1138,8 @@
     if (pnlBasis > 0) {
       const pct = (pnl / pnlBasis) * 100;
       pnlEl.textContent = `${pnl >= 0 ? '+' : ''}€${pnl.toFixed(0)} (${pnl >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
+      const pnlLbl = document.getElementById('stat-pnl-label');
+      if (pnlLbl) pnlLbl.textContent = netMode ? `// P&L · net of ${feePct()}% fee` : '// P&L · gross';
       pnlEl.style.color = pnl >= 0 ? 'var(--up)' : 'var(--down)';
     } else {
       pnlEl.textContent = '—';
@@ -1143,8 +1178,10 @@
                  : c.purchase?.type === 'REWARD' ? '🏆 reward'
                  : c.purchase?.type ? 'purchase' : '—';
     const buyDate = c.purchase?.date ? new Date(c.purchase.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-    const sincePct = (buy > 0 && val != null) ? ((val - buy) / buy) * 100 : null;
-    const sinceAbs = (buy > 0 && val != null) ? val - buy : null;
+    const proceeds = sellValue(val);                 // Erloes nach Marktgebuehr (bzw. brutto)
+    const be = breakEven(buy);                       // noetiger Angebotspreis fuer +-0
+    const sincePct = (buy > 0 && proceeds != null) ? ((proceeds - buy) / buy) * 100 : null;
+    const sinceAbs = (buy > 0 && proceeds != null) ? proceeds - buy : null;
     const sinceAbsTxt = sinceAbs == null ? '' :
       `<div style="font-size:10px;font-family:'Share Tech Mono',monospace;margin-top:3px;color:var(--text2)">${sinceAbs >= 0 ? '+' : '−'}€${Math.abs(sinceAbs).toFixed(2)}</div>`;
 
@@ -1158,6 +1195,15 @@
         <div class="pm-stat"><div class="pm-label">Paid</div><div class="pm-val">${buy > 0 ? fmtEur(buy) : '—'}</div></div>
         <div class="pm-stat"><div class="pm-label">Date</div><div class="pm-val" style="font-size:11px">${buyDate}</div></div>
         <div class="pm-stat"><div class="pm-label">Origin</div><div class="pm-val" style="font-size:11px">${origin}</div></div>
+      </div>
+      <div class="pm-section">// If you sell (${feePct()}% Sorare fee)</div>
+      <div class="pm-grid3">
+        <div class="pm-stat"><div class="pm-label">You receive</div><div class="pm-val">${val != null ? fmtEur(val * (1 - MARKET_FEE)) : '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">ask ${val != null ? fmtEur(val) : '—'}</div></div>
+        <div class="pm-stat"><div class="pm-label">Break-even ask</div><div class="pm-val" style="color:${be != null && val != null ? (val >= be ? 'var(--up)' : 'var(--down)') : 'var(--text)'}">${be != null ? fmtEur(be) : '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">${be != null && val != null ? (val >= be ? 'reached' : fmtEur(be - val) + ' to go') : 'no purchase price'}</div></div>
+        <div class="pm-stat"><div class="pm-label">Fee</div><div class="pm-val">${val != null ? fmtEur(val * MARKET_FEE) : '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">on ${feePct()}% of ask</div></div>
       </div>
       <div class="pm-section">// Market</div>
       <div class="pm-grid3">
