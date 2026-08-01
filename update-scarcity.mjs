@@ -82,20 +82,28 @@ async function fetchData(playerSlug, eligibility) {
   return null;
 }
 
-// FMV heute vs. price_history vor 1 bzw. 7 Tagen (pro Eligibility getrennt)
-async function calcChanges(playerSlug, eligibility, fmv, now, hasEligibility) {
-  if (!fmv) return { change_24h: null, change_7d: null };
-  const since = new Date(now - 8 * 86400000).toISOString().split('T')[0];
+// Historie EINMAL laden — daraus entscheiden wir sowohl, ob ein neuer Punkt noetig
+// ist, als auch die 24h/7d-Prozente. Fenster bewusst 45 Tage statt 8: seit dem
+// Aenderungs-Schreiben (siehe unten) kann der letzte Punkt aelter sein, und die
+// Prozente rechnen ohnehin mit Carry-Forward (letzter Wert <= Stichtag).
+async function loadHistory(playerSlug, eligibility, now, hasEligibility) {
+  const since = new Date(now - 45 * 86400000).toISOString().split('T')[0];
   let q = supabase
     .from('price_history')
     .select('price, recorded_at')
     .eq('player_slug', playerSlug)
     .eq('scarcity', SCARCITY)
     .gte('recorded_at', since)
-    .order('recorded_at', { ascending: true });
+    .order('recorded_at', { ascending: true })
+    .limit(60);
   if (hasEligibility) q = q.eq('eligibility', eligibility);
-  const { data: hist } = await q;
-  if (!hist?.length) return { change_24h: null, change_7d: null };
+  const { data } = await q;
+  return data ?? [];
+}
+
+// FMV heute vs. Historie vor 1 bzw. 7 Tagen (pro Eligibility getrennt)
+function calcChanges(hist, fmv, now) {
+  if (!fmv || !hist?.length) return { change_24h: null, change_7d: null };
 
   const priceAt = (daysAgo) => {
     const target = new Date(now - daysAgo * 86400000).toISOString().split('T')[0];
@@ -206,13 +214,24 @@ async function main() {
     const h72ago = new Date(now - 72 * 3600000);
     const d7ago  = new Date(now - 7 * 86400000);
 
-    // History zuerst schreiben (Changes vergleichen gegen ältere Tage)
+    // Historie einmal laden (ersetzt die frühere separate Abfrage in calcChanges)
+    const hist = await loadHistory(player.player_slug, eligibility, now, migrated);
+
+    // NUR schreiben, wenn sich der Preis geaendert hat. Vorher entstand pro Karte
+    // und Tag eine Zeile — bei ~104k bewerteten Karten rund 100.000 Zeilen taeglich,
+    // die meisten davon Wiederholungen desselben Werts. Auswertungen tragen den
+    // letzten bekannten Wert ohnehin vor (Carry-Forward), verlieren also nichts.
     if (fmv) {
-      const histRow = { player_slug: player.player_slug, scarcity: SCARCITY, price: fmv, recorded_at: today };
-      if (migrated) histRow.eligibility = eligibility;
-      await supabase.from('price_history').upsert(histRow, {
-        onConflict: migrated ? 'player_slug,scarcity,recorded_at,eligibility' : 'player_slug,scarcity,recorded_at',
-      });
+      const last = hist.length ? hist[hist.length - 1] : null;
+      if (!last || Number(last.price) !== Number(fmv)) {
+        const histRow = { player_slug: player.player_slug, scarcity: SCARCITY, price: fmv, recorded_at: today };
+        if (migrated) histRow.eligibility = eligibility;
+        const { error: hErr } = await supabase.from('price_history').upsert(histRow, {
+          onConflict: migrated ? 'player_slug,scarcity,recorded_at,eligibility' : 'player_slug,scarcity,recorded_at',
+        });
+        if (hErr) console.warn(`  History-Insert ${player.player_slug}: ${hErr.message}`);
+        else hist.push({ price: fmv, recorded_at: today });   // fuer die Prozente unten
+      }
     }
 
     const update = {
@@ -232,7 +251,7 @@ async function main() {
       ...(result.position ? { position: result.position } : {}),
       ...(result.leagueCountry ? { league_country: result.leagueCountry } : {}),
     };
-    if (migrated) Object.assign(update, await calcChanges(player.player_slug, eligibility, fmv, now, migrated));
+    if (migrated) Object.assign(update, calcChanges(hist, fmv, now));
 
     const { error: e } = await supabase.from('card_prices').update(update).eq('id', player.id);
     if (e) { console.warn(`  DB update failed for ${player.player_slug}: ${e.message}`); failed++; }
