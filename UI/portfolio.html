@@ -666,6 +666,9 @@
       <button class="p-filter rar"    id="pf-rare"    onclick="setFilter('rare')">◆ Rare</button>
       <button class="p-filter sr"     id="pf-sr"      onclick="setFilter('super_rare')">◆ SR</button>
       <span style="width:1px;align-self:stretch;background:var(--border)"></span>
+      <button class="p-filter" id="btn-sync" onclick="syncNow(true)" title="Aktualisiert dein Portfolio bei Sorare (frühestens alle 10 Minuten)">⟳ Sync</button>
+      <span class="p-filter" id="sync-state" style="border:none;cursor:default;color:var(--text2)"></span>
+      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
       <button class="p-filter active" id="pf-net" onclick="toggleNetMode()"
               title="P&L nach 5 % Sorare-Marktgebühr — das, was du beim Verkauf wirklich erhältst">NET −5%</button>
       <span style="width:1px;align-self:stretch;background:var(--border)"></span>
@@ -859,86 +862,107 @@
   }
 
   // ── Load Cards (public per Manager-Slug, alle 3 Scarcities) ───────────────
+  // Sammlung kommt aus unserer DB (0 Sorare-Anfragen). Geholt wird nur beim Sync:
+  // die Sperre haengt am Manager-Slug (max. 1 Abruf/24 h), der eigene Sync-Knopf
+  // laeuft mit 10-Minuten-Cooldown. Vorher kostete JEDER Aufruf 6-16 Anfragen.
+  let lastSyncedAt = null;
+
+  async function loadFromDb(slug) {
+    const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
+    const [syncRes, cardRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/manager_sync?sorare_slug=eq.${encodeURIComponent(slug)}&select=synced_at,card_count`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/manager_cards?sorare_slug=eq.${encodeURIComponent(slug)}&select=card_slug,player_slug,player_name,picture_url,rarity,in_season,buy_eur,buy_date,buy_type`, { headers: H }),
+    ]);
+    const sync = syncRes.ok ? (await syncRes.json())[0] : null;
+    const rows = cardRes.ok ? await cardRes.json() : [];
+    lastSyncedAt = sync?.synced_at ?? null;
+    return rows.map(r => ({
+      slug: r.card_slug,
+      rarityTyped: r.rarity,
+      inSeasonEligible: r.in_season,
+      player: { slug: r.player_slug, displayName: r.player_name, pictureUrl: r.picture_url },
+      purchase: r.buy_eur != null || r.buy_type ? { eur: r.buy_eur, date: r.buy_date, type: r.buy_type } : null,
+    }));
+  }
+
+  function renderSyncState() {
+    const el = document.getElementById('sync-state');
+    if (!el) return;
+    if (!lastSyncedAt) { el.textContent = '// not synced yet'; return; }
+    const min = Math.round((Date.now() - new Date(lastSyncedAt)) / 60000);
+    el.textContent = '// updated ' + (min < 1 ? 'just now' : min < 60 ? min + ' min ago'
+      : min < 1440 ? Math.round(min / 60) + ' h ago' : Math.round(min / 1440) + ' d ago');
+  }
+
+  async function syncNow(force) {
+    const btn = document.getElementById('btn-sync');
+    if (btn) { btn.disabled = true; btn.textContent = '⟳ syncing…'; }
+    try {
+      let session = null;
+      try { session = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-portfolio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json', 'apikey': ANON_KEY,
+          'Authorization': 'Bearer ' + (force && session?.access_token ? session.access_token : ANON_KEY),
+        },
+        body: JSON.stringify({ slug: currentSlug, force: !!force }),
+      });
+      const d = await res.json();
+      if (d.error) throw new Error(d.error);
+      if (d.skipped === 'fresh' && force) {
+        alert('Already up to date — next sync possible in ' + d.next_in_minutes + ' min.');
+      }
+      await loadCards(currentSlug);
+    } catch (e) {
+      alert('Sync failed: ' + e.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync'; }
+    }
+  }
+
   async function loadCards(slug) {
     const grid = document.getElementById('cards-grid');
     allCards = []; fmvCache = {};
 
-    // Seitenwechsel-Cache: Sammlung + FMVs 10 Min pro Manager (sessionStorage)
-    try {
-      const c = JSON.parse(sessionStorage.getItem('sorion_pf_cache'));
-      if (c && c.slug === slug && Date.now() - c.ts < 10 * 60 * 1000 && c.cards?.length) {
-        allCards = c.cards;
-        fmvCache = c.fmv || {};
-        filterCards();
-        updateStats();
-        return;
-      }
-    } catch {}
+    grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
+      <div class="spinner"></div><div class="loading-text">Loading ${esc(slug)}…</div></div>`;
 
-    for (const rarity of ['limited', 'rare', 'super_rare']) {
-      let cursor = null, page = 0;
-      do {
-        grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
-          <div class="spinner"></div>
-          <div class="loading-text">Loading ${rarity} cards of ${esc(slug)}...</div>
-          <div class="loading-progress">${allCards.length} cards loaded</div>
-        </div>`;
-
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-          body: JSON.stringify({ action: 'user_cards', slug, rarity, cursor }),
-        });
-        const data = await res.json();
-        if (data.error) { showManagerError(`Manager "${esc(slug)}" not found`); return; }
-
-        for (const n of data?.nodes ?? []) {
-          allCards.push({
-            slug: n.slug,
-            rarityTyped: n.rarityTyped,
-            inSeasonEligible: n.inSeasonEligible,
-            player: { slug: n.anyPlayer?.slug, displayName: n.anyPlayer?.displayName, pictureUrl: n.pictureUrl },
-            // Trading-Daten: Kaufpreis/-datum/-art sind bei Sorare öffentlich (tokenOwner)
-            purchase: n.tokenOwner ? {
-              eur:  n.tokenOwner.amounts?.eurCents != null ? n.tokenOwner.amounts.eurCents / 100 : null,
-              date: n.tokenOwner.from ?? null,
-              type: n.tokenOwner.transferType ?? null,
-            } : null,
-          });
-        }
-        const pageInfo = data?.pageInfo ?? {};
-        cursor = pageInfo.hasNextPage ? pageInfo.endCursor : null;
-        page++;
-      } while (cursor && page < 60);
+    allCards = await loadFromDb(slug);
+    if (allCards.length) {
+      renderSyncState();
+      filterCards();
+      updateStats();
+      await loadFMV();        // Werte kommen aus card_prices nach
+      filterCards();          // erst danach stimmen Wert, P&L und Sortierung
+      updateStats();
+      return;
     }
-
-    if (!allCards.length) { showManagerError(`No cards found — is the manager name correct?`); return; }
-
-    // Jede angesehene Sammlung füttert unsere DB: unbekannte Spieler werden
-    // an add-missing-players gemeldet (legt alle Scarcities/Eligibilities an,
-    // Updater bepreist sie dann). Fire-and-forget — bremst die Anzeige nicht.
+    // Noch nie gespiegelt -> einmalig holen (die TTL schuetzt vor Missbrauch)
+    grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
+      <div class="spinner"></div><div class="loading-text">First visit — fetching ${esc(slug)} from Sorare…</div></div>`;
     try {
-      const uniquePlayers = [...new Map(allCards.filter(c => c.player?.slug).map(c => [c.player.slug, {
-        player_slug: c.player.slug,
-        player_name: c.player.displayName ?? null,
-        scarcity:    c.rarityTyped?.toLowerCase() || 'limited',
-        picture_url: c.player.pictureUrl ?? null,
-      }])).values()];
-      fetch(`${SUPABASE_URL}/functions/v1/add-missing-players`, {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-portfolio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-        body: JSON.stringify({ players: uniquePlayers }),
-      }).catch(() => {});
-    } catch {}
-
+        body: JSON.stringify({ slug }),
+      });
+      const d = await res.json();
+      if (d.error) { showManagerError(`Manager "${esc(slug)}" not found`); return; }
+      allCards = await loadFromDb(slug);
+    } catch {
+      showManagerError('Could not reach Sorare — please try again later');
+      return;
+    }
+    if (!allCards.length) { showManagerError(`No cards found for "${esc(slug)}"`); return; }
+    renderSyncState();
+    filterCards();
+    updateStats();
     await loadFMV();
     filterCards();
     updateStats();
-    try {
-      if (fmvComplete) sessionStorage.setItem('sorion_pf_cache', JSON.stringify({ slug, ts: Date.now(), cards: allCards, fmv: fmvCache }));
-      else sessionStorage.removeItem('sorion_pf_cache'); // unvollständig → nächster Besuch lädt frisch
-    } catch {}
   }
+
 
   let fmvComplete = true; // false, wenn ein Batch trotz Retry scheiterte → dann kein Cache-Write
   async function loadFMV() {
@@ -1045,55 +1069,32 @@
     }
   }
 
-  async function fetchTradeKind(slug, kind) {
-    const out = [];
-    let cursor = null;
-    for (let page = 0; page < 40; page++) {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-        body: JSON.stringify({ action: 'user_trades', slug, kind, cursor }),
-      });
-      const d = await res.json();
-      if (d.error) throw new Error(d.error);
-      out.push(...(d.nodes ?? []));
-      if (!d.pageInfo?.hasNextPage) break;
-      cursor = d.pageInfo.endCursor;
-    }
-    return out;
-  }
 
   const playerFromSlug = cs => {
     const m = String(cs).match(/^(.+)-(\d{4})-(limited|rare|super[-_]rare|unique)-(\d+)$/);
     return m ? m[1].replace(/-/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : cs;
   };
 
+  // Trades kommen ebenfalls aus der DB (gespiegelt beim Sync) — kein Sorare-Abruf.
   async function loadTrades() {
     const body = document.getElementById('th-body');
     body.innerHTML = '<tr><td class="th-empty" colspan="8">// loading trade history…</td></tr>';
     try {
-      const [sold, bought, won] = await Promise.all([
-        fetchTradeKind(currentSlug, 'sold'),
-        fetchTradeKind(currentSlug, 'bought'),
-        fetchTradeKind(currentSlug, 'won'),
-      ]);
-      const buys = new Map();
-      for (const b of [...bought.map(x => ({ ...x, via: 'offer' })), ...won.map(x => ({ ...x, via: 'auction' }))]) {
-        if (!buys.has(b.card)) buys.set(b.card, []);
-        buys.get(b.card).push(b);
-      }
-      for (const arr of buys.values()) arr.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/manager_trades?sorare_slug=eq.${encodeURIComponent(currentSlug)}&select=card_slug,rarity,sold_at,sell_eur,buy_eur,buy_at,buy_via&order=sold_at.desc`,
+        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } });
+      if (!res.ok) throw new Error('could not load trades');
+      const rows = await res.json();
 
       tradeRows = []; tradeNoCost = 0;
-      for (const sl of sold) {
-        const before = (buys.get(sl.card) ?? []).filter(b => new Date(b.date) < new Date(sl.date));
-        const buy = before.length ? before[before.length - 1] : null;
-        if (!buy) { tradeNoCost++; continue; }
+      for (const r of rows) {
+        // Ohne Kaufbeleg (Reward/Craft/Tausch) gibt es keinen Euro-Einstand — separat ausweisen
+        if (r.buy_eur == null) { tradeNoCost++; continue; }
         tradeRows.push({
-          card: sl.card, rarity: sl.rarity,
-          buyEur: buy.eur, buyDate: buy.date, via: buy.via,
-          sellEur: sl.eur, sellDate: sl.date,
-          heldDays: Math.max(0, Math.round((new Date(sl.date) - new Date(buy.date)) / 86400000)),
+          card: r.card_slug, rarity: r.rarity,
+          buyEur: Number(r.buy_eur), buyDate: r.buy_at, via: r.buy_via,
+          sellEur: Number(r.sell_eur), sellDate: r.sold_at,
+          heldDays: r.buy_at ? Math.max(0, Math.round((new Date(r.sold_at) - new Date(r.buy_at)) / 86400000)) : 0,
         });
       }
       tradesLoaded = true;
