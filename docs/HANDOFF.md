@@ -17,10 +17,10 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 | **Kader-Abgleich** | `sync-club-rosters.mjs` | Railway (`railway-rosters.toml`), Cron **täglich 04:00 UTC** (Transferperiode; nach Deadline Day 01.09. auf wöchentlich `0 4 * * 1` stellen, im Januar-Fenster zurück auf täglich — Entscheidung Jonas 30.07.). Zieht via `football.clubsReady` + `club.activePlayers` ALLE aktiven Spieler und legt fehlende Zeilen mit `updated_at=epoch` an (inkl. Name/Team/Liga/Land/Position). **Clubzahl schwankt** (Testlauf 247, erster echter Lauf 228) — ein Grund fuer den taeglichen Rhythmus. Fuegt nur hinzu, ueberschreibt/loescht nie |
 | Sorion-UI (Markt/Portfolio/Profil/Legal) | `UI/*` kanonisch; **live aus PUBLIC Repo `sorion-ui`** (`C:\craft-log\sorion-ui`) | GitHub Pages → **sorion.pro**. Nach UI-Änderung: nach sorion-ui kopieren + BEIDE Repos pushen. CDN-Cache ~10 Min (`?v=x` zum Sofort-Testen) |
 | CraftLog-UI | `C:\craft-log\Craft_Log UI\` kanonisch; live aus Repo `R3HR/Craft_log` (Clone: `craft_log-repo`) | GitHub Pages → **craftlog.pro**, inkl. `auth/callback.html` (OAuth-Redirect) |
-| Edge Functions (7) | `C:\craft-log\supabase\functions\` | `npx supabase functions deploy <name>` (CLI eingeloggt). sorare-oauth (Actions: user_cards, **user_trades**, login, exchange, refresh, userinfo, cards), add-missing-players, get-pool, update-pool, update-prices (Metadaten-only), get-analytics, sorare-proxy, delete-account |
-| DB | Supabase `jxhdlcpdupmkpsoytzes` | `card_prices` (Key: slug×scarcity×eligibility; +`position`, +`league_country` seit 30.07.), `price_history` (+eligibility), `pool_cache`, `fmv_accuracy` (+View `fmv_accuracy_stats`), `market_daily` (Vollmarkt-Tagessnapshot), `profiles`, `watchlist`, `sorare_users` |
+| Edge Functions (10) | `C:\craft-log\supabase\functions\` | `npx supabase functions deploy <name>` (CLI eingeloggt). sorare-oauth (Actions: user_cards, **user_trades**, login, exchange, refresh, userinfo, cards), add-missing-players, get-pool, update-pool, update-prices (Metadaten-only), get-analytics, sorare-proxy, delete-account, **track** (Analytics-Beacon), **sync-portfolio** (Portfolio-Spiegelung mit TTL-Sperre) |
+| DB | Supabase `jxhdlcpdupmkpsoytzes` | `card_prices` (Key: slug×scarcity×eligibility; +`position`, +`league_country` seit 30.07.), `price_history` (+eligibility), `pool_cache`, `fmv_accuracy` (+View `fmv_accuracy_stats`), `market_daily` (Vollmarkt-Tagessnapshot), `manager_sync`/`manager_cards`/`manager_trades` (gespiegelte Portfolios), `analytics_events`, `profiles` (+`sorare_verified`), `watchlist`, `sorare_users` |
 
-## Aktueller Stand (2026-07-31)
+## Aktueller Stand (2026-08-02)
 
 **Daten-Pipeline:**
 - InSeason/Classic live; Saisonflip 25/26→Classic läuft ligaweise und wird automatisch mitvollzogen (Karten-Bewertung folgt `inSeasonEligible` der Karte)
@@ -46,6 +46,26 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 - Sprachen: Markt+Portfolio Englisch, Profil Deutsch — i18n später als eigenes Projekt, neue Texte auf Englisch (außer legal.html)
 
 **Sicherheit:** SEC-001 geschlossen (neue sb_-Keys, Legacy disabled, alter Key verifiziert tot). Sorare-OAuth läuft mit dem alten, nie geleakten Secret; die App liegt auf einem unbekannten Account (TODO: neue App beantragen).
+
+**Handel & Kosten (01.–02.08.):**
+- **Sorare-Marktgebuehr (5 %)** wird beruecksichtigt: NET/GROSS-Umschalter im Portfolio (Standard netto), Break-even-Ask im Karten-Detail (`Kauf / 0,95`, NICHT `Kauf x 1,05`). Zentrale Konstante `MARKET_FEE` in portfolio.html. **FMV bleibt bewusst brutto** — sonst nicht mehr mit Floor und letztem Sale vergleichbar; Accuracy-Tracking unberuehrt.
+- **Trade History** mit realisierten Trades (Kauf/VK brutto+netto, Haltedauer, Gewinn) und Gesamtuebersicht. **Toggle „Free cards"** blendet Verkaeufe ohne Kaufbeleg ein (Reward/Craft/Tausch): Einstand „—", P&L 0, ihr Erloes wird separat ausgewiesen und geht NICHT in Rendite-% und Trefferquote ein (Division durch null Kapital).
+- **Verkaufsdatum** `last_sale_at`: Die Marktseite zeigt jetzt das Alter des letzten Verkaufs („3d ago", frisch gruen, alt gedaempft). Vorher war unklar, ob „LAST SALE 6,72 €" von gestern oder von vor drei Wochen stammte.
+
+**Verbrauch & Speicher (01.–02.08.) — der groesste Umbau des Tages:**
+- **Portfolios werden gespiegelt** (`manager_*`-Tabellen + Function `sync-portfolio`). Anzeigen kostet **0 Sorare-Anfragen** (vorher 6–16 pro Aufruf, bei jedem Neuladen erneut). Die Sperre haengt am MANAGER-SLUG: ein Manager wird hoechstens 1x/24 h geholt, egal wie viele — auch anonyme — Leute ihn ansehen. Eigener Sync-Knopf: 10-Minuten-Cooldown, nur fuer den eingeloggten Besitzer (Abgleich gegen `profiles.sorare_slug`, sonst 403).
+- **`price_history` nur noch bei Preisaenderung** statt taeglich pro Karte. Vorher ~100.000 Zeilen/Tag (~3 Mio/Monat), fast alles Wiederholungen. Der Updater laedt die Historie jetzt EINMAL (45-Tage-Fenster) und leitet daraus sowohl die Schreibentscheidung als auch die 24h/7d-Prozente ab — **eine DB-Abfrage weniger** pro Karte.
+- **Datenbank war ueber dem Free-Limit** (531/500 MB). Zwei verwaiste Indizes auf `price_history` entfernt (stammten vom 30./31.07., Zweck entfallen) → **422 MB**. Wichtig: `drop index` loescht keine Daten, und der Platz wird sofort frei — `vacuum full` ist dabei unnoetig und sperrt nur.
+- **Marktseite serverseitig vorbereitet:** RPCs `market_leagues`, `market_facets`, `market_overview` + Index angelegt. Ziel: 15 MB und 199 Anfragen pro Besuch → ~50 KB. **Frontend-Umbau steht noch aus.**
+
+**Konten (01.08.):**
+- **Sorare-Verknuepfung** (`link_sorare`): Der Sorare-Login ist KEIN zweiter Kontotyp, sondern der Nachweis fuer den Managernamen — ein Premium-Modell braucht EINE Konto-Identitaet. Prueft Sorion-JWT UND Sorare-Token, 409 bei fremd verknuepftem Slug, setzt `sorare_verified`. Von Jonas getestet: funktioniert, **die bestehende OAuth-App deckt beide Domains ab**.
+- **Header-Fehler behoben:** Beim Ansehen fremder Portfolios uebernahm der Header den fremden Manager, und `sorion_manager` wurde ueberschrieben — „Portfolio" landete danach beim Fremden. Identitaet (`sorion_own`) und Ansicht sind jetzt getrennt.
+- **DSGVO nachgezogen:** `delete-account` ruft `purge_manager_data(slug)` (haengt am Slug, CASCADE greift dort nicht), Export enthaelt `portfolio: { sync, cards, trades }`, legal.html Abschnitt 5b beschreibt die Spiegelung.
+
+**Messung (30.–31.07.):** Eigenes cookiefreies Analytics statt Plausible (Abo abgelaufen). Beacon-Function `track`, Auswertung nur fuer Admin (`is_analytics_admin`, Mail `jonas.rehr@outlook.de`), Dashboard `UI/stats.html` **nicht im oeffentlichen Repo**. Custom Events: manager_search, portfolio_view, card_detail, elig_toggle, scarcity_switch, signup_done, login_done, trade_history.
+
+**Kapazitaet — gemessen 02.08.:** Gleichzeitigkeit ist NICHT das Problem (8 Besucher parallel → 2,4 s, null Fehler). Der Flaschenhals ist der Traffic: Marktseite ~15 MB pro Besuch → auf dem Free-Tarif (5 GB) nur ~340 Aufrufe/Monat. Portfolio dagegen 25 KB. Deshalb ist der serverseitige Umbau der Marktseite die wichtigste offene Aufgabe vor jeder Promotion.
 
 ## ⚠️ Offene Aktionen für Jonas
 
