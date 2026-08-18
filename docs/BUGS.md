@@ -49,7 +49,10 @@
 - **Symptom (erwartet):** Tier-/Pool-Daten brechen beim Saisonwechsel August 2026.
 - **Ursache:** `update-pool`/`update-prices` fetchen `footballRewardPool2025<Rarity>.json` von sorarehoops.vercel.app — Jahr fest verdrahtet, Dritt-Site-Abhängigkeit.
 - **Fix:** Jahr dynamisch (aktuelles Jahr, Fallback Vorjahr) in `update-pool` + `update-prices` (2026-07-21). Stand 21.07. existieren nur 2025-Files → nach Erscheinen der 26/27-Files verifizieren, dass das Namensschema gleich bleibt.
-- **Status:** ✅ deployed 2026-07-21 — offen nur: Namensschema-Check wenn sorarehoops die 26/27-Files publiziert
+- **Namensschema-Check erledigt 2026-08-06:** `footballRewardPool2026Limited.json` → **404**; `…2025Limited.json` → **200, 4,9 MB, `fetchedAt: 2026-08-06`**. sorarehoops behält den „2025"-Namen für die laufende Saison bei. Der Cron läuft also aktuell **nur dank des `thisYear-1`-Fallbacks**. Funktioniert, bleibt aber von fremder Namenskonvention abhängig — bricht, sobald sie umbenennen (oder wenn ein Jahr mehr Abstand entsteht).
+- **✅ Echter Ausweg gefunden (2026-08-06): Sorare liefert den Pool selbst.** `cardShardsPool(quality: CardQuality!, rarity: Rarity!, sport: FOOTBALL)` → `[PlayerWithSupply { slug, availableSupply, anyPlayer{...} }]`, **öffentlich ohne Auth** (live getestet: TIER_1/limited = 140 Spieler mit Slug, Supply, Name, Club). Dazu `cardShardsPoolComputedAt(sport)` als Frische-Stempel. `quality` (TIER_0…) entspricht der sorarehoops-Tier-Einteilung → 1:1-Ersatz.
+- **Empfehlung:** `update-pool`/`update-prices` auf `cardShardsPool` umstellen → Dritt-Anbieter-Abhängigkeit (und damit dieser Bug) verschwindet vollständig. Siehe Feature-Spec im Ökosystem-HANDOFF.
+- **Status:** 🟡 Workaround deployed 21.07. (läuft via Fallback) — **Umstellung auf Sorare-API empfohlen** (Ökosystem-HANDOFF: „Craft-Pool & aktueller Craft direkt von Sorare")
 
 ## BUG-007 — CraftLog-Login tot nach Key-Umstellung (Dreifach-Ursache)
 
