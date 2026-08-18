@@ -2495,11 +2495,29 @@
     window.location.href = 'portfolio.html?manager=' + encodeURIComponent(slug);
   }
 
-  // Profil-Button zeigt den gemerkten Manager
-  (() => {
+  // Profil-Button zeigt die EIGENE Identitaet, nie den angesehenen Manager.
+  // Vorher stand hier 'sorion_manager' — das ist der zuletzt ANGESEHENE Manager.
+  // Nach einer Manager-Suche trug der Header damit dauerhaft einen fremden Namen
+  // (localStorage ueberlebt die Sitzung). Die Trennung own/manager kam am 01.08.
+  // ins Portfolio, diese Stelle wurde dabei uebersehen. Siehe BUG-014.
+  (async () => {
     const b = document.getElementById('btn-profile');
-    const m = localStorage.getItem('sorion_manager');
-    if (b && m) b.textContent = '◉ ' + m.toUpperCase();
+    if (!b) return;
+    const paint = s => { b.textContent = s ? '◉ ' + String(s).toUpperCase() : '◉ Profile'; };
+    paint(localStorage.getItem('sorion_own'));   // sofort aus dem Cache
+    let session = null;
+    try { session = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
+    if (!session?.access_token) return;
+    // Eingeloggt: gegen das Profil abgleichen, falls die Verknuepfung neu ist
+    try {
+      const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + session.access_token };
+      const meRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: H });
+      if (!meRes.ok) return;
+      const me = await meRes.json();
+      const pRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${me.id}&select=sorare_slug`, { headers: H });
+      const slug = pRes.ok ? (await pRes.json())?.[0]?.sorare_slug : null;
+      if (slug) { localStorage.setItem('sorion_own', String(slug).toLowerCase()); paint(slug); }
+    } catch {}
   })();
 
   loadData();

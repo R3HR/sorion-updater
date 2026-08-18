@@ -107,6 +107,16 @@
 - **Cleanup erledigt (28.07.):** Die Alt-Ordner `limited/rare/sr/` (Voll-Kopien) wurden entfernt, nachdem via Railway Settings→Build bestätigt war, dass alle 3 Services aus dem Repo-Root bauen. `update-scarcity.mjs` existiert nur noch einmal → keine Mehrfach-Sync mehr.
 - **Status:** ✅ geschlossen 2026-07-28 (Code deployed + Index eingespielt & verifiziert)
 
+## BUG-014 — Header zeigt fremden Manager statt des eingeloggten Nutzers (Marktseite)
+
+- **Symptom (Jonas, 18.08.):** Nach einer Manager-Suche steht oben rechts der Name des ANGESEHENEN Portfolios statt des eigenen — **ueber Sitzungen hinweg**, nicht nur bis zum Neuladen.
+- **Ursache:** `index.html` malte den Profil-Button aus `localStorage['sorion_manager']` — das ist per Definition der **zuletzt angesehene** Manager, nicht die Identitaet. `msOpenFull()` schreibt bei jeder Suche den fremden Slug dorthin. Weil localStorage die Sitzung ueberlebt, blieb der fremde Name dauerhaft stehen.
+- **Warum es durchrutschte:** Die Trennung `sorion_own` (Identitaet) vs. `sorion_manager` (Ansicht) kam am 01.08. — aber nur in `portfolio.html`. Die Marktseite hat ihren eigenen Header-Code; der alte Kommentar dort lautete noch woertlich „Profil-Button zeigt den gemerkten Manager". Der Fix vom 01.08. war also **unvollstaendig, nicht falsch**.
+- **Fix (18.08.):** `index.html` liest jetzt `sorion_own`, faellt ohne Wert auf „◉ Profile" zurueck (nie auf einen fremden Namen) und gleicht bei bestehender Session gegen `profiles.sorare_slug` ab — dieselbe Logik wie `resolveOwnSlug()` im Portfolio. Malt sofort aus dem Cache, verfeinert danach.
+- **Verifiziert:** Die gepatchte Funktion gegen einen Fake-localStorage laufen lassen — (a) verknuepft → eigener Name, (b) nur fremder Manager gemerkt → „◉ Profile", (c) leer → „◉ Profile". Alle drei bestanden. Keine Datenmigration noetig: `sorion_own` war nie falsch befuellt, nur die Lesestelle war die falsche.
+- **Lektion:** Beide UI-Seiten haben eigenen Header-Code. Wer die Identitaetslogik anfasst, muss `index.html` UND `portfolio.html` pruefen — `grep -n "sorion_own\|sorion_manager" *.html` vor dem Abhaken.
+- **Status:** ✅ gefixt 2026-08-18 (beide Kopien: `Sorion_pro/UI/` + `sorion-ui/`)
+
 ## BUG-013 — Liga-Filter/Ranking: vier UI-Fehler, die nur im Browser sichtbar waren
 
 - **Symptom (Jonas, 31.07.):** (a) Liga-Dropdown ohne Funktion, (b) Ranking-Panel nur als leerer Platz, (c) Klick auf 🇩🇪 Bundesliga lieferte auch Sturm Graz und Rapid Wien, (d) Menü öffnete **hinter** der Spielertabelle.
