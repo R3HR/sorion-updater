@@ -68,11 +68,26 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 
 **Kapazitaet — gemessen 02.08.:** Gleichzeitigkeit ist NICHT das Problem (8 Besucher parallel → 2,4 s, null Fehler). Der Flaschenhals ist der Traffic: Marktseite ~15 MB pro Besuch → auf dem Free-Tarif (5 GB) nur ~340 Aufrufe/Monat. Portfolio dagegen 25 KB. Deshalb ist der serverseitige Umbau der Marktseite die wichtigste offene Aufgabe vor jeder Promotion.
 
-**Durchsatz des Preis-Updaters (07.08.) — kein zweiter API-Key nötig:**
-- **Gemessen:** 1 Sorare-Call je Karte, `DELAY_MS=1500` → **40 Anfragen/min je Service**, drei Services parallel = **120/min von 200 erlaubten**. Wir sind also NICHT rate-limitiert, sondern selbst gedrosselt. Ein zweiter Key hebt eine Decke an, gegen die wir nicht stoßen.
-- **Entscheidende Einsicht:** `BATCH_SIZE` beeinflusst die Rate NICHT — nur die Laufzeit. Bei 120×1,5 s waren 3 min Arbeit und **2 min Leerlauf** im 5-min-Slot. Obergrenze: `BATCH_SIZE ≤ 285000/DELAY_MS` (bei 1500 → 190). Von 17.280 auf 27.360 Karten/Tag je Service, **ohne eine einzige zusätzliche Anfrage pro Minute**.
-- **Gewichtete Queue** (`IN_SEASON_SHARE=0.75`): Vorher zog die Queue stur die ältesten Zeilen, In-Season und Classic bekamen gleich viele Slots — obwohl Classic eine FMV-Halbwertszeit von 14 Tagen hat und tägliche Updates dort Verschwendung sind. Zwei getrennte Queries + Auffüllung, falls eine Sorte ihr Kontingent nicht ausschöpft; danach wieder nach Alter sortiert. **Trockenlauf gegen die Live-DB: In-Season alle 0,99 Tage, Classic alle 3,0 Tage** (vorher beide 2,4). Der Index `(scarcity, updated_at)` trägt den Eligibility-Filter mit (580–920 ms, weit unter dem statement_timeout, der die Crashes vom 28.07. auslöste).
-- **Ein zweiter Key würde erst zählen**, wenn ALLE 121.968 Zeilen täglich sollen: 85 Anfragen/min über 24 h bzw. 170/min im 12-h-Fenster — dazu fällt der Roster-Job um 04:00 ins selbe Fenster.
+**Durchsatz des Preis-Updaters (18.08.) — kein zweiter API-Key nötig, live gemessen:**
+- **Ausgangsfrage:** Hilft ein zweiter Sorare-API-Key (200 req/min), um Limited tagesaktuell zu bekommen? **Nein.** Gemessen lief der Updater bei 31 req/min je Service, drei Services = 93 von 200 erlaubten. Wir waren nie rate-limitiert, sondern **selbst gedrosselt** — durch `DELAY_MS` und das 12-h-Cron-Fenster.
+- **Der Denkfehler, der fast teuer wurde:** Zuerst gerechnet „120 Karten x 1,5 s sleep = 3 min, also passt BATCH_SIZE=190". Falsch — pro Karte kommen ~200-430 ms Netzwerk dazu (Sorare-Call + zwei Supabase-Writes). Der sleep ist NICHT die Taktzeit. 190 haette den 5-min-Slot gesprengt, Railway haette den naechsten Tick UEBERSPRUNGEN und der Durchsatz waere *gesunken*.
+- **Loesung statt Raten:** `MAX_RUN_MS` (255 s) als harte Zeitbremse. `BATCH_SIZE` ist damit nur noch eine Obergrenze; nicht bearbeitete Zeilen behalten ihr `updated_at` und kommen beim naechsten Tick zuerst dran (die Batch ist nach Alter sortiert). Der Lauf loggt jetzt Laufzeit und ms/Karte.
+- **Gewichtete Queue** (`IN_SEASON_SHARE=0.80`): Vorher zog die Queue stur die aeltesten Zeilen — In-Season und Classic bekamen gleich viele Slots, obwohl Classic eine FMV-Halbwertszeit von 14 Tagen hat. Zwei getrennte Queries + Auffuellung, falls eine Sorte ihr Kontingent nicht ausschoepft. Der Index `(scarcity, updated_at)` traegt den Eligibility-Filter mit (580-920 ms).
+
+| gemessen 18.08. | vorher | nachher |
+|---|---|---|
+| Karten/Lauf | 120 | **200** |
+| ms/Karte | 1.760 | **1.200** |
+| Laufzeit | 3:30 | 4:03 (Slot: 5:00) |
+| In-Season-Anteil | 50 % | **80 %** (exakt 160/40) |
+| In-Season voll durch | alle 2,4 Tage | **alle 0,89 Tage** |
+| Classic voll durch | alle 2,4 Tage | alle 3,5 Tage |
+| Anfragen/min (3 Services) | 93 | 148 von 200 |
+
+- **Env in Railway** (je Service Updater Limited/Rare/SR): `DELAY_MS=1000`, `BATCH_SIZE=200`, `IN_SEASON_SHARE=0.80`. `MAX_RUN_MS` = Default 255000.
+- **Railway ist schneller als lokal gemessen:** 1.200 statt vorhergesagter 1.430 ms/Karte — die Latenz zu Supabase ist von Railway aus geringer. Deshalb greift die Zeitbremse gar nicht (`Skipped: 0`), BATCH_SIZE ist die bindende Grenze.
+- **Club_Rosters von 04:00 auf 07:00 verschoben:** 04:00 lag im Updater-Fenster, zusammen ~183 der 200 req/min. Freie Stunden sind 5-15 und 21; 05:30 belegt der Harvester (**eigenes Railway-Projekt**, gleicher Key).
+- **Ein zweiter Key wuerde erst zaehlen**, wenn ALLE 122k Zeilen taeglich sollen: 85 req/min ueber 24 h bzw. 170/min im 12-h-Fenster.
 
 ## ⚠️ Offene Aktionen für Jonas
 

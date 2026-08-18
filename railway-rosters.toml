@@ -7,8 +7,14 @@ builder = "nixpacks"
 # Rhythmus (Entscheidung Jonas 30.07.):
 #   - TRANSFERPERIODE: taeglich (aktuell aktiv — Sommerfenster laeuft bis 01.09.)
 #   - danach: woechentlich reicht (Free Agents / Leihen), dann cronSchedule
-#     umstellen auf "0 4 * * 1" (montags 04:00 UTC)
+#     umstellen auf "0 7 * * 1" (montags 07:00 UTC)
+#
+# Uhrzeit 07:00 ist bewusst gewaehlt (18.08.): 04:00 lag INNERHALB des
+# Updater-Fensters (*/5 22-23,0-4,16-20). Zusammen kamen die drei Updater
+# (148 req/min) plus dieser Job (~35) auf ~183 der 200 erlaubten Anfragen/min.
+# Freie Stunden sind 5-15 und 21; 05:30 belegt der Harvester (eigenes Projekt,
+# gleicher API-Key).
 #   - Winter-Transferfenster (Januar): wieder auf taeglich stellen
-cronSchedule = "0 4 * * *"
+cronSchedule = "0 7 * * *"
 startCommand = "node sync-club-rosters.mjs"
 restartPolicyType = "never"
