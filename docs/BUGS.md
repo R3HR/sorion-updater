@@ -107,6 +107,19 @@
 - **Cleanup erledigt (28.07.):** Die Alt-Ordner `limited/rare/sr/` (Voll-Kopien) wurden entfernt, nachdem via Railway Settings→Build bestätigt war, dass alle 3 Services aus dem Repo-Root bauen. `update-scarcity.mjs` existiert nur noch einmal → keine Mehrfach-Sync mehr.
 - **Status:** ✅ geschlossen 2026-07-28 (Code deployed + Index eingespielt & verifiziert)
 
+## BUG-015 — Markt-RPCs seit 02.08. unbenutzbar (coalesce blockierte den Index)
+
+- **Symptom:** `market_overview`, `market_leagues` und `market_facets` antworteten NIE — alle drei liefen in den statement_timeout (4,0–5,2 s, 57014). Der serverseitige Umbau der Marktseite lag deshalb zwei Wochen still, ohne dass es jemandem auffiel: die RPCs waren angelegt, aber nie benutzt.
+- **Ursache 1 (die eigentliche):** Alle drei filterten mit `coalesce(cp.eligibility,'in_season') = p_elig`. Ein Funktionsaufruf auf der Spalte macht `idx_card_prices_elig_scarcity_fmv` unbenutzbar → Full Scan über ~122k Zeilen bei JEDEM Aufruf. Das `coalesce` schützte vor einem Fall, den es nicht gibt: **0 Zeilen haben `eligibility IS NULL`** (Schlüssel ist slug×scarcity×eligibility, der Updater setzt die Spalte immer).
+- **Ursache 2:** `market_facets` scannte die Tabelle DREIMAL (drei `union all` über dieselben Zeilen). Gemessen kostet ein Scan **warm ~250 ms, kalt ~2,4 s** — bei den aktuellen Besucherzahlen ist der Cache meistens kalt, drei Scans rissen die Grenze also zuverlässig. Jetzt ein Durchlauf via `grouping sets`.
+- **Ursache 3:** `market_overview` benutzte `percentile_cont(0.5)`, das je Gruppe alle Zeilen sortiert. Der Median kommt jetzt aus `market_daily` (dort ohnehin täglich berechnet).
+- **Fix:** `migrations/2026-08-18_market_rpc_coalesce_fix.sql` (ersetzt die nie eingespielte `2026-08-02_market_overview_fix.sql`). Beim Einspielen kam **42P13** — `market_overview` gab vier Spalten zurück, die neue Fassung fünf (`median_as_of`); `create or replace` darf den Rückgabetyp nicht ändern, also `drop function` davor (ohne CASCADE, damit unerwartete Abhängigkeiten laut scheitern).
+- **Verifiziert (18.08., als anon über PostgREST):** overview 2.497 ms kalt / **273 ms warm**, facets 2.239 / **522 ms**, leagues 478 / **351 ms** — alle auch kalt unter der 3-Sekunden-Grenze. Werte plausibel (Limited 7.488 Karten, Avg 5,89 €, Median 2,03 € vom 18.08.).
+- **Lektion 1:** `coalesce()`/`lower()`/Casts auf einer gefilterten Spalte machen jeden normalen Index blind. Defensives `coalesce` gegen NULLs, die es gar nicht gibt, kostet dann den kompletten Index.
+- **Lektion 2:** `explain analyze select * from <sql_function>()` zeigt nur `Function Scan` — der innere Plan bleibt verborgen. Zum Prüfen die Rumpf-Query direkt erklären oder über PostgREST **zeiten**.
+- **Lektion 3:** Kalter Cache ist bei wenig Traffic der Normalfall, nicht der Ausreißer. Messungen immer kalt UND warm lesen; ein „warm 250 ms" verdeckt ein „kalt 2,4 s".
+- **Status:** ✅ gefixt und live 2026-08-18. **Folgeaufgabe:** Marktseite im Frontend auf diese RPCs umstellen (15 MB → ~50 KB pro Besuch).
+
 ## BUG-014 — Header zeigt fremden Manager statt des eingeloggten Nutzers (Marktseite)
 
 - **Symptom (Jonas, 18.08.):** Nach einer Manager-Suche steht oben rechts der Name des ANGESEHENEN Portfolios statt des eigenen — **ueber Sitzungen hinweg**, nicht nur bis zum Neuladen.
