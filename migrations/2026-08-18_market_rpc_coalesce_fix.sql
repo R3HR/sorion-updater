@@ -91,7 +91,14 @@ $$;
 -- ── 3) Kennzahlen der Kopfzeile ────────────────────────────────────────────
 -- Median aus market_daily statt percentile_cont live. median_as_of macht
 -- sichtbar, von wann der Median stammt -- Avg ist live, Median vom Snapshot.
-create or replace function public.market_overview(p_elig text default 'in_season')
+-- DROP noetig: die bisherige Fassung gibt VIER Spalten zurueck, diese hier
+-- fuenf (median_as_of kam dazu). "create or replace" darf den Rueckgabetyp
+-- nicht aendern (42P13). Ohne CASCADE -- haengt wider Erwarten etwas an der
+-- Funktion, soll das laut scheitern statt still mitgerissen zu werden.
+-- Die Rechte gehen beim Drop verloren und werden unten neu gesetzt.
+drop function if exists public.market_overview(text);
+
+create function public.market_overview(p_elig text default 'in_season')
 returns table (scarcity text, cards int, avg_fmv numeric, median_fmv numeric, median_as_of date)
 language sql stable security definer set search_path = public as $$
   with live as (
@@ -117,9 +124,9 @@ $$;
 -- WICHTIG: Postgres vergibt EXECUTE automatisch an PUBLIC. "revoke from anon"
 -- allein reicht NICHT -- dieselbe Fehlerklasse wie beim price_history-Lockdown
 -- und beim Analytics-Hardening. Deshalb erst von public entziehen.
--- Die Signatur von market_overview hat sich NICHT geaendert (text), das
--- create or replace ersetzt sie -- die Grants bleiben, werden hier aber
--- vorsichtshalber neu gesetzt.
+-- market_overview wurde oben neu angelegt (Drop wegen geaendertem
+-- Rueckgabetyp) und hat daher NOCH KEINE Rechte ausser dem PUBLIC-Default --
+-- die Zeilen unten sind dort also Pflicht, nicht Vorsichtsmassnahme.
 revoke execute on function public.market_leagues(text,text)  from public;
 revoke execute on function public.market_facets(text)        from public;
 revoke execute on function public.market_overview(text)      from public;
