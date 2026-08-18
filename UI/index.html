@@ -172,6 +172,11 @@
     gap: 28px;
   }
 
+  /* Tippflaeche: 12 px Polster rundum, per negativem margin optisch neutral —
+     die Links BLEIBEN, wo sie sind, nur die klickbare Flaeche waechst von
+     11 px Hoehe (gemessen 18.08. am Handy) auf ~37 px. */
+  .nav-link { padding: 12px 6px; margin: -12px -6px; }
+
   .nav-link {
     font-size: 12px;
     font-weight: 500;
@@ -717,7 +722,7 @@
     border-radius: 6px;
     color: var(--muted);
     font-size: 14px;
-    width: 28px; height: 28px;
+    width: 40px; height: 40px;   /* war 28 — zu klein zum Tippen */
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     transition: all 0.15s;
@@ -892,7 +897,7 @@
     .logo-sub { display: none; }
     .nav-links { gap: 12px; }
     .nav-link { font-size: 10px; }
-    .nav-cta { font-size: 9px; padding: 7px 12px; }
+    .nav-cta { font-size: 10px; padding: 8px 12px; }
 
     /* Hero stats — 2x2 grid */
     .hero-stats {
@@ -902,9 +907,9 @@
     }
 
     .hero-stat { padding: 14px 14px; }
-    .hero-stat-label { font-size: 8px; letter-spacing: 0.15em; margin-bottom: 6px; }
+    .hero-stat-label { font-size: 10px; letter-spacing: 0.12em; margin-bottom: 6px; }
     .hero-stat-value { font-size: 18px; }
-    .hero-stat-sub { font-size: 9px; }
+    .hero-stat-sub { font-size: 10px; }
 
     /* Controls — stack vertically */
     .controls {
@@ -927,18 +932,18 @@
     }
 
     .filter-btn { font-size: 10px; padding: 8px 12px; white-space: nowrap; flex-shrink: 0; }
-    .updated-at { margin-left: 0; font-size: 9px; }
+    .updated-at { margin-left: 0; font-size: 10px; }
 
     /* Table — hide more columns */
     .col-floor, .col-liq, .col-7d2 { display: none; }
 
-    thead th { font-size: 8px; padding: 10px 10px; letter-spacing: 0.1em; }
+    thead th { font-size: 10px; padding: 10px 8px; letter-spacing: 0.06em; }
     tbody td { padding: 10px 10px; font-size: 12px; }
 
     /* Player cell — smaller image */
     .player-img { width: 28px; height: 38px; border-radius: 3px; }
     .player-name { font-size: 12px; }
-    .player-team { font-size: 9px; }
+    .player-team { font-size: 10px; }
 
     /* FMV price */
     .fmv-price { font-size: 12px; }
@@ -1178,7 +1183,8 @@
   .lr-sc { display: flex; gap: 3px; margin-left: auto; }
   .lr-sc button { background: none; border: 1px solid var(--border); color: var(--text2); border-radius: 4px;
                   font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .06em;
-                  padding: 3px 6px; cursor: pointer; transition: all .12s; }
+                  padding: 7px 9px; min-width: 32px; cursor: pointer; transition: all .12s; }
+                  /* war 3px 6px -> 19x17 px Tippflaeche; danebentippen war die Regel */
   .lr-sc button:hover { color: var(--text); border-color: var(--border2); }
   .lr-sc button.active { color: var(--purple); border-color: var(--purple); background: rgba(176,96,255,.1); }
   .lr-empty { padding: 18px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #505080; }
@@ -1202,6 +1208,16 @@
   ::-webkit-scrollbar-thumb:hover { background: rgba(176,96,255,.55); background-clip: content-box; }
   ::-webkit-scrollbar-corner { background: transparent; }
 
+
+  /* ── Handy: Mindestschrift 10 px (Pruefung 18.08.) ─────────────────────
+     Diese Klassen stehen in der Basis auf 8-9 px — am Schreibtisch lesbar,
+     auf dem Handy bei Armlaenge nicht. Nur mobil angehoben, Desktop bleibt. */
+  @media (max-width: 720px) {
+    .hero-stat-label, .sc-badge, .modal-fmv-label, .modal-stat-label,
+    .modal-sales-title, .modal-sparkline-title,
+    .m-card-stat-label, .pm-label, .lr-sc button,
+    .lr-sub, .footer, .footer a, .footer span { font-size: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -1949,7 +1965,7 @@
         <td class="col-tier"><span class="tier-badge">${tier}</span></td>
         <td class="fmv-price">${fmv}</td>
         <td class="price col-floor">${floor}</td>
-        <td class="price">${last}${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${saleAgeColor(r.last_sale_at)};margin-top:2px" title="${new Date(r.last_sale_at).toLocaleString('en-GB')}">${saleAge(r.last_sale_at)}</div>` : ''}</td>
+        <td class="price">${last}${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${saleAgeColor(r.last_sale_at)};margin-top:2px" title="${new Date(r.last_sale_at).toLocaleString('en-GB')}">${saleAge(r.last_sale_at)}</div>` : ''}</td>
         <td class="price">${avg}</td>
         <td class="col-liq">
           <div class="liq-wrap">
@@ -2029,7 +2045,7 @@
           </div>
           <div class="m-card-stat">
             <div class="m-card-stat-label">Last Sale</div>
-            <div class="m-card-stat-val">${last}</div>${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${saleAgeColor(r.last_sale_at)}">${saleAge(r.last_sale_at)}</div>` : ''}
+            <div class="m-card-stat-val">${last}</div>${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${saleAgeColor(r.last_sale_at)}">${saleAge(r.last_sale_at)}</div>` : ''}
           </div>
           <div class="m-card-stat">
             <div class="m-card-stat-label">Avg Sales</div>
@@ -2092,7 +2108,7 @@
           style="width:28px;height:40px;border-radius:3px;object-fit:cover;flex-shrink:0;background:var(--surface2)">
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.player_name)}</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.team_name||'')}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.team_name||'')}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;color:${color}">${r.pct7d > 0 ? '▲' : '▼'}${Math.abs(r.pct7d).toFixed(1)}%</div>
@@ -2279,9 +2295,9 @@
 
     const lastCoord = coords[coords.length - 1].split(',');
     const trendArrow = trend > 0
-      ? `<span style="color:#00ff88;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▲</span>`
+      ? `<span style="color:#00ff88;font-size:10px;font-family:'Share Tech Mono',monospace;margin-left:4px">▲</span>`
       : trend < 0
-      ? `<span style="color:#ff2d78;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▼</span>`
+      ? `<span style="color:#ff2d78;font-size:10px;font-family:'Share Tech Mono',monospace;margin-left:4px">▼</span>`
       : '';
 
     return `<div style="display:flex;align-items:center">
@@ -2318,9 +2334,9 @@
     const glow   = trend > 0 ? 'filter:drop-shadow(0 0 3px #00ff88)' : trend < 0 ? 'filter:drop-shadow(0 0 3px #ff2d78)' : '';
     const lastCoord = coords[coords.length - 1].split(',');
     const trendArrow = trend > 0
-      ? `<span style="color:#00ff88;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▲</span>`
+      ? `<span style="color:#00ff88;font-size:10px;font-family:'Share Tech Mono',monospace;margin-left:4px">▲</span>`
       : trend < 0
-      ? `<span style="color:#ff2d78;font-size:9px;font-family:'Share Tech Mono',monospace;margin-left:4px">▼</span>`
+      ? `<span style="color:#ff2d78;font-size:10px;font-family:'Share Tech Mono',monospace;margin-left:4px">▼</span>`
       : '';
 
     return `<div style="display:flex;align-items:center" data-slug="${r.player_slug}" data-scarcity="${r.scarcity}" class="sparkline-cell">
@@ -2471,7 +2487,7 @@
     const row = c => {
       const up = c.pct >= 0;
       return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)} <span style="color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:9px">${rl(c.rarity)}</span></span>
+        <span style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)} <span style="color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:10px">${rl(c.rarity)}</span></span>
         <span style="font-family:'Share Tech Mono',monospace;font-size:11px;white-space:nowrap">€${c.buy.toFixed(2)} → €${c.val.toFixed(2)}
           <span style="color:${up ? 'var(--up)' : 'var(--down)'};font-weight:700"> ${up ? '+' : ''}${c.pct.toFixed(0)}%</span></span>
       </div>`;
