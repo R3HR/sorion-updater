@@ -12,7 +12,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 
 | Komponente | Ort | Deployment |
 |---|---|---|
-| Preis-Updater (FMV) | `update-scarcity.mjs` + `lib/fmv.mjs` (EINE Quelle im Repo-Root — Dubletten `limited/rare/sr/` am 28.07. entfernt) | Railway, 3 Services (Update Limited/Rare/SR), alle bauen aus dem Repo-Root via `railway-<s>.toml`, keine Root Directory. Cron `*/5 22-23,0-4,16-20 UTC`, Env: `SORARE_APIKEY`, `DELAY_MS=1500`, `BATCH_SIZE=120` |
+| Preis-Updater (FMV) | `update-scarcity.mjs` + `lib/fmv.mjs` (EINE Quelle im Repo-Root — Dubletten `limited/rare/sr/` am 28.07. entfernt) | Railway, 3 Services (Update Limited/Rare/SR), alle bauen aus dem Repo-Root via `railway-<s>.toml`, keine Root Directory. Cron `*/5 22-23,0-4,16-20 UTC`, Env: `SORARE_APIKEY`, `DELAY_MS=1500`, `BATCH_SIZE=190`, `IN_SEASON_SHARE=0.75` |
 | Market-Harvester | `harvest-market-players.mjs` | Railway, täglich 05:30, `HARVEST_HOURS=26`; Quellen: liveAuctions + liveSingleSaleOffers; triggert danach update-pool/update-prices |
 | Seed (in-season Spieler) | `seed-all-players.mjs` | Railway, manueller Trigger |
 | **Kader-Abgleich** | `sync-club-rosters.mjs` | Railway (`railway-rosters.toml`), Cron **täglich 04:00 UTC** (Transferperiode; nach Deadline Day 01.09. auf wöchentlich `0 4 * * 1` stellen, im Januar-Fenster zurück auf täglich — Entscheidung Jonas 30.07.). Zieht via `football.clubsReady` + `club.activePlayers` ALLE aktiven Spieler und legt fehlende Zeilen mit `updated_at=epoch` an (inkl. Name/Team/Liga/Land/Position). **Clubzahl schwankt** (Testlauf 247, erster echter Lauf 228) — ein Grund fuer den taeglichen Rhythmus. Fuegt nur hinzu, ueberschreibt/loescht nie |
@@ -67,6 +67,12 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 **Messung (30.–31.07.):** Eigenes cookiefreies Analytics statt Plausible (Abo abgelaufen). Beacon-Function `track`, Auswertung nur fuer Admin (`is_analytics_admin`, Mail `jonas.rehr@outlook.de`), Dashboard `UI/stats.html` **nicht im oeffentlichen Repo**. Custom Events: manager_search, portfolio_view, card_detail, elig_toggle, scarcity_switch, signup_done, login_done, trade_history.
 
 **Kapazitaet — gemessen 02.08.:** Gleichzeitigkeit ist NICHT das Problem (8 Besucher parallel → 2,4 s, null Fehler). Der Flaschenhals ist der Traffic: Marktseite ~15 MB pro Besuch → auf dem Free-Tarif (5 GB) nur ~340 Aufrufe/Monat. Portfolio dagegen 25 KB. Deshalb ist der serverseitige Umbau der Marktseite die wichtigste offene Aufgabe vor jeder Promotion.
+
+**Durchsatz des Preis-Updaters (07.08.) — kein zweiter API-Key nötig:**
+- **Gemessen:** 1 Sorare-Call je Karte, `DELAY_MS=1500` → **40 Anfragen/min je Service**, drei Services parallel = **120/min von 200 erlaubten**. Wir sind also NICHT rate-limitiert, sondern selbst gedrosselt. Ein zweiter Key hebt eine Decke an, gegen die wir nicht stoßen.
+- **Entscheidende Einsicht:** `BATCH_SIZE` beeinflusst die Rate NICHT — nur die Laufzeit. Bei 120×1,5 s waren 3 min Arbeit und **2 min Leerlauf** im 5-min-Slot. Obergrenze: `BATCH_SIZE ≤ 285000/DELAY_MS` (bei 1500 → 190). Von 17.280 auf 27.360 Karten/Tag je Service, **ohne eine einzige zusätzliche Anfrage pro Minute**.
+- **Gewichtete Queue** (`IN_SEASON_SHARE=0.75`): Vorher zog die Queue stur die ältesten Zeilen, In-Season und Classic bekamen gleich viele Slots — obwohl Classic eine FMV-Halbwertszeit von 14 Tagen hat und tägliche Updates dort Verschwendung sind. Zwei getrennte Queries + Auffüllung, falls eine Sorte ihr Kontingent nicht ausschöpft; danach wieder nach Alter sortiert. **Trockenlauf gegen die Live-DB: In-Season alle 0,99 Tage, Classic alle 3,0 Tage** (vorher beide 2,4). Der Index `(scarcity, updated_at)` trägt den Eligibility-Filter mit (580–920 ms, weit unter dem statement_timeout, der die Crashes vom 28.07. auslöste).
+- **Ein zweiter Key würde erst zählen**, wenn ALLE 121.968 Zeilen täglich sollen: 85 Anfragen/min über 24 h bzw. 170/min im 12-h-Fenster — dazu fällt der Roster-Job um 04:00 ins selbe Fenster.
 
 ## ⚠️ Offene Aktionen für Jonas
 

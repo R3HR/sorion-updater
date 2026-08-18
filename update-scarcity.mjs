@@ -19,10 +19,26 @@ const SORARE_APIKEY = process.env.SORARE_APIKEY ?? null;
 const sorareHeaders = { 'Content-Type': 'application/json', ...(SORARE_APIKEY ? { 'APIKEY': SORARE_APIKEY } : {}) };
 
 const supabase   = createClient(SUPABASE_URL, SERVICE_KEY);
-// Rate-Limit-Schonung: ~21 Sorare-Calls/Min statt Burst. Über Railway-Env-Vars
-// justierbar (mit API-Key später: DELAY_MS runter, BATCH_SIZE rauf).
+// Eine Karte kostet DELAY_MS + ~430 ms (Sorare-Call ~95 ms, zwei Supabase-Writes
+// je ~170 ms) — der sleep ist also NICHT die ganze Taktzeit. Gemessen 07.08.:
+// bei DELAY_MS=1500 sind das ~1,93 s/Karte, macht 31 Anfragen/min je Service,
+// drei Services = 93/min von 200 erlaubten. BATCH_SIZE ist seit der Zeitbremse
+// nur noch eine Obergrenze (siehe MAX_RUN_MS) — den Durchsatz regelt DELAY_MS.
 const BATCH_SIZE = parseInt(process.env.BATCH_SIZE ?? '90', 10);
 const DELAY_MS   = parseInt(process.env.DELAY_MS ?? '2800', 10);
+// Anteil der Batch, der an In-Season-Zeilen geht. Dort bewegen sich die Preise
+// täglich (FMV-Halbwertszeit 3 Tage), Classic ist träge (14 Tage) — beide gleich
+// oft zu holen verschenkt Kontingent. 0.75 bei BATCH_SIZE=190 heißt: In-Season
+// täglich durch, Classic alle ~3 Tage.
+const IN_SEASON_SHARE = Math.min(1, Math.max(0, parseFloat(process.env.IN_SEASON_SHARE ?? '0.75')));
+// Harte Zeitbremse. Der Cron-Slot ist 5 min; laeuft ein Job darueber hinaus,
+// UEBERSPRINGT Railway den naechsten Tick — der Durchsatz sinkt also, statt zu
+// steigen. Pro Karte fallen ~1,9 s an (sleep + Sorare-Call + 2 Supabase-Writes),
+// aber das haengt an der Netzlatenz und laesst sich nicht sauber vorausberechnen.
+// Deshalb ist BATCH_SIZE nur eine Obergrenze: Was in MAX_RUN_MS nicht durchlaeuft,
+// bleibt mit unveraendertem updated_at in der Queue und kommt beim naechsten Tick
+// zuerst dran (die Batch ist nach Alter sortiert).
+const MAX_RUN_MS = parseInt(process.env.MAX_RUN_MS ?? '255000', 10);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -150,29 +166,58 @@ async function main() {
   // Bis der greift (und fuer echte transiente Timeouts): 3 Versuche mit Backoff, danach
   // SAUBERER Abbruch (return -> exit 0) statt process.exit(1), damit Railway keinen
   // "Deploy Crashed" meldet — der naechste Cron-Tick uebernimmt die Zeilen ohnehin.
+  const fetchQueue = async (limit, eligibility) => {
+    if (limit <= 0) return { rows: [], err: null };
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      let q = supabase.from('card_prices').select(cols).eq('scarcity', SCARCITY);
+      if (eligibility) q = q.eq('eligibility', eligibility);
+      const res = await q.order('updated_at', { ascending: true }).limit(limit);
+      if (!res.error) return { rows: res.data, err: null };
+      console.warn(`Batch-Query (${eligibility ?? 'alle'}) Versuch ${attempt}/3 fehlgeschlagen: ${res.error.message}`);
+      if (attempt === 3) return { rows: null, err: res.error };
+      await sleep(2000 * attempt);
+    }
+  };
+
+  // Nach Eligibility gewichtet ziehen statt stur die ältesten Zeilen: sonst
+  // bekommen In-Season und Classic gleich viele Slots, obwohl nur In-Season
+  // täglich frisch sein muss (siehe IN_SEASON_SHARE oben).
   let players = null, qErr = null;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await supabase
-      .from('card_prices')
-      .select(cols)
-      .eq('scarcity', SCARCITY)
-      .order('updated_at', { ascending: true })
-      .limit(BATCH_SIZE);
-    if (!res.error) { players = res.data; qErr = null; break; }
-    qErr = res.error;
-    console.warn(`Batch-Query Versuch ${attempt}/3 fehlgeschlagen: ${qErr.message}`);
-    await sleep(2000 * attempt);
+  if (migrated) {
+    const nIn = Math.round(BATCH_SIZE * IN_SEASON_SHARE);
+    const [a, b] = [await fetchQueue(nIn, 'in_season'), await fetchQueue(BATCH_SIZE - nIn, 'classic')];
+    qErr = a.err ?? b.err;
+    if (!qErr) {
+      // Schöpft eine Sorte ihr Kontingent nicht aus (zu wenige Zeilen), geht der
+      // Rest an die andere — sonst bliebe der Slot ungenutzt.
+      let fill = [];
+      const rest = BATCH_SIZE - a.rows.length - b.rows.length;
+      if (rest > 0) {
+        const seen = new Set([...a.rows, ...b.rows].map(r => r.id));
+        const f = await fetchQueue(BATCH_SIZE, a.rows.length < nIn ? 'classic' : 'in_season');
+        if (f.rows) fill = f.rows.filter(r => !seen.has(r.id)).slice(0, rest);
+      }
+      // Wieder nach Alter mischen, damit die ältesten Zeilen zuerst drankommen —
+      // falls der Lauf vorzeitig endet, sind dann die dringendsten erledigt.
+      players = [...a.rows, ...b.rows, ...fill]
+        .sort((x, y) => String(x.updated_at ?? '').localeCompare(String(y.updated_at ?? '')));
+    }
+  } else {
+    ({ rows: players, err: qErr } = await fetchQueue(BATCH_SIZE, null));
   }
   if (qErr) {
     console.error(`Batch-Query nach 3 Versuchen fehlgeschlagen — sauberer Abbruch (kein Crash): ${qErr.message}`);
     return;
   }
-  console.log(`Processing ${players.length} ${SCARCITY} rows...`);
+  const nInS = players.filter(p => (p.eligibility ?? 'in_season') === 'in_season').length;
+  console.log(`Processing ${players.length} ${SCARCITY} rows (in-season ${nInS} / classic ${players.length - nInS})...`);
 
-  let updated = 0, failed = 0;
+  let updated = 0, failed = 0, skipped = 0;
   const today = new Date().toISOString().split('T')[0];
+  const startedAt = Date.now();
 
   for (const player of players) {
+    if (Date.now() - startedAt > MAX_RUN_MS) { skipped = players.length - updated - failed; break; }
     const eligibility = player.eligibility ?? 'in_season';
     const result = await fetchData(player.player_slug, eligibility);
     if (!result) {
@@ -268,7 +313,8 @@ async function main() {
 
     await sleep(DELAY_MS);
   }
-  console.log(`[${new Date().toISOString()}] Done. Updated: ${updated}, Failed: ${failed}`);
+  console.log(`[${new Date().toISOString()}] Done. Updated: ${updated}, Failed: ${failed}, Skipped: ${skipped}` +
+    ` (${((Date.now() - startedAt) / 1000).toFixed(0)}s Laufzeit, ${((Date.now() - startedAt) / Math.max(1, updated + failed)).toFixed(0)} ms/Karte)`);
 }
 
 main().catch(console.error);
