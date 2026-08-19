@@ -278,6 +278,30 @@
 
   .hero-stat:hover::after { opacity: 1; }
 
+  /* Rarity-Akzente der Avg-FMV-Boxen — dieselben Toene wie die sc-badges
+     (--limited Gold, --rare Rot), damit die Zuordnung ohne Lesen klappt.
+     Kontrast der Label auf der Box geprueft: Gold 10,7:1, Rot 5,9:1 (ab 4,5 ok).
+     Der Wert selbst bleibt bewusst weiss — die Zahl ist der Inhalt, die Farbe
+     nur der Wegweiser. */
+  .hero-stat.ltd::before { background: linear-gradient(180deg, var(--limited), #8a5c10); }
+  .hero-stat.ltd .hero-stat-label { color: var(--limited); }
+  .hero-stat.ltd:hover {
+    border-color: rgba(255,184,48,.55);
+    box-shadow: 0 0 20px rgba(255,184,48,.12), inset 0 0 20px rgba(255,184,48,.07);
+  }
+  .hero-stat.rar::before { background: linear-gradient(180deg, var(--rare), #8a1f2a); }
+  .hero-stat.rar .hero-stat-label { color: var(--rare); }
+  .hero-stat.rar:hover {
+    border-color: rgba(255,85,85,.55);
+    box-shadow: 0 0 20px rgba(255,85,85,.12), inset 0 0 20px rgba(255,85,85,.07);
+  }
+  .hero-stat.sr::before { background: linear-gradient(180deg, var(--sr), #2a3a8a); }
+  .hero-stat.sr .hero-stat-label { color: var(--sr); }
+  .hero-stat.sr:hover {
+    border-color: rgba(112,144,255,.55);
+    box-shadow: 0 0 20px rgba(112,144,255,.12), inset 0 0 20px rgba(112,144,255,.07);
+  }
+
   .hero-stat-label {
     font-family: 'Share Tech Mono', monospace;
     font-size: 9px;
@@ -1275,7 +1299,7 @@
       <div class="hero-stat-value" id="stat-total">—</div>
       <div class="hero-stat-sub">across all scarcities</div>
     </div>
-    <div class="hero-stat">
+    <div class="hero-stat ltd">
       <div class="hero-stat-label">// Avg FMV · Limited</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div class="hero-stat-value" id="stat-avg-ltd">—</div>
@@ -1283,7 +1307,7 @@
       </div>
       <div class="hero-stat-sub">weighted market value</div>
     </div>
-    <div class="hero-stat">
+    <div class="hero-stat rar">
       <div class="hero-stat-label">// Avg FMV · Rare</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div class="hero-stat-value" id="stat-avg-rar">—</div>
@@ -1300,17 +1324,17 @@
 
   <!-- FMV Accuracy -->
   <div class="hero-stats acc-stats">
-    <div class="hero-stat">
+    <div class="hero-stat ltd">
       <div class="hero-stat-label">// FMV Accuracy · Limited</div>
       <div class="hero-stat-value" id="acc-limited" style="font-size:17px;padding-top:3px">—</div>
       <div class="hero-stat-sub">median deviation in-season · classic (30d)</div>
     </div>
-    <div class="hero-stat">
+    <div class="hero-stat rar">
       <div class="hero-stat-label">// FMV Accuracy · Rare</div>
       <div class="hero-stat-value" id="acc-rare" style="font-size:17px;padding-top:3px">—</div>
       <div class="hero-stat-sub">median deviation in-season · classic (30d)</div>
     </div>
-    <div class="hero-stat">
+    <div class="hero-stat sr">
       <div class="hero-stat-label">// FMV Accuracy · Super Rare</div>
       <div class="hero-stat-value" id="acc-sr" style="font-size:17px;padding-top:3px">—</div>
       <div class="hero-stat-sub">median deviation in-season · classic (30d)</div>
