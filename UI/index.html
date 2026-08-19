@@ -1354,11 +1354,11 @@
 
   <div class="controls">
     <div class="search-wrap">
-      <input class="search-input" id="search" type="text" placeholder="search player..." oninput="filterTable()">
+      <input class="search-input" id="search" type="text" placeholder="search player..." oninput="onSearchInput()">
     </div>
     <div style="position:relative">
       <input class="search-input" id="club" type="text" list="clublist" autocomplete="off"
-             placeholder="all clubs — type or pick…" oninput="filterTable()"
+             placeholder="all clubs — type or pick…" oninput="onSearchInput()"
              style="min-width:210px">
       <datalist id="clublist"></datalist>
     </div>
@@ -1452,7 +1452,81 @@
   // Platzhalter für Karten ohne Bild (neue 26/27-Releases haben noch keine Fotos)
   const PH_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 84'%3E%3Crect width='60' height='84' rx='5' fill='%231a1a2e'/%3E%3Crect x='.5' y='.5' width='59' height='83' rx='5' fill='none' stroke='%233a3a60'/%3E%3Ccircle cx='30' cy='32' r='11' fill='%23404060'/%3E%3Cpath d='M12 74c2-16 10-22 18-22s16 6 18 22' fill='%23404060'/%3E%3C/svg%3E";
 
-  let allData = [], filtered = [], sortKey = 'fmv', sortDir = -1, currentPage = 1;
+  // ── Serverseitiger Datenzugriff (Umbau 18.08.) ──────────────────────────
+  // Vorher lud die Seite den KOMPLETTEN Markt (~199 ID-Bereichs-Anfragen,
+  // ~15 MB) und filterte im Browser. Gemessen: 0,7-2,1 s je Anfrage, macht
+  // 30+ Sekunden Ladezeit — und der Zaehler "Players Tracked" zaehlte hoch,
+  // waehrend die Seiten eintrudelten (sah aus wie Datenverlust, war keiner).
+  // Jetzt liefert der Server genau EINE Tabellenseite; die Aggregate kommen
+  // aus den RPCs market_overview/market_facets/market_leagues
+  // (Migration 2026-08-18_market_rpc_coalesce_fix.sql).
+  let rows = [], totalRows = 0, reqSeq = 0;
+  let sortKey = 'fmv', sortDir = -1, currentPage = 1;
+  let clubExact = new Map();   // kleingeschrieben -> exakter Vereinsname (eq-Filter)
+  const facetsCache = {}, leaguesCache = {}, moversCache = {};
+  const H_API = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
+
+  const COLS = 'id,player_slug,player_name,team_name,league_name,league_country,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,position,last_sale_at,updated_at';
+
+  async function api(path, extra) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { ...H_API, ...(extra || {}) } });
+        if (r.ok) return r;
+      } catch {}
+    }
+    return null;
+  }
+  async function apiJson(path) { const r = await api(path); return r ? r.json() : []; }
+  async function rpc(name, args) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+          method: 'POST', headers: { ...H_API, 'Content-Type': 'application/json' },
+          body: JSON.stringify(args || {}) });
+        if (r.ok) return r.json();
+      } catch {}
+    }
+    return null;
+  }
+
+  // PostgREST-Logikbaeume vertragen keine Kommas/Klammern im Wert — fuer die
+  // Suche werden sie entfernt (Spielernamen enthalten keine).
+  const qsan = s => s.replace(/[",()\\*]/g, '').trim();
+
+  // Sichtbarkeitsregel wie bisher im Client: eine Zeile "zaehlt", sobald
+  // irgendein Preissignal existiert (FMV, Floor oder ein Sale).
+  const VISIBLE = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
+
+  function buildFilterQuery() {
+    const p = [`eligibility=eq.${eligFilter}`];
+    if (scarcityFilter !== 'all') p.push(`scarcity=eq.${scarcityFilter}`);
+    const search = qsan((document.getElementById('search')?.value || '').toLowerCase());
+    if (search) {
+      const pat = encodeURIComponent(`*${search}*`);
+      // Suche UND Sichtbarkeit sind beides or-Gruppen -> in einen and-Baum
+      p.push(`and=(or(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null),or(player_name.ilike.${pat},team_name.ilike.${pat}))`);
+    } else {
+      p.push(VISIBLE);
+    }
+    const club = (document.getElementById('club')?.value || '').trim();
+    if (club) {
+      const exact = clubExact.get(club.toLowerCase());
+      p.push(exact ? `team_name=eq.${encodeURIComponent(exact)}`
+                   : `team_name=ilike.${encodeURIComponent('*' + qsan(club) + '*')}`);
+    }
+    if (leagueFilter) {
+      p.push(`league_name=eq.${encodeURIComponent(leagueFilter)}`);
+      // Land immer mitfiltern (AT/DE heissen beide "Bundesliga"). Zeilen ohne
+      // Land fallen raus — nach dem Kader-Sweep sind das nur noch Reste.
+      if (countryFilter && countryFilter !== '\u2014') p.push(`league_country=eq.${encodeURIComponent(countryFilter)}`);
+    } else if (countryFilter) {
+      p.push(countryFilter === '\u2014' ? 'league_country=is.null'
+                                        : `league_country=eq.${encodeURIComponent(countryFilter)}`);
+    }
+    if (posFilter) p.push(`position=eq.${posFilter}`);
+    return p;
+  }
   const PAGE_SIZE = 50;
   let scarcityFilter = 'limited';
   let eligFilter = 'in_season';
@@ -1474,112 +1548,46 @@
     currentPage = 1;
     filterTable();
     updateHeroStats();
+    populateClubs();   // Facetten (Clubs/Ligen/Positionen) haengen an der Eligibility
     renderMovers();
   }
 
   async function loadData() {
     document.getElementById('table-body').innerHTML = skeletonRows();
-    // Lade-Strategie (22.07. v3): erste Seite = Top-FMV (sofort sichtbar),
-    // Rest per ID-Bereichen (PK-Index, konstant schnell — tiefe OFFSETs liefen
-    // in DB-Timeouts und lieferten stillschweigend Teildaten, BUG-009b).
-    // Neue Spalten (position/league_country) existieren erst nach der jeweiligen Migration.
-    // Fehlt eine, antwortet PostgREST mit 400 und die GANZE Seite bliebe leer — daher
-    // einmal proben und andernfalls ohne die neuen Spalten laden (Lektion 30.07.).
-    const COLS_BASE = 'id,player_slug,player_name,team_name,league_name,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,updated_at';
-    const COLS_NEW  = 'position,league_country,last_sale_at';
-    let SELECT = 'select=' + COLS_BASE + ',' + COLS_NEW;
-    try {
-      const probe = await fetch(`${SUPABASE_URL}/rest/v1/card_prices?select=${COLS_NEW}&limit=1`,
-        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } });
-      if (!probe.ok) SELECT = 'select=' + COLS_BASE;
-    } catch { SELECT = 'select=' + COLS_BASE; }
-    const FILTER = 'or=(fmv.not.is.null,floor_price.not.is.null,sale_1.not.is.null)';
-    const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
-    const fetchJson = async (url, retry = 1) => {
-      try {
-        const r = await fetch(url, { headers: H });
-        if (r.ok) return await r.json();
-      } catch {}
-      return retry > 0 ? fetchJson(url, retry - 1) : [];
-    };
-
-    // Seitenwechsel-Cache: Marktdaten 5 Min in der Cache API halten
-    try {
-      const cache = await caches.open('sorion-v1');
-      const hit = await cache.match('/cache/market-data');
-      if (hit) {
-        const c = await hit.json();
-        if (Date.now() - c.ts < 5 * 60 * 1000 && c.rows?.length) {
-          allData = c.rows;
-          updateHeroStats();
-          setScarcity('limited');
-          renderMovers();
-          populateClubs();
-          return;
-        }
-      }
-    } catch {}
-
-    try {
-      // 1) Top-1000 nach FMV — Tabelle sofort benutzbar
-      allData = await fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&order=fmv.desc.nullslast,id.asc&limit=1000`);
-      if (!allData.length) throw new Error('empty');
-      updateHeroStats();
-      setScarcity('limited');
-      renderMovers();
-      populateClubs();
-
-      // 2) Alles per ID-Bereichen nachladen (je 1000 IDs => nie ueber dem Row-Limit)
-      const maxRow = await fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?select=id&order=id.desc&limit=1`);
-      const maxId = maxRow[0]?.id ?? 0;
-      const ranges = [];
-      for (let a = 0; a <= maxId; a += 1000) ranges.push(a);
-      for (let i = 0; i < ranges.length; i += 8) {
-        const batches = await Promise.all(ranges.slice(i, i + 8).map(a =>
-          fetchJson(`${SUPABASE_URL}/rest/v1/card_prices?${SELECT}&${FILTER}&id=gte.${a}&id=lt.${a + 1000}`)
-        ));
-        allData = allData.concat(...batches);
-      }
-
-      // Dedupe (erste Seite ueberlappt mit den ID-Bereichen)
-      allData = [...new Map(allData.map(r => [r.id, r])).values()];
-      updateHeroStats();
-      filterTable();
-      renderMovers();
-      populateClubs();
-      try {
-        const cache = await caches.open('sorion-v1');
-        await cache.put('/cache/market-data', new Response(JSON.stringify({ ts: Date.now(), rows: allData }), { headers: { 'Content-Type': 'application/json' } }));
-      } catch {}
-    } catch(e) {
-      document.getElementById('table-body').innerHTML =
-        `<tr class="empty-row"><td colspan="10">// ERROR: failed to load market data</td></tr>`;
-    }
+    // Aggregate parallel anstossen — die Tabelle wartet nicht auf sie
+    updateHeroStats();
+    populateClubs();
+    setScarcity('limited');   // setzt den Button aktiv, laedt Seite 1 + Movers
   }
 
-  function updateHeroStats() {
-    const eligData = allData.filter(r => rowElig(r) === eligFilter);
-    document.getElementById('stat-total').textContent = eligData.length.toLocaleString();
-    const ltd = eligData.filter(r => r.scarcity === 'limited' && r.fmv);
-    const rar = eligData.filter(r => r.scarcity === 'rare' && r.fmv);
-    const avgLtd = ltd.length ? ltd.reduce((s,r) => s+r.fmv,0)/ltd.length : 0;
-    const avgRar = rar.length ? rar.reduce((s,r) => s+r.fmv,0)/rar.length : 0;
-    document.getElementById('stat-avg-ltd').textContent = avgLtd ? `€${avgLtd.toFixed(2)}` : '—';
-    document.getElementById('stat-avg-rar').textContent = avgRar ? `€${avgRar.toFixed(2)}` : '—';
-    // Marktbewegung: Veränderung des DURCHSCHNITTS-FMV (heute vs. ~7 Tage zuvor)
-    // aus price_history via Aggregat-RPC — muss zum angezeigten Avg-Wert passen.
-    // (Vorher: Median der Einzelkarten-7d-Änderungen — anderer Wert, wirkte "random".)
+  async function updateHeroStats() {
+    const elig = eligFilter;
+    // "Players Tracked": bewusst DIESELBE Definition wie der alte Client-
+    // Zaehler (FMV ODER Floor ODER Sale) — sonst spraenge die Zahl beim Umbau.
+    api(`card_prices?select=id&eligibility=eq.${elig}&${VISIBLE}&limit=1`, { 'Prefer': 'count=exact' })
+      .then(r => {
+        if (!r || eligFilter !== elig) return;
+        const n = parseInt((r.headers.get('content-range') || '').split('/')[1], 10);
+        if (!isNaN(n)) document.getElementById('stat-total').textContent = n.toLocaleString();
+      });
+    rpc('market_overview', { p_elig: elig }).then(ov => {
+      if (!ov || eligFilter !== elig) return;
+      const get = sc => ov.find(x => x.scarcity === sc);
+      const ltd = get('limited'), rar = get('rare');
+      document.getElementById('stat-avg-ltd').textContent = ltd?.avg_fmv ? `\u20ac${Number(ltd.avg_fmv).toFixed(2)}` : '\u2014';
+      document.getElementById('stat-avg-rar').textContent = rar?.avg_fmv ? `\u20ac${Number(rar.avg_fmv).toFixed(2)}` : '\u2014';
+    });
     loadAvgMoveChip('stat-chip-ltd', 'limited');
     loadAvgMoveChip('stat-chip-rar', 'rare');
     renderLeagues();
-    if (allData.length) {
-      const latest = allData.reduce((a,b) => new Date(a.updated_at)>new Date(b.updated_at)?a:b);
-      const d = new Date(latest.updated_at);
+    apiJson(`card_prices?select=updated_at&order=updated_at.desc&limit=1`).then(rs => {
+      if (!rs || !rs.length) return;
+      const d = new Date(rs[0].updated_at);
       document.getElementById('stat-updated').textContent =
         d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
       document.getElementById('updated-at').textContent =
         '// updated ' + d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    }
+    });
   }
 
   // Avg-FMV-Bewegungs-Chip: GEPAARTER Korb-Vergleich via market_move-RPC — dieselben
@@ -1614,29 +1622,28 @@
   // Vereins-Vorschlaege aus den geladenen Daten (nach Spielerzahl sortiert, damit die
   // grossen Clubs oben stehen). Zeilen ohne team_name werden uebersprungen — deren
   // Metadaten fuellt der Updater mittlerweile bei jedem Durchlauf nach.
-  function populateClubs() {
+  async function populateClubs() {
+    const elig = eligFilter;
+    if (!facetsCache[elig]) facetsCache[elig] = await rpc('market_facets', { p_elig: elig });
+    const f = facetsCache[elig];
+    if (!f || eligFilter !== elig) return;   // Nutzer hat inzwischen umgeschaltet
+
+    const clubs = f.filter(x => x.kind === 'club')
+                   .sort((a, b) => b.cards - a.cards || a.value.localeCompare(b.value));
+    clubSet   = new Set(clubs.map(c => c.value.toLowerCase()));
+    clubExact = new Map(clubs.map(c => [c.value.toLowerCase(), c.value]));
     const dl = document.getElementById('clublist');
-    if (!dl || !allData.length) return;
-    const counts = new Map();
-    for (const r of allData) {
-      const t = r.team_name;
-      if (t) counts.set(t, (counts.get(t) || 0) + 1);
-    }
-    clubSet = new Set([...counts.keys()].map(n => n.toLowerCase()));
-    const clubs = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-    dl.innerHTML = clubs.map(([name]) => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
+    if (dl) dl.innerHTML = clubs.map(c => `<option value="${c.value.replace(/"/g, '&quot;')}">`).join('');
 
-    buildLeagueMenu();
+    buildLeagueMenu(f.filter(x => x.kind === 'league'));
 
-    // Positions-Filter erst anbieten, wenn der Updater die Spalte gefüllt hat —
-    // sonst würde ein Klick in eine leere Tabelle filtern (Sweep dauert ~2-3 Tage).
+    // Positions-Filter erst anbieten, wenn die Spalte gefuellt ist
     const grp = document.getElementById('pos-group');
     if (grp) {
-      const withPos = allData.reduce((n, r) => n + (r.position ? 1 : 0), 0);
+      const withPos = f.filter(x => x.kind === 'position').reduce((n, x) => n + x.cards, 0);
       grp.style.display = withPos > 100 ? 'inline-flex' : 'none';
     }
   }
-
 
   // Position: erneuter Klick auf die aktive Position hebt den Filter wieder auf.
   function setPosition(p) {
@@ -1701,17 +1708,16 @@
 
   // Menü aus den geladenen Daten bauen: Land -> dessen Ligen (mit Anzahl Einträge).
   // Per DOM erzeugt, damit Namen mit Anführungszeichen/Apostroph nicht escapen müssen.
-  function buildLeagueMenu() {
+  function buildLeagueMenu(leagues) {
     const host = document.getElementById('lg-countries');
-    if (!host || !allData.length) return;
+    if (!host || !leagues || !leagues.length) return;
 
     const tree = new Map();                    // country -> Map(league -> count)
-    for (const r of allData) {
-      if (!r.league_name) continue;
-      const c = r.league_country || '\u2014';  // noch ohne Land (Sweep läuft) -> "Other"
+    for (const l of leagues) {
+      const c = l.extra || '\u2014';           // Liga ohne Land -> "Other"
       if (!tree.has(c)) tree.set(c, new Map());
       const m = tree.get(c);
-      m.set(r.league_name, (m.get(r.league_name) || 0) + 1);
+      m.set(l.value, (m.get(l.value) || 0) + l.cards);
     }
     host.innerHTML = '';
     if (!tree.size) return;
@@ -1794,47 +1800,41 @@
     renderLeagues();
   }
 
-  function renderLeagues() {
+  async function renderLeagues() {
     const body = document.getElementById('lr-body');
     if (!body) return;
     const title = document.getElementById('lr-title');
     const scLabel = { all: 'all cards', limited: 'Limited', rare: 'Rare', super_rare: 'Super Rare' }[rankScarcity];
-    if (title) title.textContent = (eligFilter === 'classic' ? 'Classic' : 'In-Season') + ' · ' + scLabel;
+    if (title) title.textContent = (eligFilter === 'classic' ? 'Classic' : 'In-Season') + ' \u00b7 ' + scLabel;
 
-    // Welche Liganamen sind mehrdeutig? "Bundesliga" gibt es in DE und AT,
-    // "Premier League" in 9 Laendern. Nur dort ist das Land zwingend (siehe filterTable).
+    const elig = eligFilter, sc = rankScarcity;
+    const key = elig + '|' + sc;
+    if (!leaguesCache[key]) leaguesCache[key] = await rpc('market_leagues',
+      { p_elig: elig, p_scarcity: sc === 'all' ? null : sc });
+    const data = leaguesCache[key];
+    if (eligFilter !== elig || rankScarcity !== sc) return;   // inzwischen umgeschaltet
+    if (!data || !data.length) { body.innerHTML = '<div class="lr-empty">// no league data yet</div>'; return; }
+
+    // Mehrdeutige Liganamen aus denselben Daten ableiten ("Bundesliga" DE+AT)
     const byName = new Map();
-    for (const r of allData) {
-      if (!r.league_name || !r.league_country) continue;
-      if (!byName.has(r.league_name)) byName.set(r.league_name, new Set());
-      byName.get(r.league_name).add(r.league_country);
+    for (const e of data) {
+      if (!e.league_country) continue;
+      if (!byName.has(e.league_name)) byName.set(e.league_name, new Set());
+      byName.get(e.league_name).add(e.league_country);
     }
     ambiguousLeagues = new Set([...byName].filter(([, c]) => c.size > 1).map(([n]) => n));
-    soleCountryOf = new Map([...byName].filter(([, c]) => c.size === 1).map(([n, c]) => [n, [...c][0]]));
+    soleCountryOf    = new Map([...byName].filter(([, c]) => c.size === 1).map(([n, c]) => [n, [...c][0]]));
 
-    // Schluessel = Land + Liga: Sorare nennt AT und DE beide "Bundesliga".
-    const agg = new Map();
-    for (const r of allData) {
-      if (rowElig(r) !== eligFilter) continue;
-      if (rankScarcity !== 'all' && r.scarcity !== rankScarcity) continue;
-      if (!r.league_name || !r.fmv) continue;
-      const country = r.league_country || soleCountryOf.get(r.league_name) || null;
-      const key = (country || '--') + '|' + r.league_name;
-      const e = agg.get(key) || { name: r.league_name, country, sum: 0, n: 0 };
-      e.sum += r.fmv; e.n++;
-      agg.set(key, e);
-    }
-    const rows = [...agg.values()].sort((a, b) => b.sum - a.sum);
-    if (!rows.length) { body.innerHTML = '<div class="lr-empty">// no league data yet</div>'; return; }
-
-    const max = rows[0].sum;
-    body.innerHTML = rows.map(e => {
+    const list = data.map(e => ({ name: e.league_name, country: e.league_country,
+                                  sum: Number(e.total_fmv), n: e.cards }));
+    const max = list[0].sum;   // RPC liefert bereits nach Summe absteigend
+    body.innerHTML = list.map(e => {
       const active = leagueFilter
         ? (leagueFilter === e.name && (!countryFilter || countryFilter === e.country))
         : (!!countryFilter && countryFilter === e.country);
       const arg = `${JSON.stringify(e.name)}, ${JSON.stringify(e.country)}`.replace(/"/g, '&quot;');
       return `
-      <div class="lr-row ${active ? 'active' : ''}" onclick='pickLeagueFromRank(${arg})' title="${esc(e.name)}${e.country ? ' (' + esc(e.country) + ')' : ''} — ${e.n} cards priced">
+      <div class="lr-row ${active ? 'active' : ''}" onclick='pickLeagueFromRank(${arg})' title="${esc(e.name)}${e.country ? ' (' + esc(e.country) + ')' : ''} \u2014 ${e.n} cards priced">
         <span class="lr-flag">${flagOf(e.country)}</span>
         <div style="min-width:0">
           <div class="lr-name">${esc(e.name)}</div>
@@ -1864,49 +1864,62 @@
     currentPage = 1; filterTable(); renderMovers();
   }
 
-  function filterTable() {
-    const search = document.getElementById('search').value.toLowerCase().trim();
-    const club   = (document.getElementById('club')?.value || '').toLowerCase().trim();
-    filtered = allData.filter(r => {
-      if (rowElig(r) !== eligFilter) return false;
-      if (scarcityFilter !== 'all' && r.scarcity !== scarcityFilter) return false;
-      if (search && !r.player_name.toLowerCase().includes(search) &&
-          !(r.team_name||'').toLowerCase().includes(search)) return false;
-      // Club-Filter: exakter Treffer (Auswahl aus der Liste) oder Teiltreffer (Tippen)
-      if (club) {
-        const t = (r.team_name || '').toLowerCase();
-        if (!t) return false;                       // Zeilen ohne Verein passen zu keinem Club
-        if (clubSet.has(club) ? t !== club : !t.includes(club)) return false;
-      }
-      if (leagueFilter) {
-        if (r.league_name !== leagueFilter) return false;
-        if (countryFilter) {
-          if (r.league_country) {
-            if (r.league_country !== countryFilter) return false;
-          } else if (ambiguousLeagues.has(leagueFilter)) {
-            // Name in mehreren Laendern vergeben und Land der Zeile noch unbekannt
-            // (Updater fuellt nach) -> lieber weglassen als falsch zuordnen.
-            return false;
-          }
-        }
-      }
-      else if (countryFilter) { if ((r.league_country || '—') !== countryFilter) return false; }
-      if (posFilter && r.position !== posFilter) return false;
-      return true;
-    });
-    // change_24h/change_7d kommen zeitbasiert aus der DB (bereits vorberechnet)
-
-    filtered.sort((a,b) => {
-      const av = a[sortKey]??-Infinity, bv = b[sortKey]??-Infinity;
-      if (typeof av==='string') return sortDir*av.localeCompare(bv);
-      return sortDir*(av-bv);
-    });
+  async function filterTable() {
+    const seq = ++reqSeq;                     // spaete Antworten verwerfen
+    const dir = sortDir === -1 ? 'desc' : 'asc';
+    // BEWUSST OHNE "Prefer: count=exact": Das Zaehlen ueber die or()-Sichtbar-
+    // keitsregel passt nicht zum partiellen Index und lief in den Timeout
+    // (gemessen 5,0 s -> 500 im Browser; dieselbe Abfrage ohne Zaehlung 0,7 s).
+    // Die Gesamtzahl kommt separat aus loadRowCount(), EINMAL pro Filter.
+    const url = `card_prices?select=${COLS}&${buildFilterQuery().join('&')}`
+      + `&order=${sortKey}.${dir}.nullslast,id.asc`
+      + `&limit=${PAGE_SIZE}&offset=${(currentPage - 1) * PAGE_SIZE}`;
+    const res = await api(url);
+    if (seq !== reqSeq) return;
+    if (!res) {
+      document.getElementById('table-body').innerHTML =
+        `<tr class="empty-row"><td colspan="10">// ERROR: failed to load market data</td></tr>`;
+      return;
+    }
+    rows = await res.json();
+    if (seq !== reqSeq) return;
+    // Vorlaeufige Gesamtzahl: reicht, damit "next" funktioniert, bis die
+    // exakte Zaehlung eintrifft (volle Seite => mindestens eine weitere).
+    const start = (currentPage - 1) * PAGE_SIZE;
+    totalRows = start + rows.length + (rows.length === PAGE_SIZE ? PAGE_SIZE : 0);
     renderTable();
+    loadRowCount(seq);
+  }
+
+  // Exakte Trefferzahl asynchron nachreichen — nur die Seitenknoepfe haengen
+  // daran, die Tabelle selbst wartet nie auf die Zaehlung.
+  const countCache = {};                     // Filter-Query -> exakte Trefferzahl
+  async function loadRowCount(seq) {
+    const key = buildFilterQuery().join('&');
+    if (!(key in countCache)) {
+      const res = await api(`card_prices?select=id&${key}&limit=1`, { 'Prefer': 'count=exact' });
+      if (!res) return;
+      const n = parseInt((res.headers.get('content-range') || '').split('/')[1], 10);
+      if (isNaN(n)) return;
+      countCache[key] = n;
+    }
+    if (seq !== reqSeq) return;               // Nutzer hat inzwischen weitergefiltert
+    totalRows = countCache[key];
+    renderPagination();
+    renderPaginationMobile();
+  }
+
+  // Tippen buendeln: jede Taste eine Server-Anfrage waere Verschwendung
+  let searchTimer = null;
+  function onSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { currentPage = 1; filterTable(); }, 300);
   }
 
   function sortBy(key) {
     if (sortKey===key) sortDir*=-1; else { sortKey=key; sortDir=-1; }
     document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
+    currentPage = 1;
     filterTable();
   }
 
@@ -1930,7 +1943,7 @@
   function renderTable() {
     const tbody  = document.getElementById('table-body');
     const start  = (currentPage-1)*PAGE_SIZE;
-    const page   = filtered.slice(start, start+PAGE_SIZE);
+    const page   = rows;                      // der Server liefert genau eine Seite
     const search = document.getElementById('search').value.toLowerCase().trim();
 
     if (!page.length) {
@@ -1949,9 +1962,7 @@
       const cnt      = r.sales_count || 0; // sales in last 24h
       const liqClass = cnt >= 3 ? 'liq-high' : cnt >= 1 ? 'liq-medium' : 'liq-low';
       const liqLabel = cnt >= 3 ? 'High' : cnt >= 1 ? 'Med' : 'Low';
-      const idx     = allData.indexOf(r);
-
-      return `<tr onclick="openModal(allData[${idx}])" style="cursor:pointer">
+      return `<tr onclick="openModal(rows[${i}])" style="cursor:pointer">
         <td><span class="rank-num">${String(rank).padStart(2,'0')}</span></td>
         <td><div class="player-cell">
           <img class="player-img" src="${r.picture_url||PH_IMG}" alt="" onerror="this.onerror=null;this.src=PH_IMG">
@@ -1985,7 +1996,7 @@
   }
 
   function renderPagination() {
-    const total = Math.ceil(filtered.length/PAGE_SIZE);
+    const total = Math.ceil(totalRows/PAGE_SIZE);
     const pg = document.getElementById('pagination');
     if (total<=1) { pg.innerHTML=''; return; }
 
@@ -1995,14 +2006,14 @@
     for (let i=s;i<=e;i++) html+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${String(i).padStart(2,'0')}</button>`;
     if (e<total) html+=`<span style="color:#404060;padding:0 4px">…</span><button class="page-btn" onclick="goPage(${total})">${String(total).padStart(2,'0')}</button>`;
     html+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>next →</button>`;
-    html+=`<span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px;margin-left:8px">${filtered.length.toLocaleString()} players</span>`;
+    html+=`<span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px;margin-left:8px">${totalRows.toLocaleString()} players</span>`;
     pg.innerHTML = html;
   }
 
   function goPage(p) {
-    const total = Math.ceil(filtered.length/PAGE_SIZE);
+    const total = Math.ceil(totalRows/PAGE_SIZE);
     if (p<1||p>total) return;
-    currentPage=p; renderTable();
+    currentPage=p; filterTable();             // Seite kommt vom Server
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
@@ -2010,7 +2021,7 @@
     const container = document.getElementById('cards-mobile');
     if (!container) return;
     const start = (currentPage - 1) * PAGE_SIZE;
-    const page  = filtered.slice(start, start + PAGE_SIZE);
+    const page  = rows;
 
     if (!page.length) { container.innerHTML = ''; return; }
 
@@ -2077,30 +2088,37 @@
       </div>`;
     }).join('');
 
-    // Mobile pagination
+    renderPaginationMobile();
+  }
+
+  function renderPaginationMobile() {
     const pg = document.getElementById('pagination-mobile');
-    const total = Math.ceil(filtered.length / PAGE_SIZE);
+    if (!pg) return;
+    const total = Math.ceil(totalRows / PAGE_SIZE);
     if (total <= 1) { pg.innerHTML = ''; return; }
     pg.innerHTML = `
       <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← prev</button>
       <span style="color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:11px">${currentPage} / ${total}</span>
       <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>next →</button>
-      <span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px">${filtered.length.toLocaleString()} players</span>
+      <span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px">${totalRows.toLocaleString()} players</span>
     `;
   }
 
-  function renderMovers() {
-    if (!allData.length) return;
-
-    // Always use allData filtered only by scarcity — never by search
-    const scarcityData = allData.filter(r => (r.scarcity === scarcityFilter || scarcityFilter === 'all') && rowElig(r) === eligFilter);
-    const withPct = scarcityData
-      .filter(r => r.change_7d !== null && r.change_7d !== undefined)
-      .map(r => ({ ...r, pct7d: r.change_7d }));
-
-    const sorted = [...withPct].sort((a, b) => b.pct7d - a.pct7d);
-    const top5  = sorted.slice(0, 5);
-    const flop5 = sorted.slice(-5).reverse();
+  async function renderMovers() {
+    const elig = eligFilter, sc = scarcityFilter;
+    const key = elig + '|' + sc;
+    if (!moversCache[key]) {
+      const base = `card_prices?select=player_name,team_name,picture_url,fmv,change_7d`
+        + `&eligibility=eq.${elig}` + (sc !== 'all' ? `&scarcity=eq.${sc}` : '')
+        + `&change_7d=not.is.null`;
+      const [top, flop] = await Promise.all([
+        apiJson(`${base}&order=change_7d.desc&limit=5`),
+        apiJson(`${base}&order=change_7d.asc&limit=5`),
+      ]);
+      moversCache[key] = { top, flop };
+    }
+    if (eligFilter !== elig || scarcityFilter !== sc) return;   // inzwischen umgeschaltet
+    const { top, flop } = moversCache[key];
 
     const moverRow = (r, color) => `
       <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(42,42,69,0.5)">
@@ -2111,13 +2129,13 @@
           <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.team_name||'')}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;color:${color}">${r.pct7d > 0 ? '▲' : '▼'}${Math.abs(r.pct7d).toFixed(1)}%</div>
-          <div style="font-family:'Orbitron',monospace;font-size:11px;color:var(--purple)">€${r.fmv?.toFixed(2) || '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:12px;font-weight:700;color:${color}">${r.change_7d > 0 ? '\u25b2' : '\u25bc'}${Math.abs(r.change_7d).toFixed(1)}%</div>
+          <div style="font-family:'Orbitron',monospace;font-size:11px;color:var(--purple)">\u20ac${r.fmv?.toFixed(2) || '\u2014'}</div>
         </div>
       </div>`;
 
-    document.getElementById('top-movers').innerHTML  = top5.map(r => moverRow(r, '#00ff88')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
-    document.getElementById('flop-movers').innerHTML = flop5.map(r => moverRow(r, '#ff2d78')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
+    document.getElementById('top-movers').innerHTML  = top.map(r => moverRow(r, '#00ff88')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
+    document.getElementById('flop-movers').innerHTML = flop.map(r => moverRow(r, '#ff2d78')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
   }
 
   // Zeitbasierte Prozent-Änderung aus der DB (change_24h/change_7d, berechnet aus price_history)
@@ -2237,7 +2255,7 @@
   async function loadHistory(playerSlug, scarcity) {
     // eligibility-Filter nur wenn die Spalte existiert (nach Migration);
     // erkennbar daran, dass die geladenen card_prices-Zeilen das Feld haben
-    const hasElig = allData.length && allData[0].eligibility !== undefined;
+    const hasElig = true;   // eligibility-Spalte existiert seit Migration 21.07.
     const key = `${playerSlug}_${scarcity}_${hasElig ? eligFilter : 'any'}`;
     if (historyCache[key]) return historyCache[key];
 
