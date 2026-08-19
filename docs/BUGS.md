@@ -114,7 +114,8 @@
 - **Ursache:** Jede Abfrage war ein Volldurchlauf ueber ~122k Zeilen. (a) Die or()-Sichtbarkeitsregel wird vom partiellen Index (`WHERE fmv is not null`) nicht impliziert → Postgres darf ihn nicht nutzen, selbst die Startseite scannt alles. (b) Liga/Verein/Namenssuche hatten gar keinen Index.
 - **Fix:** `migrations/2026-08-19_market_filter_indexes.sql` — Voll-Index (eligibility, scarcity, fmv desc) OHNE Praedikat (liest ~50 statt 122k Zeilen), Liga- und Team-Indizes, Movers-Index (change_7d), Trigramm-Indizes (pg_trgm) fuer die ilike-Suche auf Name+Verein. Der alte partielle Index bleibt fuer die Markt-RPCs.
 - **Lektion (Antwort auf Jonas' Frage „wir haben doch alle Spieler in Listen"):** Eine Tabelle ist eine Liste, kein Register. **Jede Spalte, nach der die Marktseite filtert oder sortiert, braucht ihren Index** — das gilt auch fuer kuenftige Filter (Nation, Alter): Spalte fuellen UND Index anlegen, sonst Volldurchlauf und ab kaltem Cache Timeout. Merksatz aus BUG-015 ergaenzt: Messungen kalt UND warm lesen — 661 ms warm verdeckte 3,7 s kalt.
-- **Status:** 🟡 Migration geschrieben — von Jonas einspielen, danach Kalt-Messung wiederholen
+- **Verifiziert nach Einspielen (19.08.):** Classic SR (vorher 500 nach 4,8 s) → 560–690 ms; Liga-Filter ~300 ms; Suche ~290 ms; Movers ~250 ms — davon je ~200–300 ms Netzwerklaufzeit. Kein 500 mehr. Achtung Messfalle: Die ERSTEN Aufrufe nach der Migration lagen bei 1,8–2,5 s (Erstberührung der frischen Index-Seiten) — erst die Wiederholung zeigt den Dauerzustand. Restrisiko: Sortierungen ohne eigenen Index (z. B. 24h %) brauchen kalt ~2,4 s, bleiben aber unter der Grenze; falls der Fehlergraph dort wieder ausschlaegt, Index nachziehen.
+- **Status:** ✅ gefixt und live verifiziert 2026-08-19
 
 ## BUG-015 — Markt-RPCs seit 02.08. unbenutzbar (coalesce blockierte den Index)
 
