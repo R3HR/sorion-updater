@@ -107,6 +107,15 @@
 - **Cleanup erledigt (28.07.):** Die Alt-Ordner `limited/rare/sr/` (Voll-Kopien) wurden entfernt, nachdem via Railway Settings→Build bestätigt war, dass alle 3 Services aus dem Repo-Root bauen. `update-scarcity.mjs` existiert nur noch einmal → keine Mehrfach-Sync mehr.
 - **Status:** ✅ geschlossen 2026-07-28 (Code deployed + Index eingespielt & verifiziert)
 
+## BUG-016 — Marktseite bricht nach Server-Umbau sporadisch ab (fehlende Filter-Indizes)
+
+- **Symptom (Jonas, 19.08.):** Kartenladen zeigt „öfters mal" error; Liga-Filter bricht ab. Reproduzierbar als Kalt/Warm-Muster.
+- **Messung:** Standard-Seite 1 **kalt 3.653 ms** (→ ueber dem statement_timeout der anon-Rolle → 500), warm 661 ms. Der Fehler trifft den jeweils ersten Besucher nach Cache-Verfall — deshalb „sporadisch".
+- **Ursache:** Jede Abfrage war ein Volldurchlauf ueber ~122k Zeilen. (a) Die or()-Sichtbarkeitsregel wird vom partiellen Index (`WHERE fmv is not null`) nicht impliziert → Postgres darf ihn nicht nutzen, selbst die Startseite scannt alles. (b) Liga/Verein/Namenssuche hatten gar keinen Index.
+- **Fix:** `migrations/2026-08-19_market_filter_indexes.sql` — Voll-Index (eligibility, scarcity, fmv desc) OHNE Praedikat (liest ~50 statt 122k Zeilen), Liga- und Team-Indizes, Movers-Index (change_7d), Trigramm-Indizes (pg_trgm) fuer die ilike-Suche auf Name+Verein. Der alte partielle Index bleibt fuer die Markt-RPCs.
+- **Lektion (Antwort auf Jonas' Frage „wir haben doch alle Spieler in Listen"):** Eine Tabelle ist eine Liste, kein Register. **Jede Spalte, nach der die Marktseite filtert oder sortiert, braucht ihren Index** — das gilt auch fuer kuenftige Filter (Nation, Alter): Spalte fuellen UND Index anlegen, sonst Volldurchlauf und ab kaltem Cache Timeout. Merksatz aus BUG-015 ergaenzt: Messungen kalt UND warm lesen — 661 ms warm verdeckte 3,7 s kalt.
+- **Status:** 🟡 Migration geschrieben — von Jonas einspielen, danach Kalt-Messung wiederholen
+
 ## BUG-015 — Markt-RPCs seit 02.08. unbenutzbar (coalesce blockierte den Index)
 
 - **Symptom:** `market_overview`, `market_leagues` und `market_facets` antworteten NIE — alle drei liefen in den statement_timeout (4,0–5,2 s, 57014). Der serverseitige Umbau der Marktseite lag deshalb zwei Wochen still, ohne dass es jemandem auffiel: die RPCs waren angelegt, aber nie benutzt.
