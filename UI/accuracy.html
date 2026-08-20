@@ -72,6 +72,7 @@
       <tr><td colspan="3" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text2)">// loading…</td></tr>
     </tbody>
   </table>
+  <p id="acc-asof" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text2);margin-top:8px"></p>
 
   <h2>// Why not just the floor, or a simple average?</h2>
   <ul>
@@ -103,10 +104,30 @@
 <script>
   (async function () {
     try {
-      const res = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1/fmv_accuracy_stats?select=*',
-        { headers: { 'apikey': 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016' } });
-      if (!res.ok) return;
-      const rows = await res.json();
+      const BASE = 'https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1';
+      const H = { 'apikey': 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016' };
+      // Tages-Snapshot (fmv_accuracy_daily, nachts via pg_cron geschrieben) —
+      // die Live-Perzentil-Rechnung pro Besucher wuerde mit wachsender
+      // Rohtabelle ins Timeout laufen (Muster BUG-015/017).
+      let rows = null;
+      try {
+        const r1 = await fetch(`${BASE}/fmv_accuracy_daily?select=*&order=day.desc&limit=12`, { headers: H });
+        if (r1.ok) {
+          const d = await r1.json();
+          if (Array.isArray(d) && d.length) {
+            rows = d.filter(x => x.day === d[0].day);
+            const el = document.getElementById('acc-asof');
+            if (el) el.textContent = '// updated daily · snapshot of '
+              + new Date(d[0].day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+          }
+        }
+      } catch (e) {}
+      if (!rows || !rows.length) {
+        // Fallback: Live-View (nur solange die Snapshot-Migration fehlt)
+        const res = await fetch(`${BASE}/fmv_accuracy_stats?select=*`, { headers: H });
+        if (!res.ok) return;
+        rows = await res.json();
+      }
       if (!Array.isArray(rows)) return;
       const get = (sc, el) => rows.find(r => r.scarcity === sc && r.eligibility === el);
       const cell = r => r && r.samples >= 10
