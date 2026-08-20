@@ -128,3 +128,44 @@ Bewertungsquelle; sinnvollerweise zusammen umsetzen.
 
 **Aufwand:** Mittel — die Bewertungslogik existiert in CraftLog, es geht vor allem
 um die Datenbrücke zwischen beiden Projekten.
+
+---
+
+## IDEA-003 — Squad-Manager (Leaderboard + Aufstellungs-Tracking + Regel-Überwachung)
+
+**Idee (Jonas, 20.08.):** Sorion bekommt einen Squad-Manager für Sorare-Squads:
+
+1. **Leaderboard** — Squad-Mitglieder nach **Durchschnittspunkten** ranken (über Gameweeks hinweg, nicht nur die Momentaufnahme der App).
+2. **Aufstellungs-Tracking** — festhalten, **wann** welcher Manager am Spieltag welches Team aufgestellt hat.
+3. **Regel-Überwachung** — Squad-interne Regeln prüfbar machen. Konkreter Fall: **Player-Cap** (ein Spieler darf von max. 4 Managern aufgestellt werden). Heute unlösbar: niemand weiß, wer als 5. aufstellt.
+
+**API-Grundlage (recherchiert + teils live verifiziert 20.08., Details: `C:\craft-log\docs\HANDOFF.md` → „API-Wissen: Squads"):**
+- Squad-Stammdaten (Name, Mitglieder mit Slug, Captain): `currentUser.squad(sport)` — auth nötig.
+- **Normale** Lineups jedes Users sind ÖFFENTLICH pro Fixture abrufbar (`so5.so5Fixture(...).so5LineupsPaginated(userSlug)`) inkl. Spieler/Captain/Karte/Score.
+- **Squad-Board-Lineups tauchen dort NICHT auf** (live verifiziert am Beispiel Sorare_Jens): Sie hängen an `currentUser.boards(mode: SQUAD, rarity, sport)` → `SquadStep.squadLeaderboardLineups(top: N)` (Rang + Lineup + User) und `myLineups` — **nur authentifiziert** über die `sorare-oauth`-Function (Token liegt serverseitig). Noch nicht mit echtem Token verifiziert.
+- **„Wer hat schon aufgestellt?" (à la Sorare Inside) ist ÖFFENTLICH und billig** (live verifiziert 20.08.): eine Batch-Query mit einem Alias pro Mitglied — `alias: so5LineupsPaginated(userSlug: "…", first: 0) { totalCount }` auf der Fixture → ✅/❌-Liste in einem Call. Sorare Inside zeigt nur diesen Status; welches Team gestellt wurde, liefert die API öffentlich gleich mit (`nodes.so5Appearances`).
+- **Kein Abgabe-Zeitstempel in der API** (`So5Lineup` hat kein `createdAt`/`submittedAt`, nur `draft`/`hidden`/`cancelledAt`) → „wann aufgestellt" geht NUR über eigenes Polling.
+
+**Lösungsansatz Zeit-Tracking (= Jonas' Snapshot-Idee, bestätigt richtig):**
+- Cron pollt im Aufstellungsfenster (z. B. alle 10–15 min) die Squad-Lineups und speichert Snapshots: Mitglied, Spieler-Slugs, Captain, first-seen/last-seen, Änderungen (Spielertausch).
+- **First-seen-Reihenfolge ersetzt den fehlenden Zeitstempel** — Auflösung = Poll-Intervall.
+- Rohsnapshots nach 24 h löschen (Jonas' Vorgabe); nur Aggregat behalten (wer/wann zuerst gesehen, Cap-Verstöße, GW-Punkte fürs Leaderboard).
+
+**Player-Cap-Erkennung:**
+- „**Welche** 5 Manager nutzen Spieler X" = trivial (player.slug über alle Squad-Lineups zählen).
+- „**Wer war der 5.**" = nur über die First-seen-Reihenfolge aus dem Polling.
+- ⚠️ **Kritische offene Frage:** Sind fremde Squad-Lineups schon **vor** dem Lock sichtbar, oder erst ab Spielbeginn (Screenshot zeigt sie live/danach)? Wenn Sorare sie bis Kickoff versteckt, ist keine Abgabe-Reihenfolge beobachtbar → Cap-Report könnte nur „diese 5 waren es" liefern, nicht „der war zuletzt". MUSS als Erstes mit echtem Token geprüft werden.
+
+**Was dafür nötig wäre:**
+- Test-Action `squad_board` in `sorare-oauth` (analog `card_pull`): `boards(mode: SQUAD)` mit Jonas' Token abfragen → klärt Datenform + Sichtbarkeits-Frage.
+- Polling-Cron (Railway-Harvester oder Supabase-Cron) + 2 Tabellen: `squad_lineup_snapshots` (TTL 24 h), `squad_gw_scores` (dauerhaft, fürs Durchschnitts-Leaderboard).
+- Klären: Token-Laufzeit/Refresh für unbeaufsichtigtes Polling (OAuth-Refresh-Flow in `sorare-oauth` vorhanden?).
+- APIKEY mitsenden (Komplexitätslimit 500 → 30.000; Key liegt in Railway).
+
+**Offene Fragen:**
+- Sichtbarkeit fremder Squad-Lineups vor Lock (s. o. — entscheidet über den Funktionsumfang).
+- Einverständnis der Squad-Mitglieder (ihre Daten erscheinen auf Sorion)? `hidden`-Flag respektieren.
+- Gilt der Cap pro Gameweek oder pro Step/Board?
+- Scope: eigenes Sorion-Modul oder eigenständige Seite? (Roadmap-Fokus beachten — Squad-Manager ist Neuland neben dem Markt-Kern.)
+
+**Aufwand:** Mittel — Auth-Pfad und Cron-Infrastruktur existieren (sorare-oauth, Railway, CRON_SECRET-Muster); neu sind im Kern die zwei Tabellen, der Poller und die UI.

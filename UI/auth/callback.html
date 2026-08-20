@@ -88,6 +88,12 @@
       if (!linkRes.ok) throw new Error(link.error || 'linking failed');
 
       try { localStorage.setItem('sorion_own', String(link.sorare_slug).toLowerCase()); } catch {}
+      // Sorare-Token aufbewahren: der Squad-Manager (IDEA-003) braucht authentifizierte
+      // Sorare-Calls (squad_board) — ohne das hier waere das Token nach dem Linken weg.
+      try {
+        localStorage.setItem('sorare_access_token', ex.access_token);
+        if (ex.refresh_token) localStorage.setItem('sorare_refresh_token', ex.refresh_token);
+      } catch {}
       done('// connected as <b>' + String(link.sorare_slug).replace(/[<>]/g, '') + '</b><br>your portfolio is now tied to this account.' + backToProfile, 'ok');
       setTimeout(() => { location.href = '../profile.html'; }, 2200);
     } catch (e) {

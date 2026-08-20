@@ -205,7 +205,12 @@
       expires_at: Math.floor(Date.now() / 1000) + (s.expires_in ?? 3600) - 60,
     }));
   }
-  function clearSession() { localStorage.removeItem('sorion_session'); }
+  function clearSession() {
+    localStorage.removeItem('sorion_session');
+    // Sorare-Tokens (fuer squad_board & Co.) gehoeren zur Sitzung — beim Logout mit raeumen
+    localStorage.removeItem('sorare_access_token');
+    localStorage.removeItem('sorare_refresh_token');
+  }
 
   async function ensureSession() {
     let s = getSession();
