@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORION — FMV Accuracy</title>
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
+<script>
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
+</script>
+<link href="fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d1a; --surface: #13131f; --surface2: #1a1a2e; --border: #2a2a45;
+    --purple: #b060ff; --text: #e8e8ff; --text2: #9090c0;
+    --limited: #ffb830; --rare: #ff5555; --sr: #7090ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; line-height: 1.7; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 48px 24px 80px; }
+  a { color: var(--purple); }
+  h1 { font-family: 'Orbitron', monospace; font-size: 22px; margin-bottom: 10px; }
+  h2 { font-family: 'Orbitron', monospace; font-size: 15px; color: var(--purple); margin: 36px 0 12px; }
+  p, li { font-size: 14px; color: var(--text2); margin-bottom: 10px; }
+  ul { padding-left: 20px; }
+  .back { font-family: 'Share Tech Mono', monospace; font-size: 12px; display: inline-block; margin-bottom: 24px; padding: 10px 6px; margin-left: -6px; }
+  .sub { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 28px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface);
+          border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 14px 16px; text-align: left; font-size: 14px; }
+  thead th { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .15em;
+             text-transform: uppercase; color: var(--text2); background: var(--surface2);
+             border-bottom: 1px solid var(--border); }
+  tbody tr + tr td { border-top: 1px solid var(--border); }
+  td.val { font-family: 'Orbitron', monospace; font-size: 16px; }
+  td.val small { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px;
+                 color: var(--text2); margin-top: 3px; }
+  .rk { font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: .08em; }
+  .rk.ltd { color: var(--limited); } .rk.rar { color: var(--rare); } .rk.sr { color: var(--sr); }
+  .note { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--purple);
+          border-radius: 8px; padding: 14px 18px; margin-top: 24px; font-size: 13px; color: var(--text2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← back to SORION</a>
+  <h1>FMV Accuracy</h1>
+  <div class="sub">// how close our estimates land to real sales</div>
+
+  <p>Every FMV on SORION is an estimate, and we measure it against reality: whenever a card
+     sells, we compare the price to the FMV we had published <strong>before</strong> that sale
+     (estimates older than 48&nbsp;hours are excluded). The table shows the median gap over the
+     last 30 days — half of all sales land closer than this, half further away.</p>
+
+  <table aria-label="FMV accuracy by rarity and eligibility">
+    <thead>
+      <tr><th>Rarity</th><th>In-Season</th><th>Classic</th></tr>
+    </thead>
+    <tbody id="acc-body">
+      <tr><td colspan="3" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text2)">// loading…</td></tr>
+    </tbody>
+  </table>
+
+  <h2>// Why not just the floor, or a simple average?</h2>
+  <ul>
+    <li><strong>The floor price</strong> is the cheapest current <em>listing</em> — an asking
+        price, not a traded one. A single mispriced listing moves it, and most actual sales
+        happen well above it.</li>
+    <li><strong>A plain average of recent sales</strong> treats a three-week-old sale like one
+        from this morning, and lets a single collector's-serial sale drag the whole number.</li>
+    <li><strong>FMV</strong> is our own model on top of live market data, built to weigh what
+        the market is doing <em>right now</em> over what it did weeks ago. The exact recipe
+        stays our kitchen secret — this page exists so you can judge the results instead.</li>
+  </ul>
+
+  <h2>// Why sales deviate from any estimate</h2>
+  <ul>
+    <li><strong>Special serials</strong> — jersey-number and low-serial cards trade far above the regular market and pull single sales way off any average.</li>
+    <li><strong>Thin markets</strong> — for cards with few sales, each trade is a negotiation, not a market price.</li>
+    <li><strong>Fast markets</strong> — around season start or gameweeks, prices move quicker than any rolling estimate can follow.</li>
+    <li><strong>Auctions vs. instant buys</strong> — the same card sells through different mechanisms at different prices.</li>
+  </ul>
+
+  <div class="note">
+    FMV is an estimate — a reference point, not a promise. It is non-binding and not
+    financial advice. We publish this accuracy page so you can judge for yourself how much
+    weight to give it.
+  </div>
+</div>
+
+<script>
+  (async function () {
+    try {
+      const res = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1/fmv_accuracy_stats?select=*',
+        { headers: { 'apikey': 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016' } });
+      if (!res.ok) return;
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return;
+      const get = (sc, el) => rows.find(r => r.scarcity === sc && r.eligibility === el);
+      const cell = r => r && r.samples >= 10
+        ? `<td class="val">±${Number(r.median_abs_delta).toFixed(1)}%<small>${r.samples.toLocaleString('en-GB')} sales</small></td>`
+        : `<td class="val">—<small>collecting data</small></td>`;
+      const row = (sc, cls, label) =>
+        `<tr><td><span class="rk ${cls}">◆ ${label}</span></td>${cell(get(sc, 'in_season'))}${cell(get(sc, 'classic'))}</tr>`;
+      document.getElementById('acc-body').innerHTML =
+        row('limited', 'ltd', 'LIMITED') + row('rare', 'rar', 'RARE') + row('super_rare', 'sr', 'SUPER RARE');
+    } catch (e) {}
+  })();
+</script>
+<script src="discord.js" defer></script>
+</body>
+</html>

@@ -1328,24 +1328,8 @@
     </div>
   </div>
 
-  <!-- FMV Accuracy -->
-  <div class="hero-stats acc-stats">
-    <div class="hero-stat ltd">
-      <div class="hero-stat-label">// FMV Accuracy · Limited</div>
-      <div class="hero-stat-value" id="acc-limited" style="font-size:17px;padding-top:3px">—</div>
-      <div class="hero-stat-sub">median gap to actual sale prices (30d)</div>
-    </div>
-    <div class="hero-stat rar">
-      <div class="hero-stat-label">// FMV Accuracy · Rare</div>
-      <div class="hero-stat-value" id="acc-rare" style="font-size:17px;padding-top:3px">—</div>
-      <div class="hero-stat-sub">median gap to actual sale prices (30d)</div>
-    </div>
-    <div class="hero-stat sr">
-      <div class="hero-stat-label">// FMV Accuracy · Super Rare</div>
-      <div class="hero-stat-value" id="acc-sr" style="font-size:17px;padding-top:3px">—</div>
-      <div class="hero-stat-sub">median gap to actual sale prices (30d)</div>
-    </div>
-  </div>
+  <!-- FMV-Accuracy: seit 20.08. auf accuracy.html (Fusszeilen-Link) —
+       Entscheidung Jonas: Transparenz ja, aber nicht als Aushaengeschild -->
 
   <!-- Top/Flop Movers -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px" id="movers-section">
@@ -1449,7 +1433,7 @@
 
   <div class="footer">
     <span>SORION // Sorare Market Intelligence</span>
-    <span>Not affiliated with Sorare · FMV values are non-binding estimates, not financial advice · <a href="legal.html" style="color:inherit">Legal & Privacy</a></span>
+    <span>Not affiliated with Sorare · FMV values are non-binding estimates, not financial advice · <a href="accuracy.html" style="color:inherit">FMV Accuracy</a> · <a href="legal.html" style="color:inherit">Legal & Privacy</a></span>
   </div>
 </div>
 
@@ -2482,27 +2466,6 @@
 
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // ── FMV-Genauigkeit (aus fmv_accuracy_stats-View; fehlt sie → Anzeige bleibt „—") ──
-  (async function loadAccuracy() {
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/fmv_accuracy_stats?select=*`, { headers: { 'apikey': ANON_KEY } });
-      if (!res.ok) return;
-      const rows = await res.json();
-      if (!Array.isArray(rows)) return;
-      const get = (sc, el) => rows.find(r => r.scarcity === sc && r.eligibility === el);
-      const fmt = r => r && r.samples >= 10 ? `±${Number(r.median_abs_delta).toFixed(1)}%` : '—';
-      // Beide Werte TRAGEN ihr Label (Feedback Jonas 20.08.): "±26% · ±29%"
-      // war nicht zuzuordnen — die Legende stand nur in der Sub-Zeile.
-      const pair = (label, r) => `<span style="display:inline-flex;align-items:baseline;gap:5px">`
-        + `<span style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--text2)">${label}</span>`
-        + `<span>${fmt(r)}</span></span>`;
-      for (const [sc, id] of [['limited','acc-limited'], ['rare','acc-rare'], ['super_rare','acc-sr']]) {
-        document.getElementById(id).innerHTML =
-          `<span style="display:inline-flex;gap:14px;flex-wrap:wrap">`
-          + pair('SEASON', get(sc, 'in_season')) + pair('CLASSIC', get(sc, 'classic')) + `</span>`;
-      }
-    } catch {}
-  })();
 
 
   // ── Manager Search (identisch zur Portfolio-Seite) ─────────────────────────
