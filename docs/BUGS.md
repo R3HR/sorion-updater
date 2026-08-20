@@ -115,7 +115,10 @@
 - **Lektionen:** (1) Massen-DELETEs im SQL-Editor sind eine Falle — ab ~Hunderttausenden Zeilen: Tabellen-Swap oder Batches. (2) Nach JEDER Editor-Migration das Ergebnis MESSEN statt auf "Success" vertrauen — die Diagnose-Abfrage (Zeilen/Groesse/Duplikate) haette den Fehlschlag sofort gezeigt. (3) Eine neue Tabelle bekommt Default-Rechte — Lockdowns (BUG-012) muessen beim Swap explizit mitwandern.
 - **Fix final:** `2026-08-20_price_history_swap_v2.sql` — ALLES in einem Lauf; die Ein-Transaktions-Eigenschaft macht den Swap atomar: Kopie, Default-Abloesung VOR dem Drop, Tausch, eigenes Identity, 2 Indizes, Lockdown, card_prices-Praefix-Drop, Rollup-Funktion + pg_cron. `_swap.sql` und `_swap_FIX.sql` sind obsolet.
 - **Lektion dazu:** Editor-Laeufe sind atomar — Teil-Erfolge gibt es nicht, und was nach einem Fehler "noch da" wirkt, stammt aus einem ANDEREN Lauf. Effekte messen und einem konkreten Lauf zuordnen.
-- **Status:** 🟡 v2-Swap geschrieben, Einspielen offen (Zeitfenster 05–15 UTC)
+- **Vierte und letzte Erkenntnis — der eigentliche Ausloeser aller drei Fehlversuche:** Der Editor-Dialog **„mit RLS / ohne RLS"**. Jonas waehlte stets „mit RLS" — und `price_history` ist seit BUG-012 die einzige Tabelle mit VOLLVERRIEGELUNG (`force row level security`, null Policies). Im mit-RLS-Modus war sie fuer die Migrationen unsichtbar/gesperrt: die Diaet fand nichts zu loeschen, der Swap kopierte null Zeilen, alles rollte zurueck. **Unser eigener Sicherheitszaun sperrte den Admin aus.** Mit „ohne RLS" lief der v2-Swap in einem Durchgang.
+- **Ergebnis (20.08., verifiziert):** DB **515 → 225 MB**. Lockdown auf der NEUEN Tabelle geprueft: anon → 401 permission denied ✓; `player_history` liefert lueckenlos bis 23.07. ✓; market_overview 339 ms ✓; market_leagues nach Swap-bedingtem Kalt-Ausreisser (1x 3,5 s) stabil 400–450 ms.
+- **Lektion final:** Migrationen im SQL-Editor IMMER „ohne RLS" ausfuehren — der mit-RLS-Modus simuliert einen API-Besucher, und gegen abgeriegelte Tabellen scheitern dann sogar SELECTs, ohne dass die Fehlermeldung RLS erwaehnt.
+- **Status:** ✅ gefixt und live verifiziert 2026-08-20. Wiedervorlage: nach dem naechsten Updater-Fenster (16 UTC) Railway-Logs auf "History-Insert"-Warnungen pruefen (Upsert-Ziel der neuen Tabelle).
 
 ## BUG-017 — Hero-Boxen leer unter echtem Traffic (Overview + Zaehlung kalt ueber Timeout)
 
