@@ -297,6 +297,12 @@
   }
   .hero-stat.sr::before { background: linear-gradient(180deg, var(--sr), #2a3a8a); }
   .hero-stat.sr .hero-stat-label { color: var(--sr); }
+  .table-wrap.is-loading, .cards-mobile.is-loading {
+    opacity: .55;
+    transition: opacity .15s;
+    pointer-events: none;   /* Doppelklicks waehrend des Ladens schlucken */
+  }
+
   .hero-stat.sr:hover {
     border-color: rgba(112,144,255,.55);
     box-shadow: 0 0 20px rgba(112,144,255,.12), inset 0 0 20px rgba(112,144,255,.07);
@@ -1514,6 +1520,61 @@
     return null;
   }
 
+  // ── Klick-Latenz kaschieren (19.08.) ────────────────────────────────────
+  // Nach dem Server-Umbau war jeder Klick eine 300-700-ms-Anfrage — die alte
+  // Seite fuehlte sich nach dem (langen) Erstladen schneller an, weil alles im
+  // Browser lag. Drei Gegenmittel: (1) Antworten 3 Min zwischenspeichern —
+  // im Speicher UND in der Cache API, damit auch ein Reload sofort malt.
+  // (2) Die Folgeseite im Leerlauf vorladen. (3) Lade-Feedback (Opacity),
+  // damit ein Klick sofort sichtbar quittiert wird.
+  // 3 Min passt zur Datenlage: der Updater fasst eine Karte alle ~1-3 Tage an.
+  const API_TTL = 3 * 60 * 1000;
+  const memCache = new Map();                 // Schluessel -> { ts, data }
+
+  async function cacheGet(key, ttl) {
+    const hit = memCache.get(key);
+    if (hit && Date.now() - hit.ts < ttl) return hit.data;
+    try {
+      const c = await caches.open('sorion-api-v1');
+      const m = await c.match('/api/' + encodeURIComponent(key));
+      if (m) {
+        const w = await m.json();
+        if (Date.now() - w.ts < ttl) { memCache.set(key, w); return w.data; }
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  async function cachePut(key, data) {
+    const w = { ts: Date.now(), data };
+    memCache.set(key, w);
+    if (memCache.size > 150) memCache.delete(memCache.keys().next().value);
+    try {
+      const c = await caches.open('sorion-api-v1');
+      await c.put('/api/' + encodeURIComponent(key),
+        new Response(JSON.stringify(w), { headers: { 'Content-Type': 'application/json' } }));
+    } catch (e) {}
+  }
+  async function apiCached(path, ttl) {
+    ttl = ttl || API_TTL;
+    const hit = await cacheGet(path, ttl);
+    if (hit !== undefined) return hit;
+    const res = await api(path);
+    if (!res) return null;
+    const data = await res.json();
+    cachePut(path, data);
+    return data;
+  }
+  async function rpcCached(name, args, ttl) {
+    ttl = ttl || API_TTL;
+    const key = 'rpc/' + name + '?' + JSON.stringify(args || {});
+    const hit = await cacheGet(key, ttl);
+    if (hit !== undefined) return hit;
+    const data = await rpc(name, args);
+    if (data == null) return null;
+    cachePut(key, data);
+    return data;
+  }
+
   // PostgREST-Logikbaeume vertragen keine Kommas/Klammern im Wert — fuer die
   // Suche werden sie entfernt (Spielernamen enthalten keine).
   const qsan = s => s.replace(/[",()\\*]/g, '').trim();
@@ -1594,7 +1655,7 @@
         const n = parseInt((r.headers.get('content-range') || '').split('/')[1], 10);
         if (!isNaN(n)) document.getElementById('stat-total').textContent = n.toLocaleString();
       });
-    rpc('market_overview', { p_elig: elig }).then(ov => {
+    rpcCached('market_overview', { p_elig: elig }).then(ov => {
       if (!ov || eligFilter !== elig) return;
       const get = sc => ov.find(x => x.scarcity === sc);
       const ltd = get('limited'), rar = get('rare');
@@ -1604,7 +1665,7 @@
     loadAvgMoveChip('stat-chip-ltd', 'limited');
     loadAvgMoveChip('stat-chip-rar', 'rare');
     renderLeagues();
-    apiJson(`card_prices?select=updated_at&order=updated_at.desc&limit=1`).then(rs => {
+    apiCached(`card_prices?select=updated_at&order=updated_at.desc&limit=1`).then(rs => {
       if (!rs || !rs.length) return;
       const d = new Date(rs[0].updated_at);
       document.getElementById('stat-updated').textContent =
@@ -1648,7 +1709,7 @@
   // Metadaten fuellt der Updater mittlerweile bei jedem Durchlauf nach.
   async function populateClubs() {
     const elig = eligFilter;
-    if (!facetsCache[elig]) facetsCache[elig] = await rpc('market_facets', { p_elig: elig });
+    if (!facetsCache[elig]) facetsCache[elig] = await rpcCached('market_facets', { p_elig: elig });
     const f = facetsCache[elig];
     if (!f || eligFilter !== elig) return;   // Nutzer hat inzwischen umgeschaltet
 
@@ -1833,7 +1894,7 @@
 
     const elig = eligFilter, sc = rankScarcity;
     const key = elig + '|' + sc;
-    if (!leaguesCache[key]) leaguesCache[key] = await rpc('market_leagues',
+    if (!leaguesCache[key]) leaguesCache[key] = await rpcCached('market_leagues',
       { p_elig: elig, p_scarcity: sc === 'all' ? null : sc });
     const data = leaguesCache[key];
     if (eligFilter !== elig || rankScarcity !== sc) return;   // inzwischen umgeschaltet
@@ -1888,31 +1949,45 @@
     currentPage = 1; filterTable(); renderMovers();
   }
 
+  // Seiten-URL zentral bauen — filterTable UND der Prefetch nutzen sie.
+  // BEWUSST OHNE "Prefer: count=exact" (Timeout-Falle, siehe loadRowCount).
+  function pageUrl(page) {
+    const dir = sortDir === -1 ? 'desc' : 'asc';
+    return `card_prices?select=${COLS}&${buildFilterQuery().join('&')}`
+      + `&order=${sortKey}.${dir}.nullslast,id.asc`
+      + `&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`;
+  }
+
+  function setLoading(on) {
+    document.querySelector('.table-wrap')?.classList.toggle('is-loading', on);
+    document.getElementById('cards-mobile')?.classList.toggle('is-loading', on);
+  }
+
+  let prefetchTimer = null;
   async function filterTable() {
     const seq = ++reqSeq;                     // spaete Antworten verwerfen
-    const dir = sortDir === -1 ? 'desc' : 'asc';
-    // BEWUSST OHNE "Prefer: count=exact": Das Zaehlen ueber die or()-Sichtbar-
-    // keitsregel passt nicht zum partiellen Index und lief in den Timeout
-    // (gemessen 5,0 s -> 500 im Browser; dieselbe Abfrage ohne Zaehlung 0,7 s).
-    // Die Gesamtzahl kommt separat aus loadRowCount(), EINMAL pro Filter.
-    const url = `card_prices?select=${COLS}&${buildFilterQuery().join('&')}`
-      + `&order=${sortKey}.${dir}.nullslast,id.asc`
-      + `&limit=${PAGE_SIZE}&offset=${(currentPage - 1) * PAGE_SIZE}`;
-    const res = await api(url);
+    setLoading(true);
+    const data = await apiCached(pageUrl(currentPage));
     if (seq !== reqSeq) return;
-    if (!res) {
+    setLoading(false);
+    if (!data) {
       document.getElementById('table-body').innerHTML =
         `<tr class="empty-row"><td colspan="10">// ERROR: failed to load market data</td></tr>`;
       return;
     }
-    rows = await res.json();
-    if (seq !== reqSeq) return;
+    rows = data;
     // Vorlaeufige Gesamtzahl: reicht, damit "next" funktioniert, bis die
     // exakte Zaehlung eintrifft (volle Seite => mindestens eine weitere).
     const start = (currentPage - 1) * PAGE_SIZE;
     totalRows = start + rows.length + (rows.length === PAGE_SIZE ? PAGE_SIZE : 0);
     renderTable();
     loadRowCount(seq);
+    // Folgeseite im Leerlauf vorwaermen -> "next" kommt dann aus dem Cache
+    clearTimeout(prefetchTimer);
+    if (rows.length === PAGE_SIZE) {
+      const nextUrl = pageUrl(currentPage + 1);
+      prefetchTimer = setTimeout(() => { apiCached(nextUrl); }, 700);
+    }
   }
 
   // Exakte Trefferzahl asynchron nachreichen — nur die Seitenknoepfe haengen
@@ -2136,9 +2211,10 @@
         + `&eligibility=eq.${elig}` + (sc !== 'all' ? `&scarcity=eq.${sc}` : '')
         + `&change_7d=not.is.null`;
       const [top, flop] = await Promise.all([
-        apiJson(`${base}&order=change_7d.desc&limit=5`),
-        apiJson(`${base}&order=change_7d.asc&limit=5`),
+        apiCached(`${base}&order=change_7d.desc&limit=5`),
+        apiCached(`${base}&order=change_7d.asc&limit=5`),
       ]);
+      if (!top || !flop) return;              // Netzfehler: alte Anzeige stehen lassen
       moversCache[key] = { top, flop };
     }
     if (eligFilter !== elig || scarcityFilter !== sc) return;   // inzwischen umgeschaltet
