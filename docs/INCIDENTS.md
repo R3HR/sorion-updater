@@ -55,3 +55,12 @@
 - **Fix durch Jonas:** GitHub → Repo → Settings → General → Danger Zone → **Change visibility → Private**. Railway-Deploys funktionieren weiter (GitHub-App-Anbindung deckt private Repos ab). Danach trotzdem Key-Rotation aus SEC-001 durchziehen — die History war öffentlich, der Key gilt als kompromittiert.
 - **Folgewirkung:** Repo privat gestellt 2026-07-08 → GitHub Pages (Website) ging offline, da Pages bei privaten Repos Bezahlplan braucht. Lösung: UI in separates public Repo `sorion-ui` ausgelagert (`C:\craft-log\sorion-ui`, enthält nur HTML/anon-Key, keine Formel). Sync-Regel in HANDOFF.
 - **Status:** 🟡 Repo privat ✅ (2026-07-08) · Key-Rotation SEC-001 weiterhin offen
+
+## INC-004 — Tabelle fmv_accuracy samt View ausserhalb der Migrationen geloescht (offen)
+
+- **Entdeckt:** 20.08.2026 beim Debuggen leerer Accuracy-Boxen (BUG-017): `fmv_accuracy_stats` UND die Basistabelle `fmv_accuracy` antworten 404 (PGRST205, nicht im Schema-Cache).
+- **Befund:** Kein einziges `drop table`/`drop view` in `migrations/` — die Loeschung kam von aussen, wahrscheinlich manuell im Supabase-Dashboard (moeglicherweise beim Aufraeumen der DB-Groesse Anfang August; die Tabelle wuchs mit jedem Sale-Abgleich).
+- **Auswirkung:** Accuracy-Anzeige der Marktseite dauerhaft "—" (faellt sauber zurueck, kein Fehler). Der Updater ueberspringt das Accuracy-Logging kontrolliert (Probe + Warnung, seit 22.07. so gebaut). **Die historischen Accuracy-Daten (seit 22.07.) sind verloren** — sie waren der Beleg "FMV ± x %" auf der Marktseite.
+- **Offene Klaerung mit Jonas:** Wurde die Tabelle bewusst geloescht (Platz)? Dann Accuracy-Boxen aus der UI entfernen. Falls nicht bewusst: Tabelle+View aus `migrations/2026-07-22_accuracy.sql` neu anlegen — fuellt sich dann binnen ~30 Tagen wieder; zusaetzlich pruefen, WER/WAS geloescht hat.
+- **Lektion:** Objekte, die ausserhalb der Migrationen verschwinden, fallen erst auf, wenn ein Feature stirbt. Bei DB-Aufraeumaktionen im Dashboard vorher gegen `migrations/` abgleichen.
+- **Status:** 🟡 offen — wartet auf Klaerung

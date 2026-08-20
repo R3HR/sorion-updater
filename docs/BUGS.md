@@ -107,6 +107,15 @@
 - **Cleanup erledigt (28.07.):** Die Alt-Ordner `limited/rare/sr/` (Voll-Kopien) wurden entfernt, nachdem via Railway Settings→Build bestätigt war, dass alle 3 Services aus dem Repo-Root bauen. `update-scarcity.mjs` existiert nur noch einmal → keine Mehrfach-Sync mehr.
 - **Status:** ✅ geschlossen 2026-07-28 (Code deployed + Index eingespielt & verifiziert)
 
+## BUG-017 — Hero-Boxen leer unter echtem Traffic (Overview + Zaehlung kalt ueber Timeout)
+
+- **Symptom (Jonas, 20.08.):** "Players Tracked", beide Avg-FMV-Boxen und alle drei Accuracy-Boxen zeigen "—". Movers, Ranking, Chips, Tabelle laufen.
+- **Zwei GETRENNTE Ursachen:**
+  1. `market_overview` kalt 3,49 s → 500, Players-Tracked-Zaehlung kalt 3,61 s → 500. Beide lagen am Vortag knapp UNTER der 3-s-Grenze; mit dem ersten echten Traffic (19./20.08., 143 Views auf der Marktseite) ist der Cache umkaempfter und der jeweils erste Besucher reisst sie. Lehre zu BUG-015/016 dazu: **"knapp unter dem Timeout" ist kein Zustand, sondern eine Frist.**
+  2. `fmv_accuracy_stats` → **404: View UND Basistabelle `fmv_accuracy` existieren nicht mehr.** Keine Migration im Repo enthaelt ein drop — die Tabelle wurde ausserhalb geloescht (vermutlich Dashboard). Als INC-004 dokumentiert, Klaerung mit Jonas offen.
+- **Fix (zu 1):** `migrations/2026-08-20_overview_snapshot_and_visible_index.sql` — market_overview liest nur noch den Tages-Snapshot `market_daily` (6 Zeilen/Tag statt Live-Mittel ueber 20k Zeilen; Avg damit exakt deckungsgleich mit der Chip-Basis). Teil-Index `idx_cp_visible` exakt auf der Sichtbarkeitsregel macht die Zaehlungen zu Index-Only-Scans.
+- **Status:** 🟡 Migration geschrieben — einspielen, danach Kalt-Messung; Accuracy haengt an INC-004
+
 ## BUG-016 — Marktseite bricht nach Server-Umbau sporadisch ab (fehlende Filter-Indizes)
 
 - **Symptom (Jonas, 19.08.):** Kartenladen zeigt „öfters mal" error; Liga-Filter bricht ab. Reproduzierbar als Kalt/Warm-Muster.
