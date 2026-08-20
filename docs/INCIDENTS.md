@@ -63,4 +63,5 @@
 - **Auswirkung:** Accuracy-Anzeige der Marktseite dauerhaft "—" (faellt sauber zurueck, kein Fehler). Der Updater ueberspringt das Accuracy-Logging kontrolliert (Probe + Warnung, seit 22.07. so gebaut). **Die historischen Accuracy-Daten (seit 22.07.) sind verloren** — sie waren der Beleg "FMV ± x %" auf der Marktseite.
 - **Offene Klaerung mit Jonas:** Wurde die Tabelle bewusst geloescht (Platz)? Dann Accuracy-Boxen aus der UI entfernen. Falls nicht bewusst: Tabelle+View aus `migrations/2026-07-22_accuracy.sql` neu anlegen — fuellt sich dann binnen ~30 Tagen wieder; zusaetzlich pruefen, WER/WAS geloescht hat.
 - **Lektion:** Objekte, die ausserhalb der Migrationen verschwinden, fallen erst auf, wenn ein Feature stirbt. Bei DB-Aufraeumaktionen im Dashboard vorher gegen `migrations/` abgleichen.
-- **Status:** 🟡 offen — wartet auf Klaerung
+- **Klaerung (20.08., Jonas):** NICHT bewusst geloescht; Accuracy soll weiter getrackt werden. Wiederherstellung in `migrations/2026-08-20_accuracy_restore_and_tracked_snapshot.sql` (exakte Definition vom 22.07.; Updater loggt per Probe automatisch wieder). Wie es zur Loeschung kam, bleibt ungeklaert — bei kuenftigen Dashboard-Aufraeumaktionen vorher gegen `migrations/` abgleichen.
+- **Status:** 🟡 Wiederherstellung geschrieben, Einspielen offen

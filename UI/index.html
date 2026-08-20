@@ -1647,18 +1647,16 @@
 
   async function updateHeroStats() {
     const elig = eligFilter;
-    // "Players Tracked": bewusst DIESELBE Definition wie der alte Client-
-    // Zaehler (FMV ODER Floor ODER Sale) — sonst spraenge die Zahl beim Umbau.
-    api(`card_prices?select=id&eligibility=eq.${elig}&${VISIBLE}&limit=1`, { 'Prefer': 'count=exact' })
-      .then(r => {
-        if (!r || eligFilter !== elig) return;
-        const n = parseInt((r.headers.get('content-range') || '').split('/')[1], 10);
-        if (!isNaN(n)) document.getElementById('stat-total').textContent = n.toLocaleString();
-      });
     rpcCached('market_overview', { p_elig: elig }).then(ov => {
       if (!ov || eligFilter !== elig) return;
       const get = sc => ov.find(x => x.scarcity === sc);
       const ltd = get('limited'), rar = get('rare');
+      // "Players Tracked" kommt seit 20.08. aus dem Tages-Snapshot (visible_n,
+      // gleiche Definition wie immer: FMV ODER Floor ODER Sale). Die Live-
+      // Zaehlung riss auf der IO-gedrosselten Nano-Instanz auch MIT Index die
+      // 3-s-Grenze — diese Zahl aendert sich taeglich, nicht minuetlich.
+      const vis = ov.reduce((a, x) => x.visible_n != null ? (a ?? 0) + x.visible_n : a, null);
+      if (vis != null) document.getElementById('stat-total').textContent = vis.toLocaleString();
       document.getElementById('stat-avg-ltd').textContent = ltd?.avg_fmv ? `\u20ac${Number(ltd.avg_fmv).toFixed(2)}` : '\u2014';
       document.getElementById('stat-avg-rar').textContent = rar?.avg_fmv ? `\u20ac${Number(rar.avg_fmv).toFixed(2)}` : '\u2014';
     });
