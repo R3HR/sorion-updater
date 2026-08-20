@@ -110,10 +110,12 @@
 ## BUG-018 — Diaet-DELETE starb still am Editor-Zeitlimit (1,17 Mio Duplikate blieben)
 
 - **Symptom:** Nach der Diaet v2 fiel die DB nur 511→459 MB. Diagnose-Abfrage: 1.691.974 Zeilen, davon **1.171.962 Duplikate (69 %)** noch da — das DELETE war nie durchgelaufen, die Index-Drops danach schon.
-- **Ursache:** Der Supabase-SQL-Editor fuehrt Anweisungen EINZELN aus und hat ein eigenes Zeitlimit. Das eine grosse DELETE (1,17 Mio Zeilen inkl. Pflege des 149-MB-Unique-Keys je Zeile) riss es; die Folge-Statements liefen trotzdem weiter. **Es gab keine sichtbare Fehlermeldung im Ergebnis** — nur das letzte Statement-Ergebnis wird prominent angezeigt.
+- **Ursache (korrigiert nach dem 3. Fehlversuch):** Der SQL-Editor schickt einen Lauf als **EINE implizite Transaktion** — scheitert ein Statement, wird ALLES zurueckgerollt. Diaet v2 starb am grossen DELETE → auch Index-Drops/Rollup/pg_cron wurden zurueckgerollt. Der Swap starb am 2BP01 (Alt-Tabelle hat ein Vor-Repo-SERIAL; "including defaults" kopierte den nextval auf die ALTE Sequenz) → auch die fertige Kopie verschwand wieder ("price_history_neu does not exist" beim FIX-Versuch). Die beobachteten −52 MB kamen vom manuell gelaufenen VACUUM FULL (Index-Defragmentierung), nicht von der Diaet — diese Fehlzuordnung hat die Diagnose verzoegert.
 - **Fix:** `2026-08-20_price_history_swap.sql` — bei 69 % Muell ist KOPIEREN billiger als Loeschen: Behalter in frische indexlose Tabelle, Tausch, zwei lebendige Indizes neu, Lockdown exakt reappliziert. Ersetzt auch das VACUUM FULL (neue Tabelle ist kompakt geboren — das VACUUM auf 296 MB waere vermutlich am selben Limit gescheitert).
 - **Lektionen:** (1) Massen-DELETEs im SQL-Editor sind eine Falle — ab ~Hunderttausenden Zeilen: Tabellen-Swap oder Batches. (2) Nach JEDER Editor-Migration das Ergebnis MESSEN statt auf "Success" vertrauen — die Diagnose-Abfrage (Zeilen/Groesse/Duplikate) haette den Fehlschlag sofort gezeigt. (3) Eine neue Tabelle bekommt Default-Rechte — Lockdowns (BUG-012) muessen beim Swap explizit mitwandern.
-- **Status:** 🟡 Swap-Migration geschrieben, Einspielen offen (Zeitfenster 05–15 UTC, ausserhalb der Updater-Crons)
+- **Fix final:** `2026-08-20_price_history_swap_v2.sql` — ALLES in einem Lauf; die Ein-Transaktions-Eigenschaft macht den Swap atomar: Kopie, Default-Abloesung VOR dem Drop, Tausch, eigenes Identity, 2 Indizes, Lockdown, card_prices-Praefix-Drop, Rollup-Funktion + pg_cron. `_swap.sql` und `_swap_FIX.sql` sind obsolet.
+- **Lektion dazu:** Editor-Laeufe sind atomar — Teil-Erfolge gibt es nicht, und was nach einem Fehler "noch da" wirkt, stammt aus einem ANDEREN Lauf. Effekte messen und einem konkreten Lauf zuordnen.
+- **Status:** 🟡 v2-Swap geschrieben, Einspielen offen (Zeitfenster 05–15 UTC)
 
 ## BUG-017 — Hero-Boxen leer unter echtem Traffic (Overview + Zaehlung kalt ueber Timeout)
 
