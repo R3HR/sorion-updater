@@ -89,6 +89,8 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 - **Club_Rosters von 04:00 auf 07:00 verschoben:** 04:00 lag im Updater-Fenster, zusammen ~183 der 200 req/min. Freie Stunden sind 5-15 und 21; 05:30 belegt der Harvester (**eigenes Railway-Projekt**, gleicher Key).
 - **Ein zweiter Key wuerde erst zaehlen**, wenn ALLE 122k Zeilen taeglich sollen: 85 req/min ueber 24 h bzw. 170/min im 12-h-Fenster.
 
+**Budget-Rahmen (20.08., Jonas):** Ein Pro-Upgrade kostet 300 $/Jahr — das ist eine bewusste Ausgabe, solange die Seite nichts verdient. Regel fuer alle kuenftigen Sessions: **kostenlose Loesungen zuerst ausschoepfen** (Indizes, Snapshots, Diaet, Rollup — siehe BUG-015 bis -017), das Upgrade an messbare Signale koppeln (Fehlergraph rot trotz Fixes, 500-MB-Marke trotz Diaet nicht haltbar), und bei neuen Features die Folgekosten (Egress/Compute/Speicher) benennen. Gemessene Einordnung: Free-Tarif traegt den JETZIGEN Stand; Pro traegt das 100- bis 500-Fache des heutigen Traffics und 3,5-10+ Jahre Datensammlung (je nach Rollup).
+
 ## ⚠️ Offene Aktionen für Jonas
 
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)
