@@ -156,7 +156,7 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
    Umgesetzt: Action `link_sorare` in `sorare-oauth` (prueft Sorion-JWT UND Sorare-Token, 409 wenn der Slug schon einem anderen Konto verifiziert gehoert), `sorion.pro/auth/callback` angelegt, profile.html zeigt den Verbindungsstatus und sperrt das Slug-Textfeld bei verifizierter Verbindung (vorher konnte jeder jeden fremden Slug eintragen). Schutz getestet: ohne access_token 400, ohne Sorion-Login 401.
    **Testergebnis Jonas (01.08.): Verknuepfung funktioniert.** Damit ist geklaert: `sorion.pro/auth/callback` ist in der BESTEHENDEN OAuth-App registriert (Client-ID `JwRtoOAB…`) — **eine neue App ist NICHT noetig**, die Antragsmail enthielt beide Callback-URLs. Ebenfalls bestaetigt: Sync-Knopf laeuft und die 10-Minuten-Pause greift.
    Merke fuer kuenftige Pruefungen: Ob eine redirect_uri registriert ist, laesst sich NICHT von aussen testen — Sorare liefert fuer jede Variante dieselbe SPA-Huelle (alle Testvarianten exakt 20.058 Byte). Nur der echte Klick zeigt es.
-1. **Impressum-Platzhalter füllen** (legal.html in `sorion-ui` UND `Craft_log`) — **Launch-Blocker!**
+1. ✅ **ERLEDIGT (21.08.):** Impressum vollstaendig — Betreiberangaben + Hosting/Region auf BEIDEN Seiten eingetragen. **Der letzte Launch-Blocker ist damit gefallen.**
 2. SQL-Bereinigung BUG-011 ausführen (Session 26.07.: konservierte Alt-FMVs nullen) — falls noch nicht geschehen
 3. `SORARE_APIKEY` auch als Supabase-Secret setzen (`npx supabase secrets set SORARE_APIKEY=...`) — schnellere Portfolio-Ladezeiten, wichtig vor Promotion-Traffic
 4. ~~Neue Sorare-OAuth-App beantragen~~ — **erledigt sich (01.08.):** Die bestehende App deckt beide Domains ab (live getestet). Offen bleibt nur die Secret-Hygiene, falls die App tatsaechlich auf einem fremden Account liegt.
@@ -168,7 +168,7 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 |---|---|
 | Betrieb stabilisieren, Accuracy-Zahlen täglich prüfen (Bias!) | 🔄 läuft |
 | Season-Flip überstehen (ligaweise im Gang) | 🔄 läuft |
-| Impressum | 🔴 Jonas |
+| Impressum | ✅ 21.08. |
 | Watchlist mit Zielpreisen (Stufe 2; Tabelle existiert) | ⬜ nächstes Feature |
 | OG-Tags/Favicon + Erstbesucher-Erklärtext | ⬜ Launch-Kosmetik |
 | Mobile-Durchgang | ⬜ vor Launch |
