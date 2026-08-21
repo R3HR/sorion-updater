@@ -118,7 +118,7 @@
 - **Vierte und letzte Erkenntnis — der eigentliche Ausloeser aller drei Fehlversuche:** Der Editor-Dialog **„mit RLS / ohne RLS"**. Jonas waehlte stets „mit RLS" — und `price_history` ist seit BUG-012 die einzige Tabelle mit VOLLVERRIEGELUNG (`force row level security`, null Policies). Im mit-RLS-Modus war sie fuer die Migrationen unsichtbar/gesperrt: die Diaet fand nichts zu loeschen, der Swap kopierte null Zeilen, alles rollte zurueck. **Unser eigener Sicherheitszaun sperrte den Admin aus.** Mit „ohne RLS" lief der v2-Swap in einem Durchgang.
 - **Ergebnis (20.08., verifiziert):** DB **515 → 225 MB**. Lockdown auf der NEUEN Tabelle geprueft: anon → 401 permission denied ✓; `player_history` liefert lueckenlos bis 23.07. ✓; market_overview 339 ms ✓; market_leagues nach Swap-bedingtem Kalt-Ausreisser (1x 3,5 s) stabil 400–450 ms.
 - **Lektion final:** Migrationen im SQL-Editor IMMER „ohne RLS" ausfuehren — der mit-RLS-Modus simuliert einen API-Besucher, und gegen abgeriegelte Tabellen scheitern dann sogar SELECTs, ohne dass die Fehlermeldung RLS erwaehnt.
-- **Status:** ✅ gefixt und live verifiziert 2026-08-20. Wiedervorlage: nach dem naechsten Updater-Fenster (16 UTC) Railway-Logs auf "History-Insert"-Warnungen pruefen (Upsert-Ziel der neuen Tabelle).
+- **Status:** ✅ gefixt und live verifiziert 2026-08-20. **Wiedervorlage erledigt 21.08.:** Historie-Punkte vom 20.08. (nach dem Swap) und 21.08. vorhanden (Yamal/Wirtz/Bellingham via player_history) — der Updater schreibt sauber in die neue Tabelle, kein Log-Check mehr noetig.
 
 ## BUG-017 — Hero-Boxen leer unter echtem Traffic (Overview + Zaehlung kalt ueber Timeout)
 
