@@ -1482,23 +1482,38 @@
 
   const COLS = 'id,player_slug,player_name,team_name,league_name,league_country,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,position,last_sale_at,updated_at';
 
+  // Wiederholung mit Pause statt Doppelschuss (20.08., Jonas: "Seite laedt
+  // oefter nicht vollstaendig, Refresh hilft"): Die verbliebenen Live-
+  // Aggregate brauchen KALT 3-3,5 s und reissen gelegentlich den Timeout.
+  // Der Clou: schon der GESCHEITERTE Versuch waermt den DB-Cache — deshalb
+  // half der manuelle Refresh immer. Also macht die Seite das jetzt selbst:
+  // bis zu 3 Versuche mit wachsender Pause (der Server braucht einen Moment,
+  // um die vom ersten Versuch gelesenen Seiten im Cache zu haben).
+  // 4xx wird NICHT wiederholt — ein 400/401/404 heilt nicht von selbst.
+  const apiSleep = ms => new Promise(r => setTimeout(r, ms));
+  const API_WAITS = [0, 800, 2200];
+
   async function api(path, extra) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < API_WAITS.length; attempt++) {
+      if (API_WAITS[attempt]) await apiSleep(API_WAITS[attempt]);
       try {
         const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: { ...H_API, ...(extra || {}) } });
         if (r.ok) return r;
+        if (r.status < 500 && r.status !== 429) return null;   // heilt nicht
       } catch {}
     }
     return null;
   }
   async function apiJson(path) { const r = await api(path); return r ? r.json() : []; }
   async function rpc(name, args) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < API_WAITS.length; attempt++) {
+      if (API_WAITS[attempt]) await apiSleep(API_WAITS[attempt]);
       try {
         const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
           method: 'POST', headers: { ...H_API, 'Content-Type': 'application/json' },
           body: JSON.stringify(args || {}) });
         if (r.ok) return r.json();
+        if (r.status < 500 && r.status !== 429) return null;
       } catch {}
     }
     return null;
@@ -1627,6 +1642,24 @@
     updateHeroStats();
     populateClubs();
     setScarcity('limited');   // setzt den Button aktiv, laedt Seite 1 + Movers
+
+    // Wachhund (20.08., Jonas: "Seite laedt oefter nicht vollstaendig"):
+    // prueft alle 9 s, ob Abschnitte fehlen, und laedt sie nach — bis alles
+    // steht, maximal 4 Runden. Im Test heilte Runde 1 Clubs+Movers, das
+    // Ranking (schwerstes Aggregat) brauchte eine weitere — einmalig reicht
+    // also nachweislich NICHT. Die Seite refresht sich selbst, nicht der Nutzer.
+    let healRuns = 0;
+    const watchdog = setInterval(() => {
+      const jobs = [
+        [!document.querySelector('#lr-body .lr-row'),        renderLeagues],
+        [!document.querySelector('#top-movers > div'),       renderMovers],
+        [!document.querySelector('#clublist option'),        populateClubs],
+        [(document.getElementById('stat-total')?.textContent || '—') === '—', updateHeroStats],
+        [!rows.length,                                       filterTable],
+      ].filter(j => j[0]);
+      jobs.forEach(j => j[1]());
+      if (!jobs.length || ++healRuns >= 4) clearInterval(watchdog);
+    }, 9000);
   }
 
   async function updateHeroStats() {
@@ -1693,7 +1726,8 @@
     const elig = eligFilter;
     if (!facetsCache[elig]) facetsCache[elig] = await rpcCached('market_facets', { p_elig: elig });
     const f = facetsCache[elig];
-    if (!f || eligFilter !== elig) return;   // Nutzer hat inzwischen umgeschaltet
+    if (!f) { delete facetsCache[elig]; return; }   // Fehlschlag NICHT einfrieren
+    if (eligFilter !== elig) return;                // Nutzer hat umgeschaltet
 
     const clubs = f.filter(x => x.kind === 'club')
                    .sort((a, b) => b.cards - a.cards || a.value.localeCompare(b.value));
@@ -1879,6 +1913,7 @@
     if (!leaguesCache[key]) leaguesCache[key] = await rpcCached('market_leagues',
       { p_elig: elig, p_scarcity: sc === 'all' ? null : sc });
     const data = leaguesCache[key];
+    if (!data) { delete leaguesCache[key]; }        // Fehlschlag NICHT einfrieren
     if (eligFilter !== elig || rankScarcity !== sc) return;   // inzwischen umgeschaltet
     if (!data || !data.length) { body.innerHTML = '<div class="lr-empty">// no league data yet</div>'; return; }
 
