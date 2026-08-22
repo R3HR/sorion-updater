@@ -23,7 +23,17 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 | Edge Functions (11) | `C:\craft-log\supabase\functions\` | `npx supabase functions deploy <name>` (CLI eingeloggt). sorare-oauth (Actions: user_cards, **user_trades**, login, exchange, refresh, userinfo, cards, link_sorare, card_pull, recent_crafts, **squad_board** neu 20.08.), add-missing-players, get-pool, update-pool, update-prices (Metadaten-only), get-analytics, sorare-proxy, delete-account, **track** (Analytics-Beacon), **sync-portfolio** (Portfolio-Spiegelung mit TTL-Sperre), **squad-poll** (Squad-Manager-Poller via pg_cron alle 10 min + 5-Min-Fenster um die Claim-Frist, neu 21.08.) |
 | DB | Supabase `jxhdlcpdupmkpsoytzes` | `card_prices` (Key: slug×scarcity×eligibility; +`position`, +`league_country` seit 30.07.), `price_history` (+eligibility), `pool_cache`, `fmv_accuracy` (+View `fmv_accuracy_stats`), `market_daily` (Vollmarkt-Tagessnapshot), `manager_sync`/`manager_cards`/`manager_trades` (gespiegelte Portfolios), `analytics_events`, `profiles` (+`sorare_verified`), `watchlist`, `sorare_users` |
 
-## Aktueller Stand (2026-08-02)
+## Aktueller Stand (2026-08-22)
+
+**Wochenbilanz 18.–22.08. (Kurzfassung, Details in den Bloecken unten und in BUGS/INCIDENTS):**
+- **Marktseite serverseitig** (~100 KB statt 15 MB/Besuch), Aggregate als **Materialized Views** (2 Refreshs/Tag, Advisory-Lock), Hero-Zahlen aus Tages-Snapshots, Client mit Backoff-Retries + Wachhund. Kaltstart-Timeouts und "913 Spieler"-Zaehler-Verwirrung damit Geschichte.
+- **Datenbank 515 → 225 MB** (price_history-Swap, tote Indizes weg, Wochen-Rollup + Accuracy-Putzdienst via pg_cron). Free-Tarif wieder mit Luft.
+- **INC-005 (22.08.):** Mein Cache-Waermer vom 21.08. legte Supabase ~1,5 h lahm (IO-Drossel + ueberlappende Cron-Laeufe). Stillgelegt, durch MVs ersetzt, Lehre dokumentiert: keine periodische Last auf gedrosselte Instanzen, Cron-Jobs brauchen Ueberlappungsschutz, am Folgetag `cron.job_run_details` pruefen.
+- **Accuracy** wiederhergestellt (INC-004), eigene Seite `accuracy.html` hinter Fusszeilen-Link (Formel bleibt geheim), Befund: FMV systematisch ~47 % zu niedrig bei Limited in-season → Backtest-Harness ist der naechste Schritt.
+- **Impressum vollstaendig auf beiden Domains** — letzter Launch-Blocker geschlossen. Discord-Fahne, Handy-Tauglichkeit, Rarity-Akzente, Budget-Rahmen (~14 EUR/Monat laufend) dokumentiert.
+- **Updater:** In-Season taeglich durch (gewichtete Queue, BATCH 200/DELAY 1000), Roster-Cron 07:00. Kein zweiter API-Key noetig.
+- **Offen (ohne Eile):** FMV-Backtest-Harness · Support-Link (Ko-fi, wartet auf Account) · Roster-Cron nach 01.09. auf woechentlich · 23.08. 16:30 Cron-Health-Check (Erinnerung gesetzt).
+
 
 **Daten-Pipeline:**
 - InSeason/Classic live; Saisonflip 25/26→Classic läuft ligaweise und wird automatisch mitvollzogen (Karten-Bewertung folgt `inSeasonEligible` der Karte)
