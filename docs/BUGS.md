@@ -173,3 +173,13 @@
 - **Fix:** eigene `lr-*`-Klassen fürs Ranking; Duplikat entfernt und ans bestehende Auswahl-Modell angebunden; Land wird mitgeführt und geprüft — **Pflicht nur bei mehrdeutigen Liganamen** (zur Laufzeit aus den Daten ermittelt), bei eindeutigen Namen bleiben Zeilen ohne Land erhalten und werden im Ranking zugeschlagen; `.controls` bekommt `position:relative; z-index:40`, `.table-wrap` `z-index:1`.
 - **Lektion (Wiederholung von BUG-009):** `new Function`/`node --check` finden weder ReferenceErrors noch CSS-Kollisionen noch Stapel-Fehler. **UI-Änderungen an dieser Seite ab jetzt lokal servieren und wirklich klicken** (`node`-Einzeiler als Static-Server + Browser). Verifiziert wurde: DE 236 Treffer (nur `de`), AT 90 (nur `at`), NL 188; Ranking-Klick filtert und hebt auf; `elementFromPoint` im gesamten Überlappungsbereich → Menü oben.
 - **Status:** ✅ behoben 2026-07-31 (alle vier Punkte live verifiziert)
+
+---
+
+## BUG-019 - Discord-Meldung geht verloren, wenn Discord drosselt (22.08.) - BEHOBEN
+
+- **Symptom:** 10 von 10 Aufstellungen standen korrekt in der DB, der Bot meldete aber nur 9 - `andreihaha` fehlte komplett (Befund Jonas).
+- **Ursache:** `notifyOnce` in `squad-poll` schrieb den Dedup-Schluessel in `squad_notifications` **vor** dem Discord-Post und pruefte die Antwort **nicht**. Discord drosselt Webhooks bei ~5 Anfragen/2 s; beim ersten Lauf gingen ~10 Nachrichten im Schwall raus. Ein Post lief in ein **429**, der Schluessel war aber schon gesetzt -> nie wieder ein Versuch. Die Meldung war dauerhaft verloren.
+- **Nicht betroffen:** Die Datenerfassung. Alle 10 Manager waren korrekt in `squad_lineup_log` - nur die Benachrichtigung fehlte.
+- **Fix (deployed 22.08.):** `notifyOnce` prueft jetzt die Discord-Antwort. Bei 429 wird `retry_after` abgewartet und **einmal erneut** gesendet; schlaegt es endgueltig fehl, wird der **Schluessel wieder geloescht**, sodass der naechste Poll es erneut versucht. Zusaetzlich 400 ms Pause nach jedem erfolgreichen Post, um Schwaelle zu entzerren.
+- **Lektion:** Ein Dedup-Schluessel darf erst dann endgueltig gelten, wenn die Zustellung bestaetigt ist - sonst wird aus "genau einmal senden" ein "hoechstens einmal senden".
