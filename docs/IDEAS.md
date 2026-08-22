@@ -169,3 +169,33 @@ um die Datenbrücke zwischen beiden Projekten.
 - Scope: eigenes Sorion-Modul oder eigenständige Seite? (Roadmap-Fokus beachten — Squad-Manager ist Neuland neben dem Markt-Kern.)
 
 **Aufwand:** Mittel — Auth-Pfad und Cron-Infrastruktur existieren (sorare-oauth, Railway, CRON_SECRET-Muster); neu sind im Kern die zwei Tabellen, der Poller und die UI.
+
+---
+
+## IDEA-004 - Squad-Manager als Angebot fuer fremde Squads (verworfen fuer jetzt)
+
+**Idee (Jonas, 22.08.):** Den Squad-Manager-Bot anderen Sorare-Squads anbieten,
+eventuell gegen Gebuehr.
+
+**Machbarkeit:** Technisch nah dran. Noetig waeren Mandantenfaehigkeit (`squad_id`
+in allen Tabellen, Token/Webhook/Regelwerk je Squad - Cap-Hoehe, Frist und
+Umstell-Zeit sind heute Konstanten) und ein Selbstbedienungs-Onboarding
+(Captain verbindet Sorare per OAuth, legt Webhook an, traegt Discord-IDs ein).
+Aufwand ~2-3 Tage. Last unkritisch: 1 Sorare-Abfrage je Squad und Poll.
+
+**Warum jetzt NICHT:**
+1. **ToS.** Geld nehmen fuer ein Produkt auf Sorares API ist genau der Fall, fuer
+   den in der ROADMAP die ToS-Klaerung angesetzt ist (Weg ueber Sorare-Inside-Kontakt).
+   Risiko im Zweifel der API-Key - an dem haengt auch Sorion selbst.
+2. **Token-Verwahrung.** Refresh-Tokens FREMDER Sorare-Konten zu speichern ist eine
+   andere Verantwortungsklasse (Leak, Widerruf, DSGVO-Loeschpflichten).
+3. **Priorisierung.** ROADMAP-P0 ist Launch + Tracking-Fixes vor jedem neuen Feature;
+   Sorion Pro ist selbst noch unvalidiert.
+4. **Marktgroesse unklar.** Die Cap-/Claim-Regel von „Handpicked" ist speziell - viele
+   Squads duerften gar keine so strengen Regeln haben, dann gibt es nichts zu automatisieren.
+
+**Wenn wieder aufgreifen:** Erst kostenlos an 2-3 befreundete Squads geben (geht
+notfalls ohne volle Mandantenfaehigkeit) und pruefen, ob sie es nach vier Wochen
+behalten wollen. Erst dann ToS klaeren, und dann eher als Bestandteil von
+**Sorion Pro** (Captain zahlt, Squad profitiert) statt als zweites Abo - sonst
+kannibalisiert es das Hauptprodukt.
