@@ -34,7 +34,8 @@
     --cyan: #00f5ff;
     --text: #e8e8ff;
     --text2: #9090c0;
-    --muted: #505080;
+    --dim: #8888b4;    /* gedaempfte Schrift, 5,7:1 auf #0d0d1a / 5,1:1 auf Flaechen (WCAG AA; vorher #404060 = 1,95:1) */
+    --muted: var(--dim);
     --limited: #ffb830;
     --rare: #ff5555;
     --sr: #7090ff;
@@ -305,7 +306,7 @@
   }
 
   .p-search:focus { border-color: var(--purple); box-shadow: 0 0 12px var(--purple-glow); }
-  .p-search::placeholder { color: #404060; }
+  .p-search::placeholder { color: var(--dim); }
 
   .p-filter {
     background: var(--surface);
@@ -528,7 +529,7 @@
   .pm-label { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: var(--purple); margin-bottom: 4px; opacity: .85; }
   .pm-val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--text); }
   .pm-section { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .2em; color: var(--text2); text-transform: uppercase; margin: 16px 0 8px; }
-  .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #404060; padding: 8px 0; }
+  .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); padding: 8px 0; }
 
   .logo-mark { font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
   .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
@@ -582,7 +583,7 @@
   .th-table tr:last-child td { border-bottom: none; }
   .th-player { font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--text); }
   .th-sub { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--text2); margin-top: 2px; }
-  .th-empty { padding: 26px 16px; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: #505080; text-align: center; }
+  .th-empty { padding: 26px 16px; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--dim); text-align: center; }
   .th-note { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); margin-top: 10px; line-height: 1.6; }
 
   /* ── Handy (Pruefung 18.08.) ───────────────────────────────────────────
@@ -1475,7 +1476,7 @@
   // ── Card-Detail-Modal: alle Infos zu einer Karte, v. a. die persönlichen ──
   function fmtEur(v) { return v != null ? '€' + Number(v).toFixed(2) : '—'; }
   function pctSpan(pct) {
-    if (pct == null) return '<span style="color:#404060">—</span>';
+    if (pct == null) return '<span style="color:var(--dim)">—</span>';
     const up = pct >= 0;
     return `<span style="color:${up ? 'var(--up)' : 'var(--down)'}">${up ? '▲ +' : '▼ '}${pct.toFixed(1)}%</span>`;
   }
@@ -1744,5 +1745,6 @@
 </script>
 
 <script src="discord.js" defer></script>
+<script src="a11y.js" defer></script>
 </body>
 </html>

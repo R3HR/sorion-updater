@@ -39,7 +39,8 @@
     --yellow: #ffe600;
     --text: #e8e8ff;
     --text2: #9090c0;
-    --muted: #5050808;
+    --dim: #8888b4;    /* gedaempfte Schrift, 5,7:1 auf #0d0d1a / 5,1:1 auf Flaechen (WCAG AA; vorher #404060 = 1,95:1) */
+    --muted: #8888b4;     /* war "var(--dim)8" — 7 Stellen, ungueltig, Browser ignorierte den Token */
     --limited: #ffb830;
     --rare: #ff5555;
     --sr: #7090ff;
@@ -382,7 +383,7 @@
     box-shadow: 0 0 12px var(--purple-glow);
   }
 
-  .search-input::placeholder { color: #404060; }
+  .search-input::placeholder { color: var(--dim); }
 
   .filter-btn {
     background: var(--surface);
@@ -489,7 +490,7 @@
   .rank-num {
     font-family: 'Share Tech Mono', monospace;
     font-size: 11px;
-    color: #404060;
+    color: var(--dim);
   }
 
   .player-cell {
@@ -595,12 +596,12 @@
   .liq-high   { color: var(--up); }
   .liq-medium .liq-dot { background: var(--limited); }
   .liq-medium { color: var(--limited); }
-  .liq-low    .liq-dot { background: #404060; }
-  .liq-low    { color: #404060; }
+  .liq-low    .liq-dot { background: var(--dim); }
+  .liq-low    { color: var(--dim); }
 
   .change-up   { color: #00ff88; font-family: 'Share Tech Mono', monospace; font-size: 12px; font-weight: 600; }
   .change-down { color: #ff2d78; font-family: 'Share Tech Mono', monospace; font-size: 12px; font-weight: 600; }
-  .change-nil  { color: #404060; font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+  .change-nil  { color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 12px; }
 
   .liq-wrap { position: relative; display: inline-flex; align-items: center; cursor: default; }
 
@@ -910,7 +911,7 @@
     justify-content: space-between;
     font-family: 'Share Tech Mono', monospace;
     font-size: 10px;
-    color: #404060;
+    color: var(--dim);
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
@@ -1112,7 +1113,7 @@
   .m-rank {
     font-family: 'Share Tech Mono', monospace;
     font-size: 10px;
-    color: #404060;
+    color: var(--dim);
   }
   @media (max-width: 480px) {
     .hero-stats { grid-template-columns: 1fr; }
@@ -1150,7 +1151,7 @@
   .pm-label { font-family: 'Share Tech Mono', monospace; font-size: 8px; letter-spacing: .18em; text-transform: uppercase; color: var(--purple); margin-bottom: 4px; opacity: .85; }
   .pm-val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--text); }
   .pm-section { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .2em; color: var(--text2); text-transform: uppercase; margin: 16px 0 8px; }
-  .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #404060; padding: 8px 0; }
+  .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); padding: 8px 0; }
   .btn-sorare { display: inline-flex; align-items: center; gap: 10px; background: transparent; border: 1px solid var(--purple); color: var(--purple); font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; padding: 10px 18px; border-radius: 6px; cursor: pointer; }
   .btn-sorare:hover { background: var(--purple); color: var(--bg); }
 
@@ -1170,8 +1171,8 @@
     white-space: nowrap; display: flex; align-items: center; gap: 9px;
   }
   .lg-row:hover { background: var(--surface3); color: var(--purple); }
-  .lg-count { margin-left: auto; color: #505080; font-size: 10px; }
-  .lg-arrow { color: #505080; margin-left: 2px; }
+  .lg-count { margin-left: auto; color: var(--dim); font-size: 10px; }
+  .lg-arrow { color: var(--dim); margin-left: 2px; }
   .lg-sub {
     display: none; position: absolute; left: 100%; top: -5px; margin-left: 2px;
     background: var(--surface); border: 1px solid var(--border2); border-radius: 8px;
@@ -1217,7 +1218,7 @@
                   /* war 3px 6px -> 19x17 px Tippflaeche; danebentippen war die Regel */
   .lr-sc button:hover { color: var(--text); border-color: var(--border2); }
   .lr-sc button.active { color: var(--purple); border-color: var(--purple); background: rgba(176,96,255,.1); }
-  .lr-empty { padding: 18px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #505080; }
+  .lr-empty { padding: 18px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
 
 
   /* ── Scrollbalken an das dunkle Design angleichen ─────────────── */
@@ -2124,11 +2125,11 @@
 
     let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← prev</button>`;
     const s = Math.max(1,currentPage-3), e = Math.min(total,currentPage+3);
-    if (s>1) html+=`<button class="page-btn" onclick="goPage(1)">01</button><span style="color:#404060;padding:0 4px">…</span>`;
+    if (s>1) html+=`<button class="page-btn" onclick="goPage(1)">01</button><span style="color:var(--dim);padding:0 4px">…</span>`;
     for (let i=s;i<=e;i++) html+=`<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${String(i).padStart(2,'0')}</button>`;
-    if (e<total) html+=`<span style="color:#404060;padding:0 4px">…</span><button class="page-btn" onclick="goPage(${total})">${String(total).padStart(2,'0')}</button>`;
+    if (e<total) html+=`<span style="color:var(--dim);padding:0 4px">…</span><button class="page-btn" onclick="goPage(${total})">${String(total).padStart(2,'0')}</button>`;
     html+=`<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>next →</button>`;
-    html+=`<span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px;margin-left:8px">${totalRows.toLocaleString()} players</span>`;
+    html+=`<span style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;margin-left:8px">${totalRows.toLocaleString()} players</span>`;
     pg.innerHTML = html;
   }
 
@@ -2222,7 +2223,7 @@
       <button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>← prev</button>
       <span style="color:var(--text2);font-family:'Share Tech Mono',monospace;font-size:11px">${currentPage} / ${total}</span>
       <button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>next →</button>
-      <span style="color:#404060;font-family:'Share Tech Mono',monospace;font-size:10px">${totalRows.toLocaleString()} players</span>
+      <span style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px">${totalRows.toLocaleString()} players</span>
     `;
   }
 
@@ -2348,7 +2349,7 @@
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       });
       const trend = points[points.length-1] - points[0];
-      const color = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#505080';
+      const color = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#8888b4';
       const lastC = coords[coords.length-1].split(',');
       document.getElementById('modal-chart').innerHTML = `
         <svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 0 4px ${color})">
@@ -2427,7 +2428,7 @@
     });
 
     const trend = points[points.length - 1] - points[0];
-    const color = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#505080';
+    const color = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#8888b4';
     const glow  = trend > 0
       ? 'filter:drop-shadow(0 0 3px #00ff88)'
       : trend < 0
@@ -2456,7 +2457,7 @@
       .filter(v => v !== null && v > 0);
 
     if (points.length < 2) {
-      return `<span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#303050">no data</span>`;
+      return `<span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim)">no data</span>`;
     }
 
     const W = 80, H = 28;
@@ -2471,7 +2472,7 @@
     });
 
     const trend  = points[points.length - 1] - points[0];
-    const color  = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#505080';
+    const color  = trend > 0 ? '#00ff88' : trend < 0 ? '#ff2d78' : '#8888b4';
     const glow   = trend > 0 ? 'filter:drop-shadow(0 0 3px #00ff88)' : trend < 0 ? 'filter:drop-shadow(0 0 3px #ff2d78)' : '';
     const lastCoord = coords[coords.length - 1].split(',');
     const trendArrow = trend > 0
@@ -2677,5 +2678,6 @@
   loadData();
 </script>
 <script src="discord.js" defer></script>
+<script src="a11y.js" defer></script>
 </body>
 </html>
