@@ -32,6 +32,7 @@ Sorion = **Trading-Tool** für Sorare (FMV-Marktdaten, Portfolio mit P&L, Manage
 - **Accuracy** wiederhergestellt (INC-004), eigene Seite `accuracy.html` hinter Fusszeilen-Link (Formel bleibt geheim), Befund: FMV systematisch ~47 % zu niedrig bei Limited in-season → Backtest-Harness ist der naechste Schritt.
 - **Impressum vollstaendig auf beiden Domains** — letzter Launch-Blocker geschlossen. Discord-Fahne, Handy-Tauglichkeit, Rarity-Akzente, Budget-Rahmen (~14 EUR/Monat laufend) dokumentiert.
 - **Updater:** In-Season taeglich durch (gewichtete Queue, BATCH 200/DELAY 1000), Roster-Cron 07:00. Kein zweiter API-Key noetig.
+- **Regel fuer ALLE Sessions seit SEC-004 (22.08.):** Neue Postgres-Funktionen starten PRIVAT (Default-Privileges geaendert). Eine RPC, die das Frontend anonym aufrufen soll, braucht zwingend `grant execute on function ... to anon, authenticated` — und interne Funktionen brauchen `revoke ... from public, anon, authenticated` (BEIDES, immer). Pruef-Abfrage steht in der SEC-004-Migration.
 - **Offen (ohne Eile):** FMV-Backtest-Harness · Support-Link (Ko-fi, wartet auf Account) · Roster-Cron nach 01.09. auf woechentlich · 23.08. 16:30 Cron-Health-Check (Erinnerung gesetzt).
 
 

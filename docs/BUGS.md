@@ -176,6 +176,21 @@
 
 ---
 
+## BUG-020 — Herz-und-Nieren-Pruefung 22.08.: Sparkline-Nachlader, Kalt-Abfragen, Sync-Knopf (behoben)
+
+- **Anlass:** Jonas: „Pruefe alle Funktionen auf Herz und Nieren." 54 API/Sicherheits-Pruefungen (anonymer Schluessel) + Live-Klicktests aller Seiten + CraftLog.
+- **Funde (Frontend, alle behoben 22.08.):**
+  1. `loadVisibleHistory` stuerzte bei Re-Render ab (`closest('td')` null → Uncaught TypeError in der Live-Konsole). Auf dem **Handy** traf es den ersten Treffer (Karten haben kein `<td>`) → **gar keine Sparkline-Nachladung auf Mobil**. Dazu liefen alte Schleifen weiter: 76 statt 50 `player_history`-Aufrufe pro Sitzung. Fix: Generationszaehler + Null-Guards + Karten-Host.
+  2. „Last Updated"-Abfrage (`order=updated_at.desc` ueber die ganze Tabelle) **4,5 s kalt → 500**. Fix: `scarcity=eq.limited` nutzt den Index `(scarcity, updated_at)`.
+  3. Exakte Trefferzahl (`count=exact`) **4,2 s kalt → 500** und IO-Fresser. Fix: `count=estimated` (exakt bei kleinen Mengen, Planer-Schaetzung bei grossen).
+  4. Movers bei Rarity „All"/Classic **4,6 s kalt → 500** (kein Index mit eligibility-Praefix). Fix: `idx_cp_elig_ch7` (in der SEC-004-Migration).
+  5. Portfolio: Sync-Knopf fuer Fremde sichtbar → „Sync failed"-Alert. Fix: nur fuer den eingeloggten Besitzer.
+- **Sicherheit:** SEC-004 (interne Funktionen anonym aufrufbar) → INCIDENTS.md, eigene Migration.
+- **Kosmetik, nicht behoben (Edge Functions, Deploy noetig):** `sorare-oauth` unbekannte Action → 500 statt 400; `userinfo` ohne Token → 200 `{}`; `add-missing-players` leerer Body → 200; `get-pool` ohne JSON-Body → 500 „Unexpected end of JSON input". Alle harmlos.
+- **Beobachtung (Produktentscheidung, offen):** `profile.html` ist komplett deutsch (Anmelden/Registrieren/Passwort), der Rest von sorion.pro englisch. CraftLog hat keine Discord-Fahne.
+- **Gruen (zur Ehrenrettung):** Tabellen-Lockdowns (price_history/analytics 401; profiles/sorare_users/watchlist/squad_tokens/squad_discord_users leer per RLS), MVs nicht direkt lesbar, OpenAPI-Wurzel verlangt Secret-Key, Edge Functions (update-pool/update-prices 403, squad-poll 403, get-analytics/delete-account 401, sync-portfolio force 403, track Whitelist 400). Marktseite: alle Filter, Suche, Sortierung inkl. Umschaltung, Pagination, Modal, Classic/In-Season, Rarity „All". Portfolio: 297 Karten, Stats, NET/GROSS (Wert bewusst brutto, nur P&L netto — dokumentierte Entscheidung), Trade History, Winners-Filter, Karten-Detail mit Break-even, Manager-Suche, Header-Identitaet. CraftLog: Login-Gate, Sprachen, Impressum-Link, keine Fehler.
+- **Status:** ✅ Frontend-Funde behoben; SEC-004-Migration offen (Jonas)
+
 ## BUG-019 - Discord-Meldung geht verloren, wenn Discord drosselt (22.08.) - BEHOBEN
 
 - **Symptom:** 10 von 10 Aufstellungen standen korrekt in der DB, der Bot meldete aber nur 9 - `andreihaha` fehlte komplett (Befund Jonas).
