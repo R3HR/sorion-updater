@@ -183,3 +183,14 @@
 - **Nicht betroffen:** Die Datenerfassung. Alle 10 Manager waren korrekt in `squad_lineup_log` - nur die Benachrichtigung fehlte.
 - **Fix (deployed 22.08.):** `notifyOnce` prueft jetzt die Discord-Antwort. Bei 429 wird `retry_after` abgewartet und **einmal erneut** gesendet; schlaegt es endgueltig fehl, wird der **Schluessel wieder geloescht**, sodass der naechste Poll es erneut versucht. Zusaetzlich 400 ms Pause nach jedem erfolgreichen Post, um Schwaelle zu entzerren.
 - **Lektion:** Ein Dedup-Schluessel darf erst dann endgueltig gelten, wenn die Zustellung bestaetigt ist - sonst wird aus "genau einmal senden" ein "hoechstens einmal senden".
+
+---
+
+## BUG-020 - Beim Spieltagsstart fielen Snapshot und Discord-Meldung aus (23.08.) - BEHOBEN
+
+- **Symptom:** Neue Stage 5 war offen, `parisboemboem` wurde vom Cron um 09:50 (Berlin) korrekt ins Log geschrieben - aber es gab **weder Snapshot noch Discord-Meldung**. Die Meldung kam erst um 09:57 durch einen manuellen Poll.
+- **Ursache:** Snapshot, Umstellungs-Erkennung und Benachrichtigungen haingen an `step.state === 'LINEUP_SET'`. Das Log-Schreiben dagegen nicht. Beim Uebergang von einer abgeschlossenen zur naechsten Stage steht der Step kurz in einem anderen Zustand - in diesem Fenster wurden Lineups erfasst, aber nicht gemeldet.
+- **Auswirkung:** Bis zu 10 Minuten Verzug (der naechste Cron-Lauf holt es nach), kein Datenverlust.
+- **Fix (deployed 23.08.):** Gemeinsames Kriterium `isActive = state !== 'CLAIMED' && state !== 'CLAIMABLE'` fuer alle drei Stellen. Damit greifen Snapshot und Meldung, sobald ein Step Lineups hat und noch nicht abgeschlossen ist - unabhaengig vom genauen Zwischenzustand.
+- **Nebenbefund (Diagnose-Falle):** Die Function speichert und meldet in **UTC**; Berlin ist +2. Bei der Fehlersuche wirkten die Zeiten dadurch zunaechst falsch (07:50 UTC = 09:50 Berlin, passend zur Aufstell-Freigabe um 09:00). `status` gibt weiterhin UTC aus - beim Lesen umrechnen.
+- **Zusaetzlich:** `status` liefert jetzt die letzten 15 gesendeten Meldungen (`lastNotifications`), damit sich so etwas kuenftig in einem Aufruf pruefen laesst.
