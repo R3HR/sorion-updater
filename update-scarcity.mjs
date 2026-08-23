@@ -155,11 +155,18 @@ async function main() {
   if (!hasAccuracy) console.warn('fmv_accuracy-Tabelle fehlt — Accuracy-Tracking übersprungen');
 
   // Spalte last_sale_at vorhanden? (migrations/2026-08-02_last_sale_date.sql)
+  // Vergleichs-Spalten vorhanden? (migrations/2026-08-22_accuracy_benchmarks.sql)
+  const bmProbe = await supabase.from('fmv_accuracy').select('floor_est').limit(1);
+  const hasBenchmarks = !bmProbe.error;
+  if (!hasBenchmarks) console.warn('fmv_accuracy.floor_est fehlt — Gegenprobe (Floor/Avg) wird uebersprungen');
+
   const lsProbe = await supabase.from('card_prices').select('last_sale_at').limit(1);
   const hasLastSale = !lsProbe.error;
   if (!hasLastSale) console.warn('Spalte last_sale_at fehlt — Verkaufsdatum wird übersprungen');
 
-  const cols = migrated ? 'id, player_slug, eligibility, fmv, updated_at' : 'id, player_slug';
+  // floor_price/avg_sales: die Vergleichs-Schaetzer fuer accuracy_benchmark —
+  // MUESSEN aus derselben (alten) Zeile stammen wie fmv, sonst waere es Leakage.
+  const cols = migrated ? 'id, player_slug, eligibility, fmv, floor_price, avg_sales, updated_at' : 'id, player_slug';
   // Queue-Query mit Retry: WHERE scarcity ORDER BY updated_at LIMIT n lief unter
   // naechtlicher Parallel-Last in den statement_timeout (57014). Root-Cause-Fix ist der
   // Index card_prices(scarcity, updated_at) — migrations/2026-07-28_card_prices_queue_index.sql.
@@ -243,6 +250,10 @@ async function main() {
           scarcity:    SCARCITY,
           eligibility,
           fmv_est:     player.fmv,
+          // Gegenprobe (22.08.): Floor und einfacher Durchschnitt aus DEMSELBEN
+          // Stand — nur so sind alle drei Schaetzer fair vergleichbar.
+          ...(hasBenchmarks ? { floor_est: player.floor_price ?? null,
+                                avg_sales_est: player.avg_sales ?? null } : {}),
           sale_price:  s.eur,
           delta_pct:   parseFloat((((s.eur - player.fmv) / player.fmv) * 100).toFixed(2)),
           est_at:      player.updated_at,
