@@ -45,6 +45,15 @@ revoke all on function public.analytics_prune()                from public, anon
 alter default privileges in schema public revoke execute on functions from anon, authenticated;
 alter default privileges for role postgres in schema public revoke execute on functions from anon, authenticated;
 
+-- ── 4) (Beifang der Pruefung, Performance) Movers bei "All"/Classic ────────
+-- Die Movers-Abfrage (order by change_7d, top/flop 5) hat nur einen Index mit
+-- scarcity im Praefix — bei Rarity "All" muss sie ueber alle Scarcities
+-- sortieren: gemessen 4,6 s kalt -> 500 in der Live-Konsole. Dieser Index
+-- deckt genau den Fall ab (Praefix eligibility, change_7d sortiert).
+create index if not exists idx_cp_elig_ch7
+  on public.card_prices (eligibility, change_7d desc nulls last)
+  where change_7d is not null;
+
 -- ── Verifikation: was darf anon JETZT noch ausfuehren? ─────────────────────
 -- Erwartete Liste (die bewussten oeffentlichen RPCs):
 --   market_overview, market_leagues, market_facets, market_move, player_history,
