@@ -189,7 +189,7 @@
 - **Kosmetik, nicht behoben (Edge Functions, Deploy noetig):** `sorare-oauth` unbekannte Action → 500 statt 400; `userinfo` ohne Token → 200 `{}`; `add-missing-players` leerer Body → 200; `get-pool` ohne JSON-Body → 500 „Unexpected end of JSON input". Alle harmlos.
 - **Beobachtung (Produktentscheidung, offen):** `profile.html` ist komplett deutsch (Anmelden/Registrieren/Passwort), der Rest von sorion.pro englisch. CraftLog hat keine Discord-Fahne.
 - **Gruen (zur Ehrenrettung):** Tabellen-Lockdowns (price_history/analytics 401; profiles/sorare_users/watchlist/squad_tokens/squad_discord_users leer per RLS), MVs nicht direkt lesbar, OpenAPI-Wurzel verlangt Secret-Key, Edge Functions (update-pool/update-prices 403, squad-poll 403, get-analytics/delete-account 401, sync-portfolio force 403, track Whitelist 400). Marktseite: alle Filter, Suche, Sortierung inkl. Umschaltung, Pagination, Modal, Classic/In-Season, Rarity „All". Portfolio: 297 Karten, Stats, NET/GROSS (Wert bewusst brutto, nur P&L netto — dokumentierte Entscheidung), Trade History, Winners-Filter, Karten-Detail mit Break-even, Manager-Suche, Header-Identitaet. CraftLog: Login-Gate, Sprachen, Impressum-Link, keine Fehler.
-- **Status:** ✅ Frontend-Funde behoben; SEC-004-Migration offen (Jonas)
+- **Status:** ✅ alles behoben und live verifiziert 2026-08-22 (inkl. SEC-004)
 
 ## BUG-019 - Discord-Meldung geht verloren, wenn Discord drosselt (22.08.) - BEHOBEN
 
