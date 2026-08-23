@@ -261,7 +261,10 @@
     if (pass.length < 8) { msg('su-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(REDIRECT)}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
-      body: JSON.stringify({ email, password: pass }),
+      // site-Kennung: sorion.pro und craftlog.pro teilen EINE Nutzerverwaltung.
+      // Ohne diese Angabe liesse sich spaeter nicht sagen, wo ein Konto entstand
+      // (Auswertung: analytics_accounts, Dashboard stats.html).
+      body: JSON.stringify({ email, password: pass, data: { site: 'sorion' } }),
     });
     const data = await res.json();
     if (!res.ok) { msg('su-msg', data.msg || data.error_description || 'Registrierung fehlgeschlagen'); return; }

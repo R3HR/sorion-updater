@@ -137,6 +137,8 @@
     <div class="card"><div class="card-label">// Pageviews</div><div class="card-value" id="k-pv">—</div><div class="card-sub">total</div></div>
     <div class="card"><div class="card-label">// Views / Visitor</div><div class="card-value" id="k-ratio">—</div><div class="card-sub">engagement</div></div>
     <div class="card"><div class="card-label">// Feature Uses</div><div class="card-value" id="k-ev">—</div><div class="card-sub">searches, portfolios…</div></div>
+    <div class="card" id="acc-card" style="display:none"><div class="card-label">// Accounts</div>
+      <div class="card-value" id="a-total">—</div><div class="card-sub" id="a-total-sub">registered</div></div>
   </div>
 
   <div class="ch-wrap ui-hide" style="display:none">
@@ -386,12 +388,30 @@
     svg.addEventListener('mouseleave', hide);
   }
 
+  // Konto-Zahlen: bewusst nur die Gesamtzahl (Entscheidung Jonas 22.08. —
+  // "generelle Nutzer reicht"). Die Aufschluesselung nach Seite liefert die
+  // RPC weiterhin mit; die Herkunft wird bei der Registrierung mitgeschrieben,
+  // damit eine spaetere Trennung moeglich BLEIBT statt verloren zu gehen.
+  function renderAccounts(rows, days) {
+    const card = document.getElementById('acc-card');
+    if (!card) return;
+    const t = Array.isArray(rows) ? rows.find(r => r.scope === 'total') : null;
+    if (!t) { card.style.display = 'none'; return; }   // RPC fehlt -> Kachel aus
+    const n = v => Number(v || 0).toLocaleString('en-GB');
+    card.style.display = '';
+    document.getElementById('a-total').textContent = n(t.accounts);
+    document.getElementById('a-total-sub').textContent =
+      `${n(t.confirmed)} confirmed · +${n(t.new_in_period)} in ${days}d`;
+  }
+
   async function load() {
     const args = { p_site: site, p_days: days };
-    const [daily, pages, events, sources] = await Promise.all([
+    const [daily, pages, events, sources, accounts] = await Promise.all([
       rpc('analytics_daily', args), rpc('analytics_pages', args),
-      rpc('analytics_events_top', args), rpc('analytics_sources', args)
+      rpc('analytics_events_top', args), rpc('analytics_sources', args),
+      rpc('analytics_accounts', { p_days: days })
     ]);
+    renderAccounts(accounts, days);
 
     // Kennzahlen. Hinweis: Besucher werden pro Tag pseudonym gezaehlt (Tages-Hash),
     // die Periodensumme ist daher eine Summe der Tagesbesucher, kein Unique-over-30d.
