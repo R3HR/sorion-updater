@@ -1680,7 +1680,10 @@
     loadAvgMoveChip('stat-chip-ltd', 'limited');
     loadAvgMoveChip('stat-chip-rar', 'rare');
     renderLeagues();
-    apiCached(`card_prices?select=updated_at&order=updated_at.desc&limit=1`).then(rs => {
+    // scarcity-Filter nutzt idx_card_prices_scarcity_updated — ohne ihn sortierte
+    // die Abfrage die ganze Tabelle (gemessen 4,5 s kalt -> 500). Limited wird
+    // ohnehin im Minutentakt aktualisiert, der Zeitstempel ist damit aktuell.
+    apiCached(`card_prices?select=updated_at&scarcity=eq.limited&order=updated_at.desc&limit=1`).then(rs => {
       if (!rs || !rs.length) return;
       const d = new Date(rs[0].updated_at);
       document.getElementById('stat-updated').textContent =
@@ -2013,7 +2016,10 @@
   async function loadRowCount(seq) {
     const key = buildFilterQuery().join('&');
     if (!(key in countCache)) {
-      const res = await api(`card_prices?select=id&${key}&limit=1`, { 'Prefer': 'count=exact' });
+      // count=estimated: exakt bei kleinen Treffermengen (Suche, Club), Planer-
+      // Schaetzung bei grossen — die exakte Zaehlung ueber 7-50k Zeilen kostete
+      // kalt 4,2 s (500) und verbrannte IO-Budget (INC-005-Sensibilitaet).
+      const res = await api(`card_prices?select=id&${key}&limit=1`, { 'Prefer': 'count=estimated' });
       if (!res) return;
       const n = parseInt((res.headers.get('content-range') || '').split('/')[1], 10);
       if (isNaN(n)) return;
@@ -2484,18 +2490,29 @@
   }
 
   // Lazy load 30d history for visible sparklines
+  // Generation: wird die Tabelle neu gerendert (Sortierung/Filter/Seite), bricht
+  // der alte Nachlader ab — vorher liefen bis zu 76 player_history-Aufrufe
+  // pro Sitzung statt 50, und auf dem Handy stuerzte die Schleife beim ersten
+  // Treffer ab (Karten haben kein <td>; Live-Konsole 22.08.: "Cannot set
+  // properties of null"), sodass KEINE Sparkline nachgeladen wurde.
+  let historyGen = 0;
   async function loadVisibleHistory() {
+    const gen = ++historyGen;
     const cells = document.querySelectorAll('.sparkline-cell');
     for (const cell of cells) {
+      if (gen !== historyGen) return;           // Tabelle wurde inzwischen neu gerendert
       const slug     = cell.dataset.slug;
       const scarcity = cell.dataset.scarcity;
       if (!slug) continue;
 
       const history = await loadHistory(slug, scarcity);
+      if (gen !== historyGen) return;
       if (!history || history.length < 2) continue;
+      if (!document.contains(cell)) continue;   // Zelle ist bereits weg
 
       const svg = renderSparklineFromHistory(history);
-      if (svg) cell.closest('td').innerHTML = svg;
+      const host = cell.closest('td') || cell.parentElement;   // Tabelle ODER Handy-Karte
+      if (svg && host) host.innerHTML = svg;
     }
   }
 
