@@ -219,3 +219,14 @@
 - **Fix (deployed 24.08.):** Aufloesung als **Kette**. Der sichere Kreis ist jetzt veraenderlich: Ein gueltiger Claim entfernt den Verdraengten und nimmt den Claimenden auf. Der naechste Claim trifft damit automatisch den **naechstschwaechsten**. Jeder Manager wird genau einmal benannt.
 - **Verifiziert per Simulation (7 Kopien):** drei verschiedene Betroffene, Endzustand = die vier hoechsten Boni. Tie-Break bestaetigt: bei gleichem Bonus weicht der **besser** platzierte Manager (Platz 8 vor Platz 10).
 - **Nebeneffekt:** Die Meldung zeigt jetzt zusaetzlich das Feld "Currently in" - wer nach dem Claim tatsaechlich noch drin ist. Damit ist der Stand nach jeder Kettenstufe im Channel nachvollziehbar.
+
+---
+
+## BUG-022 - Erinnerung widersprach der Claim-Meldung (24.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Die 30-Minuten-Erinnerung schrieb *"Budimir - ffgaj (14%) must claim @McBeast (5%) now, or line up someone else"* - obwohl (a) der Bot laut Ansage selbst claimt und (b) die `overview`-Ausgabe zur selben Zeit **maisonpanda** als Betroffenen nannte, nicht McBeast.
+- **Ursache 1 (falsche Namen):** Der Erinnerungs-Block rechnete noch mit der alten Formel `weakest = min(effBonus) der ersten vier` - **ohne Kette** (BUG-021) und **ohne Leaderboard-Tie-Break**. Zwei Codestellen, die dasselbe berechnen sollten, waren auseinandergelaufen.
+- **Ursache 2 (falscher Text):** Die Formulierung stammte aus der Zeit vor der Auto-Claim-Entscheidung vom 22.08. und forderte den Manager auf, selbst zu claimen.
+- **Ursache 3 (gefunden bei der Analyse):** Der Dedup-Schluessel der Claim-Meldung lautete `claim:<step>:<spieler>:<claimer>` - **ohne Ziel**. Tauscht der Betroffene und rueckt ein anderer Manager als Schwaechster nach, aendert sich das Ziel, aber es ging **keine neue Meldung** raus. Der Claim blieb auf dem alten Namen stehen.
+- **Fix (deployed 24.08.):** (1) Erinnerung nutzt jetzt exakt dieselbe Kettenlogik inkl. Tie-Break. (2) Text umgestellt auf *"claimed by X → @Y has to swap out"* bzw. *"has no valid claim → line up someone else"*, Ueberschrift jetzt "Cap conflicts - action needed before the deadline". (3) Dedup-Schluessel um das Ziel erweitert: `claim:<step>:<spieler>:<claimer>:<ziel>` - ein Zielwechsel loest eine neue Meldung aus.
+- **Lektion:** Dieselbe Regel an zwei Stellen implementiert = garantierte Divergenz. Kuenftig fuer Cap-Aufloesung nur EINE Funktion, die Claim-Meldung, Erinnerung und `overview` gemeinsam nutzen.
