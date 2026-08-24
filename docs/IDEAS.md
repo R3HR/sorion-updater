@@ -194,6 +194,20 @@ Aufwand ~2-3 Tage. Last unkritisch: 1 Sorare-Abfrage je Squad und Poll.
 4. **Marktgroesse unklar.** Die Cap-/Claim-Regel von „Handpicked" ist speziell - viele
    Squads duerften gar keine so strengen Regeln haben, dann gibt es nichts zu automatisieren.
 
+**Vorgemerkt als naechster konkreter Schritt (24.08.): Captain-Seite auf sorion.pro.**
+Geschuetzte Ansicht mit Schaltern fuer die Sonderregeln (Position aussetzen, Spieler
+ausnehmen, Cap aendern, Manager entschuldigen), dazu Cap-Uebersicht auf Knopfdruck,
+Saison-Stand und Rundenauswertung. Aufwand ~1/2 Tag.
+
+**Warum das der Bruecken-Baustein ist:** Heute setzt Jonas Sonderregeln, indem er sie
+mir sagt - fuer einen fremden Squad ist das unmoeglich. Die Captain-Seite ist genau die
+Selbstbedienungs-Oberflaeche, die Mandantenfaehigkeit braucht. Wer sie einmal baut, hat
+den groessten Teil des Onboardings fuer fremde Squads erledigt: Sorare verbinden,
+Webhook eintragen, Discord-IDs pflegen, Regeln konfigurieren. Die Backend-Seite ist
+bereits vorbereitet (Tabelle `squad_overrides`, Actions `override`/`overview`/`season`).
+Alternative Variante c (echter Discord-Bot mit Slash-Commands) bleibt der groessere
+Umbau und waere erst danach dran - er wuerde zusaetzlich Lesezugriff auf Kanaele bringen.
+
 **Wenn wieder aufgreifen:** Erst kostenlos an 2-3 befreundete Squads geben (geht
 notfalls ohne volle Mandantenfaehigkeit) und pruefen, ob sie es nach vier Wochen
 behalten wollen. Erst dann ToS klaeren, und dann eher als Bestandteil von
