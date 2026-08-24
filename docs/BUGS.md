@@ -209,3 +209,13 @@
 - **Fix (deployed 23.08.):** Gemeinsames Kriterium `isActive = state !== 'CLAIMED' && state !== 'CLAIMABLE'` fuer alle drei Stellen. Damit greifen Snapshot und Meldung, sobald ein Step Lineups hat und noch nicht abgeschlossen ist - unabhaengig vom genauen Zwischenzustand.
 - **Nebenbefund (Diagnose-Falle):** Die Function speichert und meldet in **UTC**; Berlin ist +2. Bei der Fehlersuche wirkten die Zeiten dadurch zunaechst falsch (07:50 UTC = 09:50 Berlin, passend zur Aufstell-Freigabe um 09:00). `status` gibt weiterhin UTC aus - beim Lesen umrechnen.
 - **Zusaetzlich:** `status` liefert jetzt die letzten 15 gesendeten Meldungen (`lastNotifications`), damit sich so etwas kuenftig in einem Aufruf pruefen laesst.
+
+---
+
+## BUG-021 - Cap-Stau: derselbe Manager wurde mehrfach angezaehlt (24.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Budimir stand in **7** Lineups. Der Bot benannte bei jedem der drei Uebercap-Aufsteller **denselben** Manager (Enexxx) als denjenigen, der tauschen muss - obwohl der nur einmal tauschen kann.
+- **Ursache:** Fuer jeden Spaetaufsteller wurde unabhaengig "der Schwaechste der ersten vier" berechnet. Ohne Gedaechtnis darueber, wer bereits verdraengt wurde, faellt die Wahl jedes Mal auf dieselbe Person. Bei genau 5 Kopien fiel das nicht auf - erst ab 6 entsteht der Stau.
+- **Fix (deployed 24.08.):** Aufloesung als **Kette**. Der sichere Kreis ist jetzt veraenderlich: Ein gueltiger Claim entfernt den Verdraengten und nimmt den Claimenden auf. Der naechste Claim trifft damit automatisch den **naechstschwaechsten**. Jeder Manager wird genau einmal benannt.
+- **Verifiziert per Simulation (7 Kopien):** drei verschiedene Betroffene, Endzustand = die vier hoechsten Boni. Tie-Break bestaetigt: bei gleichem Bonus weicht der **besser** platzierte Manager (Platz 8 vor Platz 10).
+- **Nebeneffekt:** Die Meldung zeigt jetzt zusaetzlich das Feld "Currently in" - wer nach dem Claim tatsaechlich noch drin ist. Damit ist der Stand nach jeder Kettenstufe im Channel nachvollziehbar.
