@@ -208,6 +208,30 @@ bereits vorbereitet (Tabelle `squad_overrides`, Actions `override`/`overview`/`s
 Alternative Variante c (echter Discord-Bot mit Slash-Commands) bleibt der groessere
 Umbau und waere erst danach dran - er wuerde zusaetzlich Lesezugriff auf Kanaele bringen.
 
+**Entscheidung Jonas 24.08.: vorerst NICHT monetarisieren - Markt zu frueh.**
+Squads sind ein junges Sorare-Feature. Die meisten duerften noch gar keine
+geschriebenen Regeln haben - ohne Regeln gibt es nichts zu automatisieren, und der
+Bot loest ein Problem, das der Markt noch nicht spuert. Zahlungsbereitschaft folgt
+der Reife der Aktivitaet, nicht der Qualitaet des Werkzeugs.
+
+**Preisueberlegung (falls es doch soweit kommt, Stand 24.08.):** ~9,99 EUR/Monat
+**pro Squad** (nicht pro Kopf - geteilt ~1 EUR/Person, das verkauft der Captain ohne
+Diskussion). Vergleichsgroesse ist die Arbeitszeit des Captains (20-30 min/Tag manuelle
+Pflege), nicht der Preis eines Analyse-Tools. Unter 5 EUR traegt es den Support-Aufwand
+nicht, ueber 15 EUR verlaesst man das Preisgefuehl fuer Hobby-Gruppenwerkzeuge.
+Kostenbasis ~38 EUR/Monat inkl. Supabase Pro => **4 zahlende Squads decken alles**.
+Grenzkosten je Squad nahe null (~4.400 Sorare-Abfragen/Monat gegen ein 200/min-Limit).
+Wichtig waere eine **kostenlose Stufe** (Cap-Warnungen, "X hat aufgestellt"), damit der
+Verteilungseffekt erhalten bleibt - 9 weitere Manager sehen den Bot taeglich.
+
+**Was sich derweil von selbst aufbaut (Vorsprung ohne Zusatzaufwand):** Seit 21.08.
+sammelt der eigene Betrieb Aufstellungs-Historie mit Zeitstempeln, Boni und
+Cap-Verlaeufen - Daten, die Sorare nicht herausgibt und die rueckwirkend niemand
+rekonstruieren kann. Dazu ein Regelwerk, das gegen 21 Runden verifiziert ist.
+
+**Neubewertung wenn:** Sorare die Squad-Funktionen ausbaut, fremde Captains von sich
+aus nach dem Bot fragen, oder Dritt-Tools fuer Squads auftauchen.
+
 **Wenn wieder aufgreifen:** Erst kostenlos an 2-3 befreundete Squads geben (geht
 notfalls ohne volle Mandantenfaehigkeit) und pruefen, ob sie es nach vier Wochen
 behalten wollen. Erst dann ToS klaeren, und dann eher als Bestandteil von
