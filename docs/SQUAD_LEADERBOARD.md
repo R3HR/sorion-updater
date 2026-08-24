@@ -168,8 +168,21 @@ Bei exakt gleichem %-Bonus: Der Manager mit der **niedrigeren Leaderboard-Platzi
 hat Vorrang (Ausgleichsmechanik — der Schlechtere darf behalten).
 
 ### 6.3 Claim-Verfahren
-Wer eine **wertvollere** Kopie hat, obwohl schon 4 Kopien stehen, darf einen Platz
-beanspruchen:
+
+> **⚠️ ÜBERHOLT seit der Squad-Ansage vom 24.08.2026.** Der **Bot claimt automatisch**
+> („the new bot now claims lineups for you"). Ein manueller Post ist nicht mehr nötig;
+> der Bot-Post IST der Claim. Der Absatz unten dokumentiert nur noch das alte
+> Verfahren, nach dem die Altfälle bis R21 bewertet wurden.
+>
+> Weiterhin gültig aus der Ansage:
+> - Claims richten sich nach dem **höchsten Bonus %**, nicht nach der Seltenheit.
+> - Bei gleichem Bonus % entscheidet die **Leaderboard-Platzierung** (tiefer platziert behält).
+> - Frist **19:00**. Startet ein Spiel des Betroffenen früher, muss der Claim
+>   **mindestens 30 Minuten vor dessen Anpfiff** stehen (Beispiel B der Ansage:
+>   Betroffener spielt 18:30 → Claim bis 18:00, obwohl der Spieler selbst erst 04:30 spielt).
+> - Cap-Strafe ab 24.08.: **-5** statt -2.
+
+*Altes Verfahren (bis 23.08.):*
 - Post im Kanal **#Lineup** mit **@-Mention** des Managers, der tauschen muss
 - **Deadline: 19:00 Uhr am Tag des Rundenschlusses**
 - Kein Post = kein Claim. Zu später Post = kein Claim.
