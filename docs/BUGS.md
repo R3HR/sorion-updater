@@ -230,3 +230,14 @@
 - **Ursache 3 (gefunden bei der Analyse):** Der Dedup-Schluessel der Claim-Meldung lautete `claim:<step>:<spieler>:<claimer>` - **ohne Ziel**. Tauscht der Betroffene und rueckt ein anderer Manager als Schwaechster nach, aendert sich das Ziel, aber es ging **keine neue Meldung** raus. Der Claim blieb auf dem alten Namen stehen.
 - **Fix (deployed 24.08.):** (1) Erinnerung nutzt jetzt exakt dieselbe Kettenlogik inkl. Tie-Break. (2) Text umgestellt auf *"claimed by X → @Y has to swap out"* bzw. *"has no valid claim → line up someone else"*, Ueberschrift jetzt "Cap conflicts - action needed before the deadline". (3) Dedup-Schluessel um das Ziel erweitert: `claim:<step>:<spieler>:<claimer>:<ziel>` - ein Zielwechsel loest eine neue Meldung aus.
 - **Lektion:** Dieselbe Regel an zwei Stellen implementiert = garantierte Divergenz. Kuenftig fuer Cap-Aufloesung nur EINE Funktion, die Claim-Meldung, Erinnerung und `overview` gemeinsam nutzen.
+
+---
+
+## BUG-023 - Tie-Break war stillschweigend AUSSER KRAFT (24.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Der Bot forderte **McBeast** auf, Budimir zu tauschen. Richtig waere **MaisonPanda** gewesen: beide hatten exakt +5 % Bonus, MaisonPanda steht im Leaderboard auf **Platz 7**, McBeast auf **Platz 8** - bei Gleichstand muss der BESSER platzierte weichen (Regel 6.2).
+- **Ursache:** Tippfehler mit stiller Wirkung. Im Claim-Block stand `lbPos(r) < lbPos(m)` - `lbPos` erwartet aber einen **Slug**, nicht den Datensatz. Beide Aufrufe lieferten den Fallback **999**, `999 < 999` ist falsch, also blieb schlicht das erste Element der Liste stehen - der zeitlich Erste (McBeast). **Der Tie-Break war damit komplett wirkungslos, ohne dass ein Fehler auftrat.** Die Reihenfolge sah nur zufaellig plausibel aus.
+- **Warum es nicht auffiel:** Die `overview`-Action und der Erinnerungs-Block hatten die Zeile korrekt (`lbPos(r.manager_slug)`) und lieferten die richtige Antwort - nur die Claim-Meldung nicht. Dieselbe Divergenz-Falle wie BUG-022.
+- **Fix (deployed 24.08.):** `lbPos(r.manager_slug) < lbPos(m.manager_slug)`.
+- **Folge fuer Runde 22 (23./24.08.):** Budimir blieb mit **5 aktiven Aufstellungen** gesperrt (mcbeast +5 %, maisonpanda +5 %, parisboemboem +10 %, namiunk_022 +13 %, ffgaj +14 %). Weichen haette **maisonpanda** muessen; angesprochen wurde McBeast. **Captain-Entscheidung noetig**, wie die Runde gewertet wird - der Bot hat den Falschen informiert.
+- **Lektion:** Ein Fallback-Wert (`?? 999`) macht aus einem Typfehler ein stilles Fehlverhalten. Bei Nachschlage-Funktionen kuenftig entweder streng typisieren oder unbekannte Schluessel protokollieren, statt sie stumm auf einen Standardwert zu setzen.
