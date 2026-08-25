@@ -172,6 +172,20 @@
     </div>
   </div>
 
+  <!-- Wiederkehrer & Aktivitaet der Konten (Wunsch Jonas 25.08.). Quelle:
+       auth-Logins + Session-Refreshes ("zuletzt gesehen"), KEIN neues
+       Tracking. Panel bleibt verborgen, bis die retention-RPC existiert. -->
+  <div class="panel ui-hide" id="ret-panel" style="display:none">
+    <div class="panel-head">// Accounts — retention &amp; activity</div>
+    <table><thead><tr><th>Scope</th><th style="text-align:right">Accounts</th>
+      <th style="text-align:right">Came back</th><th style="text-align:right">Today</th>
+      <th style="text-align:right">7d</th><th style="text-align:right">30d</th>
+      <th style="text-align:right">Dormant &gt;90d</th></tr></thead>
+    <tbody id="t-ret"><tr><td class="empty" colspan="7">// loading…</td></tr></tbody></table>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2);margin-top:8px">
+      // "came back" = seen on a later day than signup · activity = last login or session refresh</div>
+  </div>
+
   <div class="panel ui-hide" style="display:none">
     <div class="panel-head">// Daily</div>
     <table><thead><tr><th>Day</th><th>Site</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
@@ -404,14 +418,35 @@
       `${n(t.confirmed)} confirmed · +${n(t.new_in_period)} in ${days}d`;
   }
 
+  // Wiederkehrer & Aktivitaet: Zeile je Scope, "came back" mit Quote.
+  // Fehlt die RPC noch (Migration nicht eingespielt), bleibt das Panel zu.
+  function renderRetention(rows) {
+    const panel = document.getElementById('ret-panel');
+    if (!panel) return;
+    if (!Array.isArray(rows) || !rows.length) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    const n = v => Number(v || 0).toLocaleString('en-GB');
+    const pct = (a, b) => b ? ` <span style="color:var(--text2)">(${Math.round(100 * a / b)}%)</span>` : '';
+    document.getElementById('t-ret').innerHTML = rows.map(r => `<tr>
+      <td style="${r.scope === 'total' ? 'color:var(--up)' : ''}">${esc(r.scope)}</td>
+      <td class="num">${n(r.accounts)}</td>
+      <td class="num">${n(r.returning_n)}${pct(r.returning_n, r.accounts)}</td>
+      <td class="num">${n(r.active_1d)}</td>
+      <td class="num">${n(r.active_7d)}</td>
+      <td class="num">${n(r.active_30d)}${pct(r.active_30d, r.accounts)}</td>
+      <td class="num" style="color:var(--text2)">${n(r.dormant_90d)}</td></tr>`).join('');
+  }
+
   async function load() {
     const args = { p_site: site, p_days: days };
-    const [daily, pages, events, sources, accounts] = await Promise.all([
+    const [daily, pages, events, sources, accounts, retention] = await Promise.all([
       rpc('analytics_daily', args), rpc('analytics_pages', args),
       rpc('analytics_events_top', args), rpc('analytics_sources', args),
-      rpc('analytics_accounts', { p_days: days })
+      rpc('analytics_accounts', { p_days: days }),
+      rpc('analytics_retention', {})
     ]);
     renderAccounts(accounts, days);
+    renderRetention(retention);
 
     // Kennzahlen. Hinweis: Besucher werden pro Tag pseudonym gezaehlt (Tages-Hash),
     // die Periodensumme ist daher eine Summe der Tagesbesucher, kein Unique-over-30d.
