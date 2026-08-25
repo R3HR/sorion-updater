@@ -1371,18 +1371,20 @@
     <div class="search-wrap">
       <input class="search-input" id="search" type="text" placeholder="search player..." oninput="onSearchInput()">
     </div>
-    <div style="position:relative">
-      <input class="search-input" id="club" type="text" list="clublist" autocomplete="off"
-             placeholder="all clubs — type or pick…" oninput="onSearchInput()"
-             style="min-width:210px">
-      <datalist id="clublist"></datalist>
-    </div>
+    <!-- Reihenfolge Liga vor Club (Jonas, 25.08.): passt zum Filterfluss —
+         erst Liga waehlen, dann die darauf vorgefilterte Club-Suche -->
     <div class="lg-dd" id="lg-wrap">
       <button class="filter-btn" id="lg-btn" onclick="toggleLeagueMenu(event)">🌍 All leagues ▾</button>
       <div class="lg-panel" id="lg-panel">
         <div class="lg-row" onclick="pickLeague(null, null)">All leagues</div>
         <div id="lg-countries"></div>
       </div>
+    </div>
+    <div style="position:relative">
+      <input class="search-input" id="club" type="text" list="clublist" autocomplete="off"
+             placeholder="all clubs — type or pick…" oninput="onSearchInput()"
+             style="min-width:210px">
+      <datalist id="clublist"></datalist>
     </div>
     <!-- Nationalitaet des SPIELERS (player_nation) — unabhaengig vom Liga-Land.
          Bleibt verborgen, bis die Facetten Nation-Zeilen liefern (Migration
