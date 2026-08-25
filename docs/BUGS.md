@@ -241,3 +241,13 @@
 - **Fix (deployed 24.08.):** `lbPos(r.manager_slug) < lbPos(m.manager_slug)`.
 - **Folge fuer Runde 22 (23./24.08.):** Budimir blieb mit **5 aktiven Aufstellungen** gesperrt (mcbeast +5 %, maisonpanda +5 %, parisboemboem +10 %, namiunk_022 +13 %, ffgaj +14 %). Weichen haette **maisonpanda** muessen; angesprochen wurde McBeast. **Captain-Entscheidung noetig**, wie die Runde gewertet wird - der Bot hat den Falschen informiert.
 - **Lektion:** Ein Fallback-Wert (`?? 999`) macht aus einem Typfehler ein stilles Fehlverhalten. Bei Nachschlage-Funktionen kuenftig entweder streng typisieren oder unbekannte Schluessel protokollieren, statt sie stumm auf einen Standardwert zu setzen.
+
+---
+
+## BUG-024 - Leaderboard-Tie-Break galt nicht fuer die Claim-Berechtigung (25.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Zwei Meldungen, beide falsch. Der Bot forderte **namiunk_022** auf, Patrick Berg und Jens Petter Hauge zu ersetzen ("bonus is not higher"). Richtig: Nami **darf beide behalten**, weil er im Leaderboard auf **Platz 10** steht und damit bei gleichem Bonus jeden schlaegt. Weichen mussten **andreihaha** (#4, Patrick Berg) und **jr3hr** (#6, Hauge).
+- **Ursache:** Die Claim-Berechtigung pruefte nur `effBonus(spaeter) > effBonus(ziel)` - also **echt hoeher**. Der Leaderboard-Tie-Break wurde ausschliesslich INNERHALB der sicheren Vier angewandt (wer von ihnen der Schwaechste ist), nicht fuer die Frage, ob der Spaete ueberhaupt claimen darf. Bei Gleichstand fiel der Claim damit immer aus - obwohl Regel 6.2 die Platzierung als vollwertigen Tie-Break vorsieht.
+- **Fix (deployed 25.08.):** Eine zentrale Funktion `beats(a, b)` = "a darf gegenueber b behalten": hoeherer Bonus gewinnt; bei gleichem Bonus behaelt der im Leaderboard **tiefer** platzierte. Sie wird jetzt an **allen drei** Stellen genutzt (Claim-Meldung, Erinnerung, `overview`) - zusammen mit `weakestIn()` und `whyNot()` fuer die Begruendungstexte.
+- **Verifiziert:** Simulation beider Faelle liefert exakt das von Jonas genannte Ergebnis; die Live-`overview` nach dem Deploy ebenfalls (andreihaha und jr3hr muessen weichen).
+- **Lektion (dritter Fall dieser Art nach BUG-022/BUG-023):** Dieselbe Regel war an drei Stellen implementiert. Erst BUG-022 (unterschiedliche Formeln), dann BUG-023 (Tippfehler in einer Kopie), jetzt BUG-024 (unvollstaendige Regel in allen Kopien). **Konsequenz: Wertigkeits-Vergleiche laufen ab sofort ausschliesslich ueber `beats()`/`weakestIn()`** - keine lokalen Neuimplementierungen mehr.
