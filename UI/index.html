@@ -1177,6 +1177,13 @@
   }
   .lg-row:hover { background: var(--surface3); color: var(--purple); }
   .lg-count { margin-left: auto; color: var(--dim); font-size: 10px; }
+  /* Sorare-Struktur: Abschnittskoepfe (Champion/Contender/...) + Einrueckung */
+  .lg-head { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1.5px;
+             text-transform: uppercase; color: var(--dim); padding: 10px 11px 4px;
+             border-top: 1px solid var(--border); margin-top: 5px; }
+  .lg-head.click { cursor: pointer; }
+  .lg-head.click:hover { color: var(--purple); }
+  .lg-row.sub { padding-left: 22px; }
   .lg-arrow { color: var(--dim); margin-left: 2px; }
   .lg-sub {
     display: none; position: absolute; left: 100%; top: -5px; margin-left: 2px;
@@ -1680,7 +1687,22 @@
       p.push(exact ? `team_name=eq.${encodeURIComponent(exact)}`
                    : `team_name=ilike.${encodeURIComponent('*' + qsan(club) + '*')}`);
     }
-    if (leagueFilter) {
+    if (leaguePairs) {
+      // Mehrfach-Ligen (Aliasse einer umbenannten Liga oder Sorare-Gruppen wie
+      // Champion): or-Baum aus (Name,Land)-Paaren, in and=() gekapselt, damit
+      // er neben der VISIBLE-or-Bedingung besteht. Live verifiziert 25.08.
+      const esc = s => '"' + String(s).replace(/"/g, '') + '"';
+      const q = leaguePairs.pairs;
+      if (q.length === 1 && q[0].c) {
+        p.push(`league_name=eq.${encodeURIComponent(q[0].name)}`);
+        p.push(`league_country=eq.${encodeURIComponent(q[0].c)}`);
+      } else {
+        const tree = q.map(x => x.c
+          ? `and(league_name.eq.${esc(x.name)},league_country.eq.${x.c})`
+          : `and(league_name.eq.${esc(x.name)},league_country.is.null)`).join(',');
+        p.push('and=' + encodeURI(`(or(${tree}))`));
+      }
+    } else if (leagueFilter) {
       p.push(`league_name=eq.${encodeURIComponent(leagueFilter)}`);
       // Land immer mitfiltern (AT/DE heissen beide "Bundesliga"). Zeilen ohne
       // Land fallen raus — nach dem Kader-Sweep sind das nur noch Reste.
@@ -1715,6 +1737,7 @@
   let clubSet = new Set();      // bekannte Vereinsnamen (klein) -> exakte Auswahl vs. Tippen
   let clubFacets = null;        // [{value, cards, leagues:[{league,country}]}] fuer die Liga-Vorfilterung
   let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
+  let leaguePairs  = null;      // {label, pairs:[{name,c}]} — Mehrfach-Auswahl (Aliasse/Gruppen)
   let nationFilter = null;      // Nationalitaet des Spielers, z. B. 'jp' (player_nation)
   // Bereichsfilter: Werte an den Anschlaegen bedeuten "keine Grenze"
   const AGE_LO = 15, AGE_HI = 45;        // Slider-Spanne Alter
@@ -1899,9 +1922,11 @@
     if (!dl || !clubFacets) return;
     let clubs = clubFacets;
     const hasLeagueInfo = clubFacets.some(c => c.leagues.length);
-    if (hasLeagueInfo && (leagueFilter || countryFilter)) {
+    if (hasLeagueInfo && (leaguePairs || leagueFilter || countryFilter)) {
       const matches = c => c.leagues.some(e =>
-        leagueFilter
+        leaguePairs
+          ? leaguePairs.pairs.some(q => e.league === q.name && (!q.c || e.country === q.c))
+          : leagueFilter
           ? (e.league === leagueFilter && (!countryFilter || e.country === countryFilter))
           : (countryFilter === '—' ? e.country == null : e.country === countryFilter));
       const filtered = clubs.filter(matches);
@@ -2096,6 +2121,7 @@
   }
 
   function pickLeague(league, country) {
+    leaguePairs  = null;          // Einzel-Auswahl ersetzt eine Gruppen-Auswahl
     leagueFilter = league;
     // Land IMMER mitfuehren: AT und DE heissen beide "Bundesliga" — ohne Land
     // lieferte ein Klick auf 🇩🇪 Bundesliga auch Sturm Graz und Rapid Wien.
@@ -2116,21 +2142,80 @@
     filterTable();
   }
 
-  // Menü aus den geladenen Daten bauen: Land -> dessen Ligen (mit Anzahl Einträge).
-  // Per DOM erzeugt, damit Namen mit Anführungszeichen/Apostroph nicht escapen müssen.
+  // ── Liga-Menue in Sorares Marktplatz-Struktur (Jonas, 25.08.) ───────────
+  // Quelle: so5.so5Competitions der Sorare-API (Stand 25.08.2026). Statt des
+  // Land->Ligen-Baums: benannte Top-Wettbewerbe, dann die Gruppen Champion/
+  // Contender, Under 23, und ALLES Uebrige unter "Rest of the World" (nach
+  // Kartenzahl absteigend — Exoten sinken ans Ende). `names` sind Aliasse:
+  // Sorare hat 2026 Ligen umbenannt, der Altbestand traegt noch alte Namen;
+  // ein Klick filtert deshalb ALLE Aliasse der Liga gleichzeitig.
+  const SORARE_TOP = [
+    { label: 'English League Players', c: 'gb-eng', names: ['Premier League'] },
+    { label: 'Bundesliga',             c: 'de',     names: ['Bundesliga'] },
+    { label: 'LALIGA EA Sports',       c: 'es',     names: ['Primera División', 'LALIGA EA Sports', 'LaLiga'] },
+    { label: 'Ligue 1',                c: 'fr',     names: ['Ligue 1', 'Ligue 1 McDonald’s'] },
+    { label: 'MLS',                    c: 'us',     names: ['MLS', 'Major League Soccer'] },
+    { label: 'Jupiler Pro League',     c: 'be',     names: ['First Division A', 'Jupiler Pro League'] },
+    { label: 'Eredivisie',             c: 'nl',     names: ['Eredivisie', 'VriendenLoterij Eredivisie'] },
+    { label: 'J1 League',              c: 'jp',     names: ['J1 League', 'J1 100 Year Vision League'] },
+    { label: 'K League 1',             c: 'kr',     names: ['K League 1'] },
+    { label: 'Italian League',         c: 'it',     names: ['Serie A'] },
+    { label: 'Liga Portugal',          c: 'pt',     names: ['Primeira Liga', 'Liga Portugal', 'Liga Portugal Betclic'] },
+    { label: 'Turkish League',         c: 'tr',     names: ['Süper Lig', 'Super Lig', 'Trendyol Süper Lig'] },
+    { label: 'English 2nd Division',   c: 'gb-eng', names: ['Championship'] },
+    { label: 'SPFL',                   c: 'gb-sct', names: ['Premiership', 'Scottish Premiership'] },
+  ];
+  const SORARE_GROUPS = [
+    { label: 'Champion', icon: '\u{1F3C6}', members: [
+      { c: 'gb-eng', names: ['Premier League'] },
+      { c: 'de',     names: ['Bundesliga'] },
+      { c: 'es',     names: ['Primera División', 'LALIGA EA Sports', 'LaLiga'] },
+      { c: 'fr',     names: ['Ligue 1', 'Ligue 1 McDonald’s'] },
+      { c: 'it',     names: ['Serie A'] },
+    ]},
+    { label: 'Contender', icon: '\u{1F948}', members: [
+      { c: 'de', names: ['2. Bundesliga'] },
+      { c: 'at', names: ['Bundesliga', 'Austrian Bundesliga'] },
+      { c: 'hr', names: ['HNL', 'SuperSport HNL'] },
+      { c: 'fr', names: ['Ligue 2', 'Ligue 2 BKT'] },
+      { c: 'ch', names: ['Super League'] },
+      { c: 'es', names: ['Segunda División', 'LALIGA HYPERMOTION'] },
+      { c: 'it', names: ['Serie B'] },
+      { c: 'tr', names: ['Süper Lig', 'Super Lig', 'Trendyol Süper Lig'] },
+      { c: 'dk', names: ['Superliga', 'Danish Superliga'] },
+      { c: 'no', names: ['Eliteserien'] },
+      { c: 'ru', names: ['Premier League', 'Russian Premier League'] },
+      { c: 'br', names: ['Serie A', 'Campeonato Brasileiro Série A'] },
+      { c: 'ar', names: ['Liga Profesional Argentina', 'Superliga Argentina de Fútbol'] },
+      { c: 'mx', names: ['Liga MX'] },
+      { c: 'cl', names: ['Primera División', 'Primera División de Chile'] },
+      { c: 'pe', names: ['Primera División', 'Primera División del Perú'] },
+      { c: 'ec', names: ['Liga Pro'] },
+      { c: 'co', names: ['Primera A'] },
+      { c: 'cn', names: ['Chinese Super League'] },
+    ]},
+  ];
+
   function buildLeagueMenu(leagues) {
     const host = document.getElementById('lg-countries');
     if (!host || !leagues || !leagues.length) return;
 
-    const tree = new Map();                    // country -> Map(league -> count)
+    // Kartenzahl je (Land|Name); '' = Liga ohne Land
+    const cardsOf = new Map();
     for (const l of leagues) {
-      const c = l.extra || '\u2014';           // Liga ohne Land -> "Other"
-      if (!tree.has(c)) tree.set(c, new Map());
-      const m = tree.get(c);
-      m.set(l.value, (m.get(l.value) || 0) + l.cards);
+      const k = (l.extra || '') + '|' + l.value;
+      cardsOf.set(k, (cardsOf.get(k) || 0) + l.cards);
     }
-    host.innerHTML = '';
-    if (!tree.size) return;
+    const used = new Set();
+    // Aliasse einer Liga gegen die Facetten aufloesen -> vorhandene Paare + Summe
+    const resolve = (c, names) => {
+      const pairs = []; let n = 0;
+      for (const name of names) {
+        const k = c + '|' + name;
+        if (cardsOf.has(k)) { pairs.push({ name, c }); n += cardsOf.get(k); used.add(k); }
+      }
+      return { pairs, n };
+    };
 
     const row = (label, count, cls) => {
       const d = document.createElement('div');
@@ -2141,47 +2226,88 @@
       if (count != null) {
         const c = document.createElement('span');
         c.className = 'lg-count';
-        c.textContent = count;
+        c.textContent = count.toLocaleString('en-GB');
         d.appendChild(c);
       }
       return d;
     };
+    const head = (label, clickable) => {
+      const d = document.createElement('div');
+      d.className = 'lg-head' + (clickable ? ' click' : '');
+      d.textContent = label;
+      return d;
+    };
 
-    const countries = [...tree.entries()]
-      .map(([c, m]) => [c, m, [...m.values()].reduce((a, b) => a + b, 0)])
-      .sort((a, b) => (a[0] === '\u2014') - (b[0] === '\u2014') || countryName(a[0]).localeCompare(countryName(b[0])));
+    host.innerHTML = '';
 
-    for (const [code, leagues, total] of countries) {
-      const cRow = row(flagOf(code) + '  ' + countryName(code), total, 'lg-has-sub');
-      cRow.onclick = () => pickLeague(null, code);
-      const arrow = document.createElement('span');
-      arrow.className = 'lg-arrow';
-      arrow.textContent = '\u203A';
-      cRow.appendChild(arrow);
-
-      const sub = document.createElement('div');
-      sub.className = 'lg-sub';
-      const all = row('All ' + countryName(code), null);
-      all.style.color = 'var(--text2)';
-      all.onclick = e => { e.stopPropagation(); pickLeague(null, code); };
-      sub.appendChild(all);
-
-      for (const [name, n] of [...leagues.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))) {
-        const lRow = row(name, n);
-        lRow.onclick = e => { e.stopPropagation(); pickLeague(name, code); };
-        sub.appendChild(lRow);
-      }
-      cRow.appendChild(sub);
-      host.appendChild(cRow);
+    // 1) Benannte Top-Wettbewerbe (Sorare-Reihenfolge)
+    for (const t of SORARE_TOP) {
+      const { pairs, n } = resolve(t.c, t.names);
+      if (!n) continue;
+      const r = row(flagOf(t.c) + '  ' + t.label, n);
+      r.onclick = () => pickLeaguePairs(flagOf(t.c) + ' ' + t.label, pairs);
+      host.appendChild(r);
     }
 
-    // Untermenüs am rechten Fensterrand nach links klappen
-    requestAnimationFrame(() => {
-      for (const sub of host.querySelectorAll('.lg-sub')) {
-        const r = sub.parentElement.getBoundingClientRect();
-        if (r.right + 240 > window.innerWidth) sub.classList.add('flip');
+    // 2) Gruppen: Kopf filtert die GANZE Gruppe, Zeilen die einzelne Liga
+    for (const g of SORARE_GROUPS) {
+      const items = []; const allPairs = []; let total = 0;
+      for (const m of g.members) {
+        const { pairs, n } = resolve(m.c, m.names);
+        if (!n) continue;
+        items.push({ c: m.c, pairs, n });
+        allPairs.push(...pairs); total += n;
       }
-    });
+      if (!total) continue;
+      const h = head(g.label + '  › all', true);
+      h.onclick = () => pickLeaguePairs(g.icon + ' ' + g.label, allPairs);
+      host.appendChild(h);
+      for (const it of items.sort((a, b) => b.n - a.n)) {
+        const r = row(flagOf(it.c) + '  ' + it.pairs[0].name, it.n, 'sub');
+        r.onclick = () => pickLeaguePairs(flagOf(it.c) + ' ' + it.pairs[0].name, it.pairs);
+        host.appendChild(r);
+      }
+    }
+
+    // 3) Under 23 — nutzt den Alters-Filter (sichtbar in der AGE-Pille)
+    if (hasAgeData) {
+      host.appendChild(head('Age', false));
+      const u23 = row('Under 23', null, 'sub');
+      u23.onclick = () => {
+        const hi = document.getElementById('age-hi');
+        if (hi) { hi.value = 23; hi.oninput(); }
+        document.getElementById('lg-panel').classList.remove('open');
+      };
+      host.appendChild(u23);
+    }
+
+    // 4) Rest of the World: alles noch nicht Einsortierte, groesste zuerst
+    const rest = [...cardsOf.entries()]
+      .filter(([k]) => !used.has(k))
+      .map(([k, n]) => { const i = k.indexOf('|'); return { c: k.slice(0, i) || null, name: k.slice(i + 1), n }; })
+      .sort((a, b) => b.n - a.n);
+    if (rest.length) {
+      host.appendChild(head('Rest of the World', false));
+      for (const e of rest) {
+        const r = row(flagOf(e.c) + '  ' + e.name, e.n, 'sub');
+        r.onclick = () => pickLeaguePairs(flagOf(e.c) + ' ' + e.name, [{ name: e.name, c: e.c }]);
+        host.appendChild(r);
+      }
+    }
+  }
+
+  // Auswahl mehrerer (Alias-)Ligen zugleich — auch fuer Gruppen (Champion etc.)
+  function pickLeaguePairs(label, pairs) {
+    if (!pairs || !pairs.length) return;
+    leaguePairs = { label, pairs };
+    leagueFilter = null;
+    countryFilter = null;
+    const btn = document.getElementById('lg-btn');
+    if (btn) { btn.textContent = label + ' ▾'; btn.classList.add('active'); }
+    document.getElementById('lg-panel').classList.remove('open');
+    renderClubList();
+    currentPage = 1;
+    filterTable();
   }
 
 
