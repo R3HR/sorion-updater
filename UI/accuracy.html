@@ -24,7 +24,7 @@
   :root {
     --bg: #0d0d1a; --surface: #13131f; --surface2: #1a1a2e; --border: #2a2a45;
     --purple: #b060ff; --text: #e8e8ff; --text2: #9090c0;
-    --limited: #ffb830; --rare: #ff5555; --sr: #7090ff;
+    --limited: #ffb830; --rare: #ff5555; --sr: #7090ff; --up: #00f5a0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; line-height: 1.7; }
@@ -51,6 +51,9 @@
   .rk.ltd { color: var(--limited); } .rk.rar { color: var(--rare); } .rk.sr { color: var(--sr); }
   .note { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--purple);
           border-radius: 8px; padding: 14px 18px; margin-top: 24px; font-size: 13px; color: var(--text2); }
+  /* Head-to-head: knappste Schaetzung je Zeile gruen markiert */
+  td.val.best { color: var(--up); }
+  td.val.best small { color: var(--up); opacity: .75; }
 </style>
 </head>
 <body>
@@ -85,6 +88,24 @@
         the market is doing <em>right now</em> over what it did weeks ago. The exact recipe
         stays our kitchen secret — this page exists so you can judge the results instead.</li>
   </ul>
+
+  <!-- Beweis zur Behauptung darueber: derselbe Verkaufs-Datensatz, drei
+       Schaetzer im direkten Vergleich (RPC accuracy_benchmark). Kurzes
+       3-Tage-Fenster, damit immer die AKTUELLE Formel gemessen wird. -->
+  <div id="h2h-wrap" style="display:none">
+    <h2>// Don't take our word for it — FMV vs. the floor</h2>
+    <p>Same sales, two estimators: for every sale we log what our FMV and the floor price
+       each said <strong>beforehand</strong>, then measure who was closer. Lower is better;
+       <span style="color:var(--up)">green</span> marks the winner. Rolling 3-day window,
+       so this always measures our current model.</p>
+    <table aria-label="FMV vs floor price, median deviation from real sales">
+      <thead>
+        <tr><th>Rarity</th><th>FMV (ours)</th><th>Floor price</th></tr>
+      </thead>
+      <tbody id="h2h-body"></tbody>
+    </table>
+    <p id="h2h-note" style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.1em;color:var(--text2);margin-top:8px"></p>
+  </div>
 
   <h2>// Why sales deviate from any estimate</h2>
   <ul>
@@ -137,6 +158,43 @@
         `<tr><td><span class="rk ${cls}">◆ ${label}</span></td>${cell(get(sc, 'in_season'))}${cell(get(sc, 'classic'))}</tr>`;
       document.getElementById('acc-body').innerHTML =
         row('limited', 'ltd', 'LIMITED') + row('rare', 'rar', 'RARE') + row('super_rare', 'sr', 'SUPER RARE');
+    } catch (e) {}
+  })();
+
+  // Head-to-head FMV vs Floor vs Durchschnitt — gleiche Verkaeufe, drei
+  // Schaetzer (RPC accuracy_benchmark, 3-Tage-Fenster = aktuelle Formel).
+  (async function () {
+    try {
+      const BASE = 'https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1';
+      const KEY = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+      const res = await fetch(`${BASE}/rpc/accuracy_benchmark`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_days: 3 })
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data) || !data.length) return;
+
+      const pick = (sc, est) => data.find(r => r.eligibility === 'in_season' && r.scarcity === sc && r.estimator === est);
+      const rows = [];
+      let totalSales = 0;
+      for (const [sc, cls, label] of [['limited', 'ltd', 'LIMITED'], ['rare', 'rar', 'RARE'], ['super_rare', 'sr', 'SUPER RARE']]) {
+        const trio = ['fmv', 'floor'].map(est => pick(sc, est));
+        if (!trio[0]) continue;                       // ohne FMV-Zeile keine Aussage
+        totalSales += trio[0].samples;
+        const best = Math.min(...trio.filter(Boolean).map(r => Number(r.median_abs)));
+        const cells = trio.map(r => r
+          ? `<td class="val ${Number(r.median_abs) === best ? 'best' : ''}">±${Number(r.median_abs).toFixed(1)}%` +
+            `<small>${Number(r.within_20pct).toFixed(0)}% within ±20%</small></td>`
+          : '<td class="val">—<small>no data</small></td>');
+        rows.push(`<tr><td><span class="rk ${cls}">◆ ${label}</span></td>${cells.join('')}</tr>`);
+      }
+      if (!rows.length) return;
+      document.getElementById('h2h-body').innerHTML = rows.join('');
+      document.getElementById('h2h-note').textContent =
+        `// in-season cards · ${totalSales.toLocaleString('en-GB')} sales in the last 3 days · updated continuously`;
+      document.getElementById('h2h-wrap').style.display = '';
     } catch (e) {}
   })();
 </script>
