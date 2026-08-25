@@ -192,6 +192,16 @@ Programmierfehler — Details INC-006 in INCIDENTS.md), **Supabase Pro + Micro-C
 Cron-Kernjobs wiederhergestellt (accuracy 05:45, refresh 09:20, rollup Mo 06:30); Squad-Poller
 bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.08. pruefen.
 
+## FMV-Faktoren-Analyse (25.08.) — v3.3-Vorschlag liegt bereit, Deploy-Entscheidung bei Jonas
+
+Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 mit Jonas durchlaufen). Vollbericht **[FMV_FAKTOREN_ANALYSE.md](FMV_FAKTOREN_ANALYSE.md)** (INTERN — Formel-Zutaten!). Kurzfassung:
+
+- **Datenlauf:** 800 Karten geschichtet (limited+rare), 11.917 Walk-Forward-Ziele aus Sorare-Verkaufssequenzen + fmv_accuracy-v3.2-Ära (n=19.226). Skript `tools/2026-08-25_factor-data.mjs` (nur lesend, anonym — kein Key-Verbrauch). Rohdaten in `tools/analysis-out/` (~80 MB, NICHT committen).
+- **Hauptbefund:** v3.2 unterschaetzt Karten mit FMV <2 € um +23…+75 % (live gemessen); Ursache ist der IMMER aktive SELL_CAP 1,50 — gedeckelte Vorhersagen Bias +35…+71 pp, ungedeckelte ~0. **Score-Niveau, Einsatzquote, Liga und Club erklaeren nach Preisniveau-Kontrolle NICHTS Robustes** (waren Preis-Proxys; Details und p-Werte im Bericht). J1-Ausreisser (+221 % am 24.08.) = Update-Latenz beim Saison-Regimesprung, kein Formelfehler — FMV holte binnen 24 h auf.
+- **v3.3-Vorschlag (Backtest-belegt):** Cap nur noch bei duenner ODER alter Sales-Basis (<3 Sales im Fenster oder juengster Sale aelter als halfLife). Walk-Forward 11.917 Ziele: Median 33,3→23,9 %, Bias +22,2→+1,7 %, ±20 % 34→44 %; je Rarity limited i.s. 33,3→24,5, classic 31,4→22,4, rare 35,7→24,1. Duenne Schichten bleiben per Design EXAKT v3.2 (BUG-010-Schutz unangetastet). Reproduzierbar offline: `node tools/2026-08-25_fmv-v33-backtest.mjs`.
+- **Deploy (falls Jonas freigibt, Reihenfolge!):** (1) `migrations/2026-08-25_fmv_v33_change_guard.sql` — Cut-Datum auf den echten Deploy-Tag setzen, „ohne RLS" ausfuehren (zwei Schnittkanten: 22.08. + v3.3-Tag). (2) `tools/2026-08-25_fmv-v33-proposal.mjs` nach `lib/fmv.mjs` kopieren, pushen. (3) Werte liquider Karten steigen einmalig — kein Marktereignis; 7d-Chip ~7 Tage leer. (4) CUT in `tools/accuracy-briefing.mjs` nachziehen, nach ~1 Woche `accuracy_benchmark(7)` pruefen (Bias <2 € muss Richtung 0, avg10-Vergleich).
+- **Bewusst NICHT umgesetzt:** Liga-/Club-/Score-Terme (kein Effekt), Momentum-Term (auf J1-Einzelereignis gefittet), Form-Faktor L5/L40 (p=0,059, nur ein Datensatz — bei mehr Live-Aera-Daten erneut pruefbar).
+
 ## ⚠️ Offene Aktionen für Jonas
 
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)
@@ -256,6 +266,9 @@ bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.0
 - `backfill-player-meta.mjs` — laedt gameplay_tier/player_age/player_nation fuer ALLE Spieler ueber die ~250 Club-Kader (Einmal-Befuellung; die laufende Pflege machen Updater + Kader-Abgleich von selbst — In-Season taeglich, Classic alle 3-4 Tage)
 - `repair-club-leagues.mjs` — vereinheitlicht Liga-Felder von Clubs mit gemischten Zeilen auf den Sorare-Live-Stand (BUG-025-Aufraeumer; nach dem Updater-Fix normalerweise unnoetig)
 - `fmv-backtest.mjs` — Walk-Forward-Backtest der FMV-Formel (Grundlage von v3.2)
+- `2026-08-25_factor-data.mjs` — Datenlauf der FMV-Faktoren-Analyse (nur lesend, anonym; Ausgaben in `tools/analysis-out/`, ~80 MB, nicht committen)
+- `2026-08-25_fmv-v33-backtest.mjs` — offline-Reproduktion des v3.3-Backtests (liest analysis-out, kein API/DB-Zugriff)
+- `2026-08-25_fmv-v33-proposal.mjs` — VORSCHLAG: kompletter Ersatz fuer `lib/fmv.mjs` (bedingter SELL_CAP); Einbau nur durch Jonas nach Checkliste oben
 - KEINEN Cron fuer diese Werkzeuge anlegen — Einmal-/Diagnose-Skripte, Dauerlast war die INC-005/006-Falle
 - Vorbereiteter Analyse-Auftrag: `C:\Users\Jonas\Documents\Bot2B\07_Wissen\Prompts_Bibliothek\Sorion_FMV_Faktoren_Analyst.json` — prueft, ob Score/Einsatzquote/Liga/Club die VERKAUFSPREISE ueber v3.2 hinaus erklaeren (Ziel: Formel-Faktoren fuer v3.3+). Kernregeln stehen im Prompt: gegen Verkaeufe messen (nie gegen den eigenen FMV — zirkulaer), Walk-Forward-Backtest vor jedem Formel-Vorschlag, DB nur lesend.
 
@@ -272,7 +285,7 @@ bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.0
 - **UI-Änderungen lokal servieren und KLICKEN (31.07., BUG-013):** Syntaxprüfung findet keine ReferenceErrors, keine CSS-Klassenkollisionen und keine Stapel-Fehler. Schnelltest: Node-Einzeiler als Static-Server auf `C:\craft-log\sorion-ui`, im Browser öffnen, Filter/Menüs klicken, Überlagerungen mit `document.elementFromPoint` prüfen.
 - **Stapel-Kontexte:** `.controls` (z-index 40) liegt über `.table-wrap` (z-index 1) — beide erzeugen durch die `fadeUp`-Animation einen eigenen Kontext; ohne explizite z-index gewinnt der spätere im DOM.
 - **UI-Patches**: Dateien haben teils CRLF (git autocrlf) — Patch-Scripts per Write-Tool als .mjs-Datei schreiben (NIE komplexe Templates durch bash/sed quälen), vorher LF-normalisieren, Anker prüfen, `new Function`-Syntaxcheck; UI-Interaktionen danach im Browser WIRKLICH klicken (Lektion BUG-009)
-- **FMV-Historie**: v1 Index-Gewichte → v2 steiler → v3 Zeit-Decay+Cap → v3.1 (Ask≠Preis, Floor nur abwärts). Formel lebt an genau EINER Stelle: `lib/fmv.mjs` (Root)
+- **FMV-Historie**: v1 Index-Gewichte → v2 steiler → v3 Zeit-Decay+Cap → v3.1 (Ask≠Preis, Floor nur abwärts) → v3.2 (Cap 1,50, Blend 0) → **v3.3 vorgeschlagen 25.08.** (Cap nur bei duenner/alter Basis, siehe FMV_FAKTOREN_ANALYSE.md). Formel lebt an genau EINER Stelle: `lib/fmv.mjs` (Root)
 
 ## Regeln
 
