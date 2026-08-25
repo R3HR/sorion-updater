@@ -192,7 +192,16 @@ Programmierfehler — Details INC-006 in INCIDENTS.md), **Supabase Pro + Micro-C
 Cron-Kernjobs wiederhergestellt (accuracy 05:45, refresh 09:20, rollup Mo 06:30); Squad-Poller
 bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.08. pruefen.
 
-## FMV-Faktoren-Analyse (25.08.) — v3.3-Vorschlag liegt bereit, Deploy-Entscheidung bei Jonas
+## FMV-Faktoren-Analyse (25.08.) — ✅ v3.3 DEPLOYED (25.08. abends)
+
+**Deploy-Status:** Von Jonas freigegeben ("hau in die tasten"). lib/fmv.mjs ersetzt
+(Commit `eba6fc7`, Randfaelle vor dem Push per Smoke-Test verifiziert: liquide
+ungedeckelt, duenn/alt weiter gedeckelt, ohne Sales null, Floor zieht nie hoch),
+Railway deployt automatisch; change_guard-Migration von Jonas ausgefuehrt
+(Cut 26.08. korrekt: erster v3.3-Snapshot entsteht 26.08. 05:30). market_move
+liefert erwartungsgemaess leer bis ~02.09. (leer statt falsch). **Nachkontrolle
+~01.09.:** `select * from accuracy_benchmark(7);` — faellt der Bias im Segment
+<2 EUR Richtung null, hat v3.3 live gehalten, was der Backtest verspricht.
 
 Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 mit Jonas durchlaufen). Vollbericht **[FMV_FAKTOREN_ANALYSE.md](FMV_FAKTOREN_ANALYSE.md)** (INTERN — Formel-Zutaten!). Kurzfassung:
 
