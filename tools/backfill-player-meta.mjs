@@ -82,9 +82,14 @@ async function writeField(column, valueOf, all) {
     for (let i = 0; i < slugs.length; i += 200) {
       const chunk = slugs.slice(i, i + 200);
       if (!DRY) {
+        // Aenderungs-Waechter: nur Zeilen schreiben, deren Wert fehlt oder
+        // abweicht — ein erneuter Lauf auf gepflegtem Bestand kostet damit
+        // praktisch nichts (unveraenderte Zeilen erzeugen sonst trotzdem
+        // neue Zeilenversionen + WAL, Jonas' Einwand 25.08.).
         const { error, count } = await supabase.from('card_prices')
           .update({ [column]: value }, { count: 'exact' })
-          .in('player_slug', chunk);
+          .in('player_slug', chunk)
+          .or(`${column}.is.null,${column}.neq.${value}`);
         if (error) { console.warn(`  ${column}=${value} (${i}): ${error.message}`); continue; }
         written += count ?? 0;
       }
