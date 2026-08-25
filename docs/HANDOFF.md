@@ -171,6 +171,17 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 - **Neue Actions in `squad-poll`:** `cap_report` (Cap-Lage je Spieler mit Reihenfolge, Skin, Bonus, Captain) und **`bonus_report`** (exakte Bonus-Aufschlüsselung je Karte über `currentUser.step(id)` + `powerBreakdown` — eigene schlanke Query, weil die Board-Query mit powerBreakdown Sorares Komplexitätslimit von 30.000 reißt; `top: 20`→`10` gesenkt — **10 ist Sorares harte Obergrenze fuer Squad-Mitglieder** (`Squad.maxMembersCount`), also keine Einschraenkung, sondern der exakte Vollausbau).
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
 
+## 🔴 AKUT (25.08.): DB-Totalausfall Nr. 2 — siehe [INCIDENTS.md](INCIDENTS.md) INC-006
+
+Der Squad-Bot hat am 25.08. nichts gemeldet, weil REST/Auth seit ~07:45 UTC nicht antworten.
+**Nicht** der Cache-Waermer (seit 22.08. aus), sondern die **Updater selbst**: `Updater Limited`
+lief 22:00-05:16 (>7 h statt ~4 min) bei Cron `*/5` — die Laeufe ueberlappen sich.
+`Club_Rosters` hing im Dauer-Retry und wurde 08:12 per `railway down` gestoppt.
+
+**Zu tun, in dieser Reihenfolge:** (1) Projekt neu starten. (2) Updater von `*/5` auf `*/30`
+und Fenster verkuerzen. (3) `Club_Rosters` aus lassen bzw. woechentlich. (4) Kapazitaets-
+entscheidung: NANO/Free traegt die Schreiblast nicht — Frequenz runter oder Supabase Pro.
+
 ## ⚠️ Offene Aktionen für Jonas
 
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)

@@ -103,3 +103,23 @@
 - **Entlastung:** Tabellen-Seite sauber — price_history/analytics_events 401, profiles/sorare_users/watchlist/squad_tokens/squad_discord_users liefern leer (RLS greift), MVs nicht direkt lesbar, OpenAPI-Wurzel verlangt Secret-Key. Edge Functions: update-pool/update-prices 403, squad-poll 403 ohne Cron-Secret, get-analytics/delete-account 401, sync-portfolio force 403.
 - **Verifiziert 22.08. (nach Einspielen, von aussen als anon):** warm_market_aggregates 404 (gedroppt), snapshot_fmv_accuracy/refresh_market_aggregates/price_history_rollup/analytics_prune/snapshot_market_daily je **401**; oeffentliche RPCs (overview/leagues/facets/player_history) weiter 200.
 - **Status:** ✅ geschlossen 2026-08-22
+
+---
+
+## INC-006 — Zweiter Totalausfall der DB binnen vier Tagen 🔴 OFFEN (2026-08-25)
+
+- **Symptom:** Ab spaetestens **07:45 UTC** antworten REST und Auth nicht mehr (HTTP 000 nach 20-25 s). Die Edge Function `squad-poll` scheitert mit `Unexpected token '<', "<!DOCTYPE "... is not valid JSON` - sie bekommt eine **Cloudflare-Fehlerseite statt JSON**. Folge: Der Squad-Bot hat am 25.08. **keine einzige Meldung** abgesetzt, obwohl bereits drei Aufstellungen standen (Befund Jonas).
+- **Abgrenzung zu INC-005 (22.08.):** Gleiche Fehlerklasse, **anderer Ausloeser**. Der Cache-Waermer ist seit 22.08. abgeschaltet und scheidet aus.
+- **Belege aus den Railway-Logs (25.08., via CLI):**
+  - Alle drei Updater: `Batch-Query nach 3 Versuchen fehlgeschlagen - upstream request timeout` bzw. `<!DOCTYPE html>`.
+  - **`Updater Limited` lief von 22:00:06 bis 05:16:43 - ueber SIEBEN STUNDEN** fuer einen Lauf, der normal ~4 Minuten braucht (200 Karten, ~1.200 ms/Karte). Bei Cron `*/5` ueberlappen sich die Laeufe dadurch massiv. Dieselbe Todesspirale wie INC-005, diesmal von den Updatern selbst getragen.
+  - `Club_Rosters` lief ab 07:45 im Dauer-Retry gegen die tote DB (letzter Log 08:08). **Am 25.08. 08:12 per `railway down` gestoppt** - wie am 22.08. der Job, der die Erholung blockierte.
+- **Aktuelle Cron-Lage (Railway):** `Updater Limited` / `Update Rare` / `Updater SR` je `*/5 22-23,0-4 * * *` (= alle 5 Min ueber 6 Nachtstunden). `Club_Rosters` und `sorion-updater` ohne Cron.
+- **Sofort noetig (Captain/Coder):**
+  1. **Projekt neu starten** (Dashboard → Settings → General → Restart project). Ohne Neustart kommt die Instanz nicht hoch.
+  2. **Updater entschaerfen** - Vorschlag: `*/30` statt `*/5` und das Fenster verkuerzen. Preisdaten werden seltener frisch, die Instanz ueberlebt aber die Nacht.
+  3. `Club_Rosters` bleibt aus; wenn wieder an, dann **woechentlich** (`0 7 * * 1`) - 36.000 Unique-Index-Pruefungen je Lauf sind fuer NANO grenzwertig.
+- **Strukturelle Bewertung:** **Zweiter Totalausfall in vier Tagen.** Eine NANO-Instanz auf dem Free-Tarif traegt diese Schreiblast nicht dauerhaft. Entweder die Updater-Frequenz deutlich runter oder Supabase Pro (25 $/Monat; Kostenrahmen dann ~38 EUR/Monat statt ~14 - siehe MONETARISIERUNG.md). Das ist keine Randnotiz mehr, sondern eine Kapazitaetsentscheidung.
+- **Nicht die Ursache:** Die Supabase-Statusseite meldete erneut „Partially Degraded Service". Das war schon am 22.08. eine falsche Faehrte - die Symptome sind projektspezifisch (eigene Jobs im Timeout, Dashboard-SQL blockiert).
+- **Offene Diagnose nach dem Neustart:** `select jobname, schedule from cron.job` (laeuft noch etwas Unerwartetes?) und `cron.job_run_details` auf Laufzeiten pruefen - genau die Abfrage, die INC-005 aufgeklaert hat.
+- **Status:** 🔴 offen - DB zum Zeitpunkt der Dokumentation (08:15 UTC) weiterhin nicht erreichbar, Neustart steht aus.
