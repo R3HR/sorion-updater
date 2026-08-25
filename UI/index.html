@@ -1432,7 +1432,7 @@
         <div class="lg-row" onclick="pickGameplayTier('STAR')"><span>Star</span><span class="lg-count">★★★★</span></div>
         <div class="lg-row" onclick="pickGameplayTier('IMPACT')"><span>Impact</span><span class="lg-count">★★★</span></div>
         <div class="lg-row" onclick="pickGameplayTier('ROSTER')"><span>Roster</span><span class="lg-count">★★</span></div>
-        <div class="lg-row" onclick="pickGameplayTier('DNP')"><span>DNP</span><span class="lg-count">—</span></div>
+        <div class="lg-row" onclick="pickGameplayTier('DNP')"><span>DNP</span><span class="lg-count">★</span></div>
       </div>
     </div>
     <div class="filter-btn-group" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1717,8 +1717,8 @@
   let hasAgeData = false;       // Spalte player_age befuellt? (Probe in loadData)
   let gtFilter = null;          // Gameplay-Tier des Spielers: GOAT/STAR/IMPACT/ROSTER/DNP
   let hasGtData = false;        // Spalte gameplay_tier befuellt? -> Sterne in der Tier-Spalte
-  // Sterne wie bei Sorare/CraftLog; DNP als Text, unbekannt als Strich
-  const GT_STARS = { GOAT: '★★★★★', STAR: '★★★★', IMPACT: '★★★', ROSTER: '★★', DNP: 'DNP' };
+  // Sterne wie bei Sorare/CraftLog; DNP = 1 Stern (Wunsch Jonas), unbekannt = Strich
+  const GT_STARS = { GOAT: '★★★★★', STAR: '★★★★', IMPACT: '★★★', ROSTER: '★★', DNP: '★' };
   const gtStars = r => GT_STARS[r.gameplay_tier] || '—';
   let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
   let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
@@ -1966,7 +1966,7 @@
 
   function pickGameplayTier(v) {
     gtFilter = v;
-    const label = { GOAT: 'GOAT ★5', STAR: 'Star ★4', IMPACT: 'Impact ★3', ROSTER: 'Roster ★2', DNP: 'DNP' };
+    const label = { GOAT: 'GOAT ★5', STAR: 'Star ★4', IMPACT: 'Impact ★3', ROSTER: 'Roster ★2', DNP: 'DNP ★1' };
     const btn = document.getElementById('gt-btn');
     if (btn) {
       btn.textContent = v ? '⭐ ' + label[v] + ' ▾' : '⭐ All tiers ▾';
