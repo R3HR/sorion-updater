@@ -250,6 +250,13 @@ bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.0
 | Notifications (Stufe 3, braucht OAuth-App) | ⬜ nach Launch |
 | 30d-Marktbewegung ergänzen | ⬜ ab ~20.08. (History reicht dann) |
 
+## Werkzeuge in tools/ (bei Bedarf per `railway run node tools/<name>.mjs` ausloesen)
+
+- `backfill-player-meta.mjs` — laedt gameplay_tier/player_age/player_nation fuer ALLE Spieler ueber die ~250 Club-Kader (Einmal-Befuellung; die laufende Pflege machen Updater + Kader-Abgleich von selbst — In-Season taeglich, Classic alle 3-4 Tage)
+- `repair-club-leagues.mjs` — vereinheitlicht Liga-Felder von Clubs mit gemischten Zeilen auf den Sorare-Live-Stand (BUG-025-Aufraeumer; nach dem Updater-Fix normalerweise unnoetig)
+- `fmv-backtest.mjs` — Walk-Forward-Backtest der FMV-Formel (Grundlage von v3.2)
+- KEINEN Cron fuer diese Werkzeuge anlegen — Einmal-/Diagnose-Skripte, Dauerlast war die INC-005/006-Falle
+
 ## Architektur-Wissen (Kern)
 
 - **Sorare GraphQL**: anonym Depth 7 / Complexity 500; mit APIKEY-Header Depth 13 / Complexity 30.000. Jonas' Key: 200 req/min (geteilt von allen Nutzern des Keys!). `@example.com`-Testmails lehnt Resend ab (GoTrue → „Error sending confirmation email")
