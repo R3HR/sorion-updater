@@ -1617,6 +1617,7 @@
   let eligFilter = 'in_season';
   let posFilter  = null;   // null = alle Positionen
   let clubSet = new Set();      // bekannte Vereinsnamen (klein) -> exakte Auswahl vs. Tippen
+  let clubFacets = null;        // [{value, cards, leagues:[{league,country}]}] fuer die Liga-Vorfilterung
   let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
   let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
   let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
@@ -1733,12 +1734,25 @@
     if (!f) { delete facetsCache[elig]; return; }   // Fehlschlag NICHT einfrieren
     if (eligFilter !== elig) return;                // Nutzer hat umgeschaltet
 
-    const clubs = f.filter(x => x.kind === 'club')
+    // Club-Zeilen je Club zusammenfassen: seit der Facetten-Migration (25.08.)
+    // liefert die RPC pro Club EINE Zeile je Liga (Feld `league` + `extra` =
+    // Liga-Land) — waehrend der Datenheilung kann ein Club kurz in zwei Ligen
+    // auftauchen. Alte Cache-Antworten ohne `league` funktionieren weiter,
+    // dann wird nur nicht vorgefiltert.
+    const byClub = new Map();
+    for (const x of f) {
+      if (x.kind !== 'club') continue;
+      if (!byClub.has(x.value)) byClub.set(x.value, { value: x.value, cards: 0, leagues: [] });
+      const c = byClub.get(x.value);
+      c.cards += x.cards;
+      if (x.league !== undefined) c.leagues.push({ league: x.league, country: x.extra ?? null });
+    }
+    const clubs = [...byClub.values()]
                    .sort((a, b) => b.cards - a.cards || a.value.localeCompare(b.value));
-    clubSet   = new Set(clubs.map(c => c.value.toLowerCase()));
-    clubExact = new Map(clubs.map(c => [c.value.toLowerCase(), c.value]));
-    const dl = document.getElementById('clublist');
-    if (dl) dl.innerHTML = clubs.map(c => `<option value="${c.value.replace(/"/g, '&quot;')}">`).join('');
+    clubFacets = clubs;
+    clubSet    = new Set(clubs.map(c => c.value.toLowerCase()));
+    clubExact  = new Map(clubs.map(c => [c.value.toLowerCase(), c.value]));
+    renderClubList();
 
     buildLeagueMenu(f.filter(x => x.kind === 'league'));
 
@@ -1748,6 +1762,34 @@
       const withPos = f.filter(x => x.kind === 'position').reduce((n, x) => n + x.cards, 0);
       grp.style.display = withPos > 100 ? 'inline-flex' : 'none';
     }
+  }
+
+  // Club-Datalist passend zur Liga-Auswahl (Jonas, 25.08.): Ist eine Liga oder
+  // ein Land gewaehlt, werden nur noch Clubs daraus vorgeschlagen. Ein bereits
+  // gewaehlter Club, der nicht zur neuen Liga passt, wird geraeumt — sonst
+  // liefert die UND-Verknuepfung im Query eine leere Tabelle ohne Erklaerung.
+  function renderClubList() {
+    const dl = document.getElementById('clublist');
+    if (!dl || !clubFacets) return;
+    let clubs = clubFacets;
+    const hasLeagueInfo = clubFacets.some(c => c.leagues.length);
+    if (hasLeagueInfo && (leagueFilter || countryFilter)) {
+      const matches = c => c.leagues.some(e =>
+        leagueFilter
+          ? (e.league === leagueFilter && (!countryFilter || e.country === countryFilter))
+          : (countryFilter === '—' ? e.country == null : e.country === countryFilter));
+      const filtered = clubs.filter(matches);
+      if (filtered.length) {
+        clubs = filtered;
+        const inp = document.getElementById('club');
+        const typed = (inp?.value || '').trim().toLowerCase();
+        // Nur exakt gewaehlte Clubs raeumen — halb getippter Text bleibt stehen
+        if (typed && clubExact.has(typed) && !filtered.some(c => c.value.toLowerCase() === typed)) {
+          inp.value = '';
+        }
+      }
+    }
+    dl.innerHTML = clubs.map(c => `<option value="${c.value.replace(/"/g, '&quot;')}">`).join('');
   }
 
   // Position: erneuter Klick auf die aktive Position hebt den Filter wieder auf.
@@ -1807,6 +1849,10 @@
       btn.classList.toggle('active', !!(league || country));
     }
     document.getElementById('lg-panel').classList.remove('open');
+    // Club-Vorschlaege auf die neue Liga einschraenken; raeumt dabei einen
+    // gewaehlten Club, der nicht zur Liga passt — VOR filterTable, damit die
+    // Abfrage nicht mit einer unmoeglichen UND-Kombination laeuft.
+    renderClubList();
     currentPage = 1;
     filterTable();
   }

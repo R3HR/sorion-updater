@@ -52,7 +52,7 @@ async function fetchData(playerSlug, eligibility) {
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
       anyPositions
-      activeClub { name domesticLeague { name country { code } } }
+      activeClub { name country { code } domesticLeague { name country { code } } }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
         liveSingleSaleOffer { receiverSide { amounts { eurCents } } }
@@ -88,11 +88,15 @@ async function fetchData(playerSlug, eligibility) {
       // Verein/Liga: fuellt die Luecke fuer Zeilen, die nie ueber update-prices liefen
       // (27 % der sichtbaren Zeilen hatten keinen Verein -> Club-Filter waere loechrig)
       const position   = data?.data?.player?.anyPositions?.[0] ?? null; // Goalkeeper|Defender|Midfielder|Forward
-      const teamName   = data?.data?.player?.activeClub?.name ?? null;
-      const leagueName = data?.data?.player?.activeClub?.domesticLeague?.name ?? null;
-      // Land der LIGA (nicht die Nationalität des Spielers — das ist player.country!)
-      const leagueCountry = data?.data?.player?.activeClub?.domesticLeague?.country?.code ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, teamName, leagueName, position, leagueCountry };
+      const club       = data?.data?.player?.activeClub ?? null;
+      const teamName   = club?.name ?? null;
+      const leagueName = club?.domesticLeague?.name ?? null;
+      // Land der LIGA (nicht die Nationalität des Spielers — das ist player.country!).
+      // Fallback: Land des CLUBS, damit ein Verein ohne Liga-Zuordnung (Sorare
+      // liefert z. B. fuer Leicester domesticLeague=null) unter seinem Land
+      // filterbar bleibt, statt komplett aus den Filtern zu fallen.
+      const leagueCountry = club?.domesticLeague?.country?.code ?? club?.country?.code ?? null;
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -311,10 +315,18 @@ async function main() {
       sales_7d:    sales.filter(s => new Date(s.date) >= d7ago).length,
       updated_at:  new Date().toISOString(),
       ...(result.cardPic ? { picture_url: result.cardPic } : {}), // nur setzen, wenn vorhanden — nie löschen
-      ...(result.teamName ? { team_name: result.teamName } : {}),
-      ...(result.leagueName ? { league_name: result.leagueName } : {}),
+      // Club-Felder als EINHEIT schreiben, sobald ein Club bekannt ist — auch
+      // wenn die Liga darin null ist. Vorher blieb beim Vereinswechsel zu einem
+      // Club ohne domesticLeague (Sorare: z. B. Leicester) die Liga des ALTEN
+      // Vereins stehen → Ipswich-Abgaenge standen als Leicester-Spieler in der
+      // "Premier League", Swansea-Abgaenge in der "Championship" (Nutzer-Report
+      // 25.08.: "Englands 1. und 2. Liga vermischt"). Ohne Club: nichts anfassen.
+      ...(result.hasClub ? {
+        team_name:      result.teamName,
+        league_name:    result.leagueName,
+        league_country: result.leagueCountry,
+      } : {}),
       ...(result.position ? { position: result.position } : {}),
-      ...(result.leagueCountry ? { league_country: result.leagueCountry } : {}),
     };
     if (migrated) Object.assign(update, calcChanges(hist, fmv, now));
 

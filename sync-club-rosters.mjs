@@ -65,6 +65,7 @@ async function fetchRoster(clubSlug) {
       football {
         club(slug: "${clubSlug}") {
           name
+          country { code }
           domesticLeague { name country { code } }
           activePlayers(first: 50${after}) {
             pageInfo { hasNextPage endCursor }
@@ -85,7 +86,9 @@ async function fetchRoster(clubSlug) {
         picture: n.pictureUrl ?? null,
         team: club.name,
         league: club.domesticLeague?.name ?? null,
-        country: club.domesticLeague?.country?.code ?? null,
+        // Liga-Land, Fallback Club-Land: Clubs ohne Liga-Zuordnung (Sorare liefert
+        // z. B. fuer Leicester domesticLeague=null) bleiben so unterm Land filterbar
+        country: club.domesticLeague?.country?.code ?? club.country?.code ?? null,
       });
     }
     if (!club.activePlayers.pageInfo.hasNextPage) break;

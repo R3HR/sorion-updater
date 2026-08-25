@@ -187,6 +187,11 @@ lief 22:00-05:16 (>7 h statt ~4 min) bei Cron `*/5` — die Laeufe ueberlappen s
 und Fenster verkuerzen. (3) `Club_Rosters` aus lassen bzw. woechentlich. (4) Kapazitaets-
 entscheidung: NANO/Free traegt die Schreiblast nicht — Frequenz runter oder Supabase Pro.
 
+**AUFGELOEST (25.08. nachmittags):** Ursache bewiesen (Burst-Budget-Klippe 04:55, kein
+Programmierfehler — Details INC-006 in INCIDENTS.md), **Supabase Pro + Micro-Compute aktiv**.
+Cron-Kernjobs wiederhergestellt (accuracy 05:45, refresh 09:20, rollup Mo 06:30); Squad-Poller
+bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.08. pruefen.
+
 ## ⚠️ Offene Aktionen für Jonas
 
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)
@@ -225,6 +230,7 @@ entscheidung: NANO/Free traegt die Schreiblast nicht — Frequenz runter oder Su
 2. SQL-Bereinigung BUG-011 ausführen (Session 26.07.: konservierte Alt-FMVs nullen) — falls noch nicht geschehen
 3. `SORARE_APIKEY` auch als Supabase-Secret setzen (`npx supabase secrets set SORARE_APIKEY=...`) — schnellere Portfolio-Ladezeiten, wichtig vor Promotion-Traffic
 4. ~~Neue Sorare-OAuth-App beantragen~~ — **erledigt sich (01.08.):** Die bestehende App deckt beide Domains ab (live getestet). Offen bleibt nur die Secret-Hygiene, falls die App tatsaechlich auf einem fremden Account liegt.
+6. 🔴 **NEU (25.08.) — Migration `2026-08-25_facets_club_league.sql` ausfuehren** (SQL-Editor, „ohne RLS"). Gehoert zu BUG-025/Filter-Umbau: Die Club-Facetten bekommen ihre Liga, damit die Club-Suche nach Liga-Wahl vorgefiltert ist. Das neue UI (beide Repos committet) faellt ohne die Migration sauber auf „alle Clubs" zurueck — Reihenfolge Deploy/Migration ist egal. Danach einmal `select public.refresh_market_aggregates();` oder auf den 09:20-Cron warten. Anschliessend beide Repos pushen (sorion-ui + sorion-updater; der Updater-Fix wird erst mit dem Railway-Deploy wirksam!).
 5. ✅ **Dubletten `limited/rare/sr/` entfernt (28.07.):** Per Railway Settings→Build bestätigt, dass alle 3 Services (Update Limited/Rare/SR) aus dem Repo-Root via `/railway-<s>.toml` bauen (keine Root Directory gesetzt). Ordner per `git rm -r` gelöscht → `update-scarcity.mjs`/`lib/fmv.mjs` existieren nur noch einmal (Root). Keine 4-fach-Sync mehr.
 
 ## Roadmap → Launch (Plan: Saisonstart + ~3 Tage stabil)
