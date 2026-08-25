@@ -53,6 +53,8 @@ async function fetchData(playerSlug, eligibility) {
     player: anyPlayer(slug: "${playerSlug}") {
       anyPositions
       country { code }
+      age
+      gameplayTier
       activeClub { name country { code } domesticLeague { name country { code } } }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
@@ -99,7 +101,12 @@ async function fetchData(playerSlug, eligibility) {
       const leagueCountry = club?.domesticLeague?.country?.code ?? club?.country?.code ?? null;
       // NATIONALITAET des Spielers (player.country) — nicht das Liga-Land!
       const nation = data?.data?.player?.country?.code ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry, nation };
+      // Alter direkt von Sorare (Jonas' Wunsch statt Geburtsdatum) — wird bei
+      // jeder Beruehrung neu geschrieben, Geburtstage ziehen also von selbst nach
+      const age = Number.isFinite(data?.data?.player?.age) ? data.data.player.age : null;
+      // Sterne-Klassifizierung des Spielers: GOAT/STAR/IMPACT/ROSTER/DNP
+      const gameplayTier = data?.data?.player?.gameplayTier ?? null;
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry, nation, age, gameplayTier };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -175,6 +182,14 @@ async function main() {
   const natProbe = await supabase.from('card_prices').select('player_nation').limit(1);
   const hasNation = !natProbe.error;
   if (!hasNation) console.warn('Spalte player_nation fehlt — Nationalitaet wird uebersprungen');
+
+  // Spalten player_age/gameplay_tier vorhanden? (2026-08-25_age_and_gameplay_tier.sql)
+  const ageProbe = await supabase.from('card_prices').select('player_age').limit(1);
+  const hasAge = !ageProbe.error;
+  if (!hasAge) console.warn('Spalte player_age fehlt — Alter wird uebersprungen');
+  const gtProbe = await supabase.from('card_prices').select('gameplay_tier').limit(1);
+  const hasGameplayTier = !gtProbe.error;
+  if (!hasGameplayTier) console.warn('Spalte gameplay_tier fehlt — wird uebersprungen');
 
   // floor_price/avg_sales: die Vergleichs-Schaetzer fuer accuracy_benchmark —
   // MUESSEN aus derselben (alten) Zeile stammen wie fmv, sonst waere es Leakage.
@@ -337,6 +352,10 @@ async function main() {
       ...(result.position ? { position: result.position } : {}),
       // Nationalitaet aendert sich nie — schreiben wenn bekannt, nie auf null
       ...(hasNation && result.nation ? { player_nation: result.nation } : {}),
+      // Alter bei jeder Beruehrung frisch (Geburtstage), nie auf null
+      ...(hasAge && result.age != null ? { player_age: result.age } : {}),
+      // Gameplay-Tier (GOAT/STAR/IMPACT/ROSTER/DNP) aendert sich mit der Form
+      ...(hasGameplayTier && result.gameplayTier ? { gameplay_tier: result.gameplayTier } : {}),
     };
     if (migrated) Object.assign(update, calcChanges(hist, fmv, now));
 

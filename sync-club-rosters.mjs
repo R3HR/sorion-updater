@@ -69,7 +69,7 @@ async function fetchRoster(clubSlug) {
           domesticLeague { name country { code } }
           activePlayers(first: 50${after}) {
             pageInfo { hasNextPage endCursor }
-            nodes { slug displayName anyPositions pictureUrl country { code } }
+            nodes { slug displayName anyPositions pictureUrl country { code } age gameplayTier }
           }
         }
       }
@@ -85,6 +85,8 @@ async function fetchRoster(clubSlug) {
         position: pos,
         picture: n.pictureUrl ?? null,
         nation: n.country?.code ?? null,   // Nationalitaet des Spielers (nicht Liga-Land)
+        age: Number.isFinite(n.age) ? n.age : null,
+        gameplayTier: n.gameplayTier ?? null,
         team: club.name,
         league: club.domesticLeague?.name ?? null,
         // Liga-Land, Fallback Club-Land: Clubs ohne Liga-Zuordnung (Sorare liefert
@@ -141,6 +143,12 @@ async function main() {
   const natProbe = await supabase.from('card_prices').select('player_nation').limit(1);
   const hasNation = !natProbe.error;
   if (!hasNation) console.warn('Spalte player_nation fehlt — Nationalitaet wird uebersprungen');
+  const ageProbe = await supabase.from('card_prices').select('player_age').limit(1);
+  const hasAge = !ageProbe.error;
+  if (!hasAge) console.warn('Spalte player_age fehlt — Alter wird uebersprungen');
+  const gtProbe = await supabase.from('card_prices').select('gameplay_tier').limit(1);
+  const hasGameplayTier = !gtProbe.error;
+  if (!hasGameplayTier) console.warn('Spalte gameplay_tier fehlt — wird uebersprungen');
 
   const rows = [];
   for (const [slug, p] of all) {
@@ -157,6 +165,8 @@ async function main() {
           league_country: p.country,
           position:     p.position,
           ...(hasNation && p.nation ? { player_nation: p.nation } : {}),
+          ...(hasAge && p.age != null ? { player_age: p.age } : {}),
+          ...(hasGameplayTier && p.gameplayTier ? { gameplay_tier: p.gameplayTier } : {}),
           ...(p.picture ? { picture_url: p.picture } : {}),
           updated_at:   new Date(0).toISOString(),   // epoch → Updater holt sie als Nächstes
         });

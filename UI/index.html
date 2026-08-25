@@ -1186,6 +1186,30 @@
               padding: 0 0 0 16px; min-width: 0; max-height: none; }
   }
 
+  /* ── Bereichsfilter (Alter / FMV): Doppel-Slider ─────────────────── */
+  .rng-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+             padding: 7px 14px 9px; min-width: 205px; }
+  .rng-lab { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1.5px;
+             text-transform: uppercase; color: var(--dim); margin-bottom: 2px; }
+  .rng-track { position: relative; height: 20px; }
+  .rng-rail  { position: absolute; top: 8.5px; left: 0; right: 0; height: 3px;
+               background: var(--surface3); border-radius: 2px; }
+  .rng-fill  { position: absolute; top: 8.5px; height: 3px; background: var(--purple); border-radius: 2px; }
+  .rng-track input[type=range] { position: absolute; left: 0; top: 0; width: 100%; height: 20px;
+    margin: 0; -webkit-appearance: none; appearance: none; background: none; pointer-events: none; }
+  .rng-track input[type=range]::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+  .rng-track input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto;
+    width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; background: var(--purple);
+    border: 2px solid rgba(255,255,255,.35); cursor: pointer; }
+  .rng-track input[type=range]::-moz-range-track { background: transparent; }
+  .rng-track input[type=range]::-moz-range-thumb { pointer-events: auto; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--purple); border: 2px solid rgba(255,255,255,.35); cursor: pointer; }
+  .rng-vals { display: flex; align-items: center; gap: 6px;
+              font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); }
+  .rng-vals input { width: 58px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font: inherit; padding: 2px 6px; text-align: right; }
+  .rng-vals input:focus { outline: none; border-color: var(--purple); }
+
 
   /* ── Liga-Ranking (rechte Spalte) ─────────────────────────────── */
   .top-grid { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 14px; align-items: stretch; }
@@ -1396,6 +1420,19 @@
         <div id="nat-list"></div>
       </div>
     </div>
+    <!-- Gameplay-Tier des SPIELERS (Sorare: GOAT=5★ … DNP) — nicht die
+         Karten-Qualitaet (T0-Badge). Verborgen bis gameplay_tier befuellt ist. -->
+    <div class="lg-dd" id="gt-wrap" style="display:none">
+      <button class="filter-btn" id="gt-btn" onclick="toggleTierMenu(event)">⭐ All tiers ▾</button>
+      <div class="lg-panel" id="gt-panel">
+        <div class="lg-row" onclick="pickGameplayTier(null)">All tiers</div>
+        <div class="lg-row" onclick="pickGameplayTier('GOAT')"><span>GOAT</span><span class="lg-count">★★★★★</span></div>
+        <div class="lg-row" onclick="pickGameplayTier('STAR')"><span>Star</span><span class="lg-count">★★★★</span></div>
+        <div class="lg-row" onclick="pickGameplayTier('IMPACT')"><span>Impact</span><span class="lg-count">★★★</span></div>
+        <div class="lg-row" onclick="pickGameplayTier('ROSTER')"><span>Roster</span><span class="lg-count">★★</span></div>
+        <div class="lg-row" onclick="pickGameplayTier('DNP')"><span>DNP</span><span class="lg-count">—</span></div>
+      </div>
+    </div>
     <div class="filter-btn-group" style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="filter-btn ltd active" id="btn-ltd" onclick="setScarcity('limited')">◆ Limited</button>
       <button class="filter-btn rar" id="btn-rar" onclick="setScarcity('rare')">◆ Rare</button>
@@ -1411,6 +1448,28 @@
         <button class="filter-btn" id="btn-pos-Midfielder" title="Midfielder"  onclick="setPosition('Midfielder')">MD</button>
         <button class="filter-btn" id="btn-pos-Forward"    title="Forward"     onclick="setPosition('Forward')">FW</button>
       </span>
+    </div>
+    <!-- Bereichsfilter: FMV sofort verfuegbar; Alter erscheint, sobald
+         player_age befuellt ist (Migration 2026-08-25_player_age.sql) -->
+    <div class="rng-box" id="fmv-box">
+      <div class="rng-lab">FMV €</div>
+      <div class="rng-track">
+        <div class="rng-rail"></div><div class="rng-fill" id="fmv-fill"></div>
+        <input type="range" id="fmv-lo" min="0" max="100" step="1" value="0"   aria-label="FMV minimum">
+        <input type="range" id="fmv-hi" min="0" max="100" step="1" value="100" aria-label="FMV maximum">
+      </div>
+      <div class="rng-vals">€&nbsp;<input id="fmv-lo-v" inputmode="decimal" aria-label="FMV min">
+        <span>–</span> €&nbsp;<input id="fmv-hi-v" inputmode="decimal" aria-label="FMV max"></div>
+    </div>
+    <div class="rng-box" id="age-box" style="display:none">
+      <div class="rng-lab">Age</div>
+      <div class="rng-track">
+        <div class="rng-rail"></div><div class="rng-fill" id="age-fill"></div>
+        <input type="range" id="age-lo" min="15" max="45" step="1" value="15" aria-label="Age minimum">
+        <input type="range" id="age-hi" min="15" max="45" step="1" value="45" aria-label="Age maximum">
+      </div>
+      <div class="rng-vals">Min&nbsp;<input id="age-lo-v" inputmode="numeric" aria-label="Age min">
+        <span>–</span> Max&nbsp;<input id="age-hi-v" inputmode="numeric" aria-label="Age max"></div>
     </div>
     <div class="updated-at" id="updated-at"></div>
   </div>
@@ -1625,7 +1684,19 @@
     // Wird nur gesetzt, wenn die Facetten Nation-Zeilen liefern, d. h. die
     // Spalte existiert dann garantiert (sonst gaebe die Abfrage 400).
     if (nationFilter) p.push(`player_nation=eq.${encodeURIComponent(nationFilter)}`);
+    // Nur waehlbar, wenn die Spalte befuellt ist (Dropdown sonst verborgen)
+    if (gtFilter) p.push(`gameplay_tier=eq.${gtFilter}`);
     if (posFilter) p.push(`position=eq.${posFilter}`);
+    // FMV-Spanne: nur echte Grenzen anhaengen (Anschlag = unbegrenzt). Ein
+    // gesetzter FMV-Filter blendet bewusst auch Floor-only-Zeilen aus.
+    if (fmvMin > FMV_LO) p.push(`fmv=gte.${fmvMin}`);
+    if (fmvMax < FMV_HI) p.push(`fmv=lte.${fmvMax}`);
+    // Alters-Spanne (player_age): nur wenn die Spalte befuellt ist — sonst
+    // gaebe die Abfrage 400 (Spalte fehlt) oder eine leere Tabelle.
+    if (hasAgeData) {
+      if (ageMin > AGE_LO) p.push(`player_age=gte.${ageMin}`);
+      if (ageMax < AGE_HI) p.push(`player_age=lte.${ageMax}`);
+    }
     return p;
   }
   const PAGE_SIZE = 50;
@@ -1636,6 +1707,13 @@
   let clubFacets = null;        // [{value, cards, leagues:[{league,country}]}] fuer die Liga-Vorfilterung
   let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
   let nationFilter = null;      // Nationalitaet des Spielers, z. B. 'jp' (player_nation)
+  // Bereichsfilter: Werte an den Anschlaegen bedeuten "keine Grenze"
+  const AGE_LO = 15, AGE_HI = 45;        // Slider-Spanne Alter
+  const FMV_LO = 0.10, FMV_HI = 1000;    // Slider-Spanne FMV (logarithmisch)
+  let ageMin = AGE_LO, ageMax = AGE_HI;
+  let fmvMin = FMV_LO, fmvMax = FMV_HI;
+  let hasAgeData = false;       // Spalte player_age befuellt? (Probe in loadData)
+  let gtFilter = null;          // Gameplay-Tier des Spielers: GOAT/STAR/IMPACT/ROSTER/DNP
   let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
   let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
   let rankScarcity = 'all';          // Rarity-Auswahl NUR fuer das Liga-Ranking
@@ -1657,6 +1735,18 @@
 
   async function loadData() {
     document.getElementById('table-body').innerHTML = skeletonRows();
+    // Alters-Slider erst zeigen, wenn player_age existiert UND befuellt ist
+    // (vor der Migration: 400 -> null; danach waechst die Fuellung per Updater)
+    apiCached('card_prices?select=player_age&player_age=not.is.null&limit=1').then(r => {
+      if (r && r.length) {
+        hasAgeData = true;
+        document.getElementById('age-box').style.display = '';
+      }
+    });
+    // Gameplay-Tier-Dropdown analog (Spalte aus derselben Migration)
+    apiCached('card_prices?select=gameplay_tier&gameplay_tier=not.is.null&limit=1').then(r => {
+      if (r && r.length) document.getElementById('gt-wrap').style.display = '';
+    });
     // Aggregate parallel anstossen — die Tabelle wartet nicht auf sie
     updateHeroStats();
     populateClubs();
@@ -1845,24 +1935,36 @@
     catch { return code; }
   }
 
-  function toggleLeagueMenu(ev) {
+  // Drei Dropdown-Panels (Liga/Nation/Tier): oeffnen schliesst die anderen,
+  // Klick ausserhalb des eigenen Wrappers schliesst das jeweilige Panel.
+  const DD_PANELS = [['lg-wrap', 'lg-panel'], ['nat-wrap', 'nat-panel'], ['gt-wrap', 'gt-panel']];
+  function toggleDD(ev, panelId) {
     if (ev) ev.stopPropagation();
-    document.getElementById('nat-panel')?.classList.remove('open');
-    document.getElementById('lg-panel').classList.toggle('open');
+    for (const [, p] of DD_PANELS) if (p !== panelId) document.getElementById(p)?.classList.remove('open');
+    document.getElementById(panelId).classList.toggle('open');
   }
-  function toggleNationMenu(ev) {
-    if (ev) ev.stopPropagation();
-    document.getElementById('lg-panel')?.classList.remove('open');
-    document.getElementById('nat-panel').classList.toggle('open');
-  }
-  // Jedes Panel schliesst, wenn ausserhalb SEINES Wrappers geklickt wird —
-  // ".lg-dd" reicht seit dem Nation-Dropdown nicht mehr (zwei Wrapper).
+  const toggleLeagueMenu = ev => toggleDD(ev, 'lg-panel');
+  const toggleNationMenu = ev => toggleDD(ev, 'nat-panel');
+  const toggleTierMenu   = ev => toggleDD(ev, 'gt-panel');
   document.addEventListener('click', e => {
-    const lg = document.getElementById('lg-panel');
-    if (lg && !e.target.closest('#lg-wrap')) lg.classList.remove('open');
-    const nat = document.getElementById('nat-panel');
-    if (nat && !e.target.closest('#nat-wrap')) nat.classList.remove('open');
+    for (const [wrap, panel] of DD_PANELS) {
+      const p = document.getElementById(panel);
+      if (p && !e.target.closest('#' + wrap)) p.classList.remove('open');
+    }
   });
+
+  function pickGameplayTier(v) {
+    gtFilter = v;
+    const label = { GOAT: 'GOAT ★5', STAR: 'Star ★4', IMPACT: 'Impact ★3', ROSTER: 'Roster ★2', DNP: 'DNP' };
+    const btn = document.getElementById('gt-btn');
+    if (btn) {
+      btn.textContent = v ? '⭐ ' + label[v] + ' ▾' : '⭐ All tiers ▾';
+      btn.classList.toggle('active', !!v);
+    }
+    document.getElementById('gt-panel').classList.remove('open');
+    currentPage = 1;
+    filterTable();
+  }
 
   // ── Nationen-Filter (player_nation) ─────────────────────────────────────
   function renderNationMenu(f) {
@@ -1890,6 +1992,77 @@
       list.appendChild(d);
     }
   }
+
+  // ── Doppel-Slider (Alter / FMV) ─────────────────────────────────────────
+  // Zwei uebereinanderliegende range-Inputs; nur die Daumen sind klickbar
+  // (pointer-events). Anschlag = unbegrenzt. Anwendung debounced, damit das
+  // Ziehen nicht pro Pixel eine Abfrage ausloest.
+  function initRange(pfx, cfg) {
+    const lo  = document.getElementById(pfx + '-lo'),  hi  = document.getElementById(pfx + '-hi'),
+          lov = document.getElementById(pfx + '-lo-v'), hiv = document.getElementById(pfx + '-hi-v'),
+          fill = document.getElementById(pfx + '-fill');
+    if (!lo) return;
+    const span = +lo.max - +lo.min;
+    const render = () => {
+      const a = +lo.value, b = +hi.value;
+      fill.style.left  = ((a - +lo.min) / span * 100) + '%';
+      fill.style.width = (Math.max(0, b - a) / span * 100) + '%';
+      lov.value = cfg.fmt(cfg.toVal(a));
+      hiv.value = cfg.fmt(cfg.toVal(b));
+    };
+    let deb;
+    const commit = () => {
+      clearTimeout(deb);
+      deb = setTimeout(() => {
+        cfg.apply(cfg.toVal(+lo.value), cfg.toVal(+hi.value));
+        currentPage = 1;
+        filterTable();
+      }, 400);
+    };
+    lo.oninput = () => { if (+lo.value > +hi.value) lo.value = hi.value; render(); commit(); };
+    hi.oninput = () => { if (+hi.value < +lo.value) hi.value = lo.value; render(); commit(); };
+    // Getippte Werte gelten EXAKT (nicht aufs Slider-Raster gerundet — sonst
+    // wird aus "5" ein 4,79-€-Filter); der Slider springt nur ungefaehr hin.
+    const fromBox = () => {
+      const vMin = cfg.toVal(+lo.min), vMax = cfg.toVal(+hi.max);
+      const pa = cfg.parse(lov.value), pb = cfg.parse(hiv.value);
+      let a = pa != null ? Math.min(vMax, Math.max(vMin, pa)) : cfg.toVal(+lo.value);
+      let b = pb != null ? Math.min(vMax, Math.max(vMin, pb)) : cfg.toVal(+hi.value);
+      if (b < a) b = a;
+      lo.value = Math.min(+lo.max, Math.max(+lo.min, cfg.toT(a)));
+      hi.value = Math.min(+hi.max, Math.max(+hi.min, cfg.toT(b)));
+      fill.style.left  = ((+lo.value - +lo.min) / span * 100) + '%';
+      fill.style.width = (Math.max(0, +hi.value - +lo.value) / span * 100) + '%';
+      lov.value = cfg.fmt(a);
+      hiv.value = cfg.fmt(b);
+      clearTimeout(deb);
+      cfg.apply(a, b);
+      currentPage = 1;
+      filterTable();
+    };
+    lov.onchange = fromBox;
+    hiv.onchange = fromBox;
+    render();
+  }
+  const fmtEur = v => v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  const numDe  = s => { const n = parseFloat(String(s).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+  // FMV logarithmisch: 0,10 € und 1000 € auf einem linearen Slider waeren
+  // nutzlos — die halbe Spur entfiele auf >500 €, wo kaum Karten liegen.
+  const LOG_LO = Math.log(FMV_LO), LOG_HI = Math.log(FMV_HI);
+  initRange('fmv', {
+    toVal: t => Math.exp(LOG_LO + (t / 100) * (LOG_HI - LOG_LO)),
+    toT:   v => Math.round(100 * (Math.log(Math.min(FMV_HI, Math.max(FMV_LO, v))) - LOG_LO) / (LOG_HI - LOG_LO)),
+    fmt:   fmtEur,
+    parse: numDe,
+    apply: (a, b) => { fmvMin = +a.toFixed(2); fmvMax = +b.toFixed(2); },
+  });
+  initRange('age', {
+    toVal: t => t,
+    toT:   v => Math.round(v),
+    fmt:   String,
+    parse: numDe,
+    apply: (a, b) => { ageMin = a; ageMax = b; },
+  });
 
   function pickNation(code) {
     nationFilter = code;
