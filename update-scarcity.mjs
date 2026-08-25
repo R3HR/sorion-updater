@@ -52,6 +52,7 @@ async function fetchData(playerSlug, eligibility) {
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
       anyPositions
+      country { code }
       activeClub { name country { code } domesticLeague { name country { code } } }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
@@ -96,7 +97,9 @@ async function fetchData(playerSlug, eligibility) {
       // liefert z. B. fuer Leicester domesticLeague=null) unter seinem Land
       // filterbar bleibt, statt komplett aus den Filtern zu fallen.
       const leagueCountry = club?.domesticLeague?.country?.code ?? club?.country?.code ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry };
+      // NATIONALITAET des Spielers (player.country) — nicht das Liga-Land!
+      const nation = data?.data?.player?.country?.code ?? null;
+      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry, nation };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -167,6 +170,11 @@ async function main() {
   const lsProbe = await supabase.from('card_prices').select('last_sale_at').limit(1);
   const hasLastSale = !lsProbe.error;
   if (!hasLastSale) console.warn('Spalte last_sale_at fehlt — Verkaufsdatum wird übersprungen');
+
+  // Spalte player_nation vorhanden? (migrations/2026-08-25_player_nation.sql)
+  const natProbe = await supabase.from('card_prices').select('player_nation').limit(1);
+  const hasNation = !natProbe.error;
+  if (!hasNation) console.warn('Spalte player_nation fehlt — Nationalitaet wird uebersprungen');
 
   // floor_price/avg_sales: die Vergleichs-Schaetzer fuer accuracy_benchmark —
   // MUESSEN aus derselben (alten) Zeile stammen wie fmv, sonst waere es Leakage.
@@ -327,6 +335,8 @@ async function main() {
         league_country: result.leagueCountry,
       } : {}),
       ...(result.position ? { position: result.position } : {}),
+      // Nationalitaet aendert sich nie — schreiben wenn bekannt, nie auf null
+      ...(hasNation && result.nation ? { player_nation: result.nation } : {}),
     };
     if (migrated) Object.assign(update, calcChanges(hist, fmv, now));
 

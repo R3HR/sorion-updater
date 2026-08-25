@@ -1377,11 +1377,21 @@
              style="min-width:210px">
       <datalist id="clublist"></datalist>
     </div>
-    <div class="lg-dd">
+    <div class="lg-dd" id="lg-wrap">
       <button class="filter-btn" id="lg-btn" onclick="toggleLeagueMenu(event)">🌍 All leagues ▾</button>
       <div class="lg-panel" id="lg-panel">
         <div class="lg-row" onclick="pickLeague(null, null)">All leagues</div>
         <div id="lg-countries"></div>
+      </div>
+    </div>
+    <!-- Nationalitaet des SPIELERS (player_nation) — unabhaengig vom Liga-Land.
+         Bleibt verborgen, bis die Facetten Nation-Zeilen liefern (Migration
+         2026-08-25_player_nation.sql + erster Updater-Zyklus). -->
+    <div class="lg-dd" id="nat-wrap" style="display:none">
+      <button class="filter-btn" id="nat-btn" onclick="toggleNationMenu(event)">🛂 All nations ▾</button>
+      <div class="lg-panel" id="nat-panel">
+        <div class="lg-row" onclick="pickNation(null)">All nations</div>
+        <div id="nat-list"></div>
       </div>
     </div>
     <div class="filter-btn-group" style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1609,6 +1619,10 @@
       p.push(countryFilter === '\u2014' ? 'league_country=is.null'
                                         : `league_country=eq.${encodeURIComponent(countryFilter)}`);
     }
+    // Nationalitaet des Spielers — kombinierbar mit Liga/Land (Kitano: jp + at).
+    // Wird nur gesetzt, wenn die Facetten Nation-Zeilen liefern, d. h. die
+    // Spalte existiert dann garantiert (sonst gaebe die Abfrage 400).
+    if (nationFilter) p.push(`player_nation=eq.${encodeURIComponent(nationFilter)}`);
     if (posFilter) p.push(`position=eq.${posFilter}`);
     return p;
   }
@@ -1619,6 +1633,7 @@
   let clubSet = new Set();      // bekannte Vereinsnamen (klein) -> exakte Auswahl vs. Tippen
   let clubFacets = null;        // [{value, cards, leagues:[{league,country}]}] fuer die Liga-Vorfilterung
   let leagueFilter = null;      // exakte Liga, z. B. 'Bundesliga'
+  let nationFilter = null;      // Nationalitaet des Spielers, z. B. 'jp' (player_nation)
   let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
   let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
   let rankScarcity = 'all';          // Rarity-Auswahl NUR fuer das Liga-Ranking
@@ -1755,6 +1770,7 @@
     renderClubList();
 
     buildLeagueMenu(f.filter(x => x.kind === 'league'));
+    renderNationMenu(f);
 
     // Positions-Filter erst anbieten, wenn die Spalte gefuellt ist
     const grp = document.getElementById('pos-group');
@@ -1829,12 +1845,62 @@
 
   function toggleLeagueMenu(ev) {
     if (ev) ev.stopPropagation();
+    document.getElementById('nat-panel')?.classList.remove('open');
     document.getElementById('lg-panel').classList.toggle('open');
   }
+  function toggleNationMenu(ev) {
+    if (ev) ev.stopPropagation();
+    document.getElementById('lg-panel')?.classList.remove('open');
+    document.getElementById('nat-panel').classList.toggle('open');
+  }
+  // Jedes Panel schliesst, wenn ausserhalb SEINES Wrappers geklickt wird —
+  // ".lg-dd" reicht seit dem Nation-Dropdown nicht mehr (zwei Wrapper).
   document.addEventListener('click', e => {
-    const p = document.getElementById('lg-panel');
-    if (p && !e.target.closest('.lg-dd')) p.classList.remove('open');
+    const lg = document.getElementById('lg-panel');
+    if (lg && !e.target.closest('#lg-wrap')) lg.classList.remove('open');
+    const nat = document.getElementById('nat-panel');
+    if (nat && !e.target.closest('#nat-wrap')) nat.classList.remove('open');
   });
+
+  // ── Nationen-Filter (player_nation) ─────────────────────────────────────
+  function renderNationMenu(f) {
+    const wrap = document.getElementById('nat-wrap');
+    const list = document.getElementById('nat-list');
+    if (!wrap || !list) return;
+    const nations = f.filter(x => x.kind === 'nation')
+                     .sort((a, b) => b.cards - a.cards || a.value.localeCompare(b.value));
+    // Verborgen lassen, solange die Facette (fast) leer ist — direkt nach der
+    // Migration ist die Spalte noch unbefuellt, der Filter faende nichts.
+    if (nations.reduce((n, x) => n + x.cards, 0) < 100) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
+    list.innerHTML = '';
+    for (const n of nations) {
+      const d = document.createElement('div');
+      d.className = 'lg-row';
+      const t = document.createElement('span');
+      t.textContent = flagOf(n.value) + '  ' + countryName(n.value);
+      d.appendChild(t);
+      const c = document.createElement('span');
+      c.className = 'lg-count';
+      c.textContent = n.cards;
+      d.appendChild(c);
+      d.onclick = () => pickNation(n.value);
+      list.appendChild(d);
+    }
+  }
+
+  function pickNation(code) {
+    nationFilter = code;
+    const btn = document.getElementById('nat-btn');
+    if (btn) {
+      btn.textContent = code ? flagOf(code) + ' ' + countryName(code) + ' ▾'
+                             : '\u{1F6C2} All nations ▾';
+      btn.classList.toggle('active', !!code);
+    }
+    document.getElementById('nat-panel').classList.remove('open');
+    currentPage = 1;
+    filterTable();
+  }
 
   function pickLeague(league, country) {
     leagueFilter = league;

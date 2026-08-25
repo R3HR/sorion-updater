@@ -69,7 +69,7 @@ async function fetchRoster(clubSlug) {
           domesticLeague { name country { code } }
           activePlayers(first: 50${after}) {
             pageInfo { hasNextPage endCursor }
-            nodes { slug displayName anyPositions pictureUrl }
+            nodes { slug displayName anyPositions pictureUrl country { code } }
           }
         }
       }
@@ -84,6 +84,7 @@ async function fetchRoster(clubSlug) {
         name: n.displayName,
         position: pos,
         picture: n.pictureUrl ?? null,
+        nation: n.country?.code ?? null,   // Nationalitaet des Spielers (nicht Liga-Land)
         team: club.name,
         league: club.domesticLeague?.name ?? null,
         // Liga-Land, Fallback Club-Land: Clubs ohne Liga-Zuordnung (Sorare liefert
@@ -135,6 +136,12 @@ async function main() {
   const slugs = [...all.keys()];
   const have = await existingKeys(slugs);
 
+  // Spalte player_nation vorhanden? (migrations/2026-08-25_player_nation.sql)
+  // Ohne Probe wuerde JEDER Insert scheitern, falls das Deploy vor der Migration laeuft.
+  const natProbe = await supabase.from('card_prices').select('player_nation').limit(1);
+  const hasNation = !natProbe.error;
+  if (!hasNation) console.warn('Spalte player_nation fehlt — Nationalitaet wird uebersprungen');
+
   const rows = [];
   for (const [slug, p] of all) {
     for (const sc of SCARCITIES) {
@@ -149,6 +156,7 @@ async function main() {
           league_name:  p.league,
           league_country: p.country,
           position:     p.position,
+          ...(hasNation && p.nation ? { player_nation: p.nation } : {}),
           ...(p.picture ? { picture_url: p.picture } : {}),
           updated_at:   new Date(0).toISOString(),   // epoch → Updater holt sie als Nächstes
         });
