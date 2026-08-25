@@ -257,6 +257,7 @@ bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.0
 - `repair-club-leagues.mjs` — vereinheitlicht Liga-Felder von Clubs mit gemischten Zeilen auf den Sorare-Live-Stand (BUG-025-Aufraeumer; nach dem Updater-Fix normalerweise unnoetig)
 - `fmv-backtest.mjs` — Walk-Forward-Backtest der FMV-Formel (Grundlage von v3.2)
 - KEINEN Cron fuer diese Werkzeuge anlegen — Einmal-/Diagnose-Skripte, Dauerlast war die INC-005/006-Falle
+- Vorbereiteter Analyse-Auftrag: `C:\Users\Jonas\Documents\Bot2B\07_Wissen\Prompts_Bibliothek\Sorion_FMV_Faktoren_Analyst.json` — prueft, ob Score/Einsatzquote/Liga/Club die VERKAUFSPREISE ueber v3.2 hinaus erklaeren (Ziel: Formel-Faktoren fuer v3.3+). Kernregeln stehen im Prompt: gegen Verkaeufe messen (nie gegen den eigenen FMV — zirkulaer), Walk-Forward-Backtest vor jedem Formel-Vorschlag, DB nur lesend.
 
 ## Architektur-Wissen (Kern)
 
