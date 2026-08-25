@@ -544,6 +544,8 @@
   .sc-badge.rare    { color: var(--rare);    border-color: var(--rare);    background: rgba(255,85,85,0.08); }
   .sc-badge.sr      { color: var(--sr);      border-color: var(--sr);      background: rgba(112,144,255,0.08); }
 
+  /* Spieler-Tier als Sterne (wie CraftLog: gleiche Farbe var(--limited)) */
+  .tier-stars { color: var(--limited); font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
   .tier-badge {
     font-family: 'Share Tech Mono', monospace;
     font-size: 10px;
@@ -1714,6 +1716,10 @@
   let fmvMin = FMV_LO, fmvMax = FMV_HI;
   let hasAgeData = false;       // Spalte player_age befuellt? (Probe in loadData)
   let gtFilter = null;          // Gameplay-Tier des Spielers: GOAT/STAR/IMPACT/ROSTER/DNP
+  let hasGtData = false;        // Spalte gameplay_tier befuellt? -> Sterne in der Tier-Spalte
+  // Sterne wie bei Sorare/CraftLog; DNP als Text, unbekannt als Strich
+  const GT_STARS = { GOAT: '★★★★★', STAR: '★★★★', IMPACT: '★★★', ROSTER: '★★', DNP: 'DNP' };
+  const gtStars = r => GT_STARS[r.gameplay_tier] || '—';
   let ambiguousLeagues = new Set();  // Liganamen, die es in mehreren Laendern gibt
   let soleCountryOf = new Map();     // eindeutiger Liganame -> sein Land
   let rankScarcity = 'all';          // Rarity-Auswahl NUR fuer das Liga-Ranking
@@ -1743,9 +1749,14 @@
         document.getElementById('age-box').style.display = '';
       }
     });
-    // Gameplay-Tier-Dropdown analog (Spalte aus derselben Migration)
+    // Gameplay-Tier: Dropdown freischalten UND Tabelle einmal neu holen —
+    // erst dann ist gameplay_tier im Select und die Tier-Spalte zeigt Sterne
     apiCached('card_prices?select=gameplay_tier&gameplay_tier=not.is.null&limit=1').then(r => {
-      if (r && r.length) document.getElementById('gt-wrap').style.display = '';
+      if (r && r.length) {
+        hasGtData = true;
+        document.getElementById('gt-wrap').style.display = '';
+        filterTable();
+      }
     });
     // Aggregate parallel anstossen — die Tabelle wartet nicht auf sie
     updateHeroStats();
@@ -2261,7 +2272,7 @@
   // BEWUSST OHNE "Prefer: count=exact" (Timeout-Falle, siehe loadRowCount).
   function pageUrl(page) {
     const dir = sortDir === -1 ? 'desc' : 'asc';
-    return `card_prices?select=${COLS}&${buildFilterQuery().join('&')}`
+    return `card_prices?select=${COLS}${hasGtData ? ',gameplay_tier' : ''}&${buildFilterQuery().join('&')}`
       + `&order=${sortKey}.${dir}.nullslast,id.asc`
       + `&limit=${PAGE_SIZE}&offset=${(page - 1) * PAGE_SIZE}`;
   }
@@ -2364,7 +2375,7 @@
     tbody.innerHTML = page.map((r,i) => {
       const rank    = start+i+1;
       const sc      = r.scarcity==='super_rare'?'sr':r.scarcity==='rare'?'rare':'limited';
-      const tier    = r.tier ? r.tier.replace('tier_','T') : '—';
+      const stars   = gtStars(r);
       const fmv     = r.fmv         ? `€${r.fmv.toFixed(2)}`         : '—';
       const floor   = r.floor_price ? `€${r.floor_price.toFixed(2)}` : '—';
       const last    = r.sale_1      ? `€${r.sale_1.toFixed(2)}`      : '—';
@@ -2383,7 +2394,7 @@
         </div></td>
         <td class="col-24h">${renderPct(r.change_24h)}</td>
         <td class="col-7d2">${renderPct(r.change_7d)}</td>
-        <td class="col-tier"><span class="tier-badge">${tier}</span></td>
+        <td class="col-tier"><span class="tier-stars" title="${r.gameplay_tier || 'no tier yet'}">${stars}</span></td>
         <td class="fmv-price">${fmv}</td>
         <td class="price col-floor">${floor}</td>
         <td class="price">${last}${r.last_sale_at ? `<div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${saleAgeColor(r.last_sale_at)};margin-top:2px" title="${new Date(r.last_sale_at).toLocaleString('en-GB')}">${saleAge(r.last_sale_at)}</div>` : ''}</td>
@@ -2439,7 +2450,7 @@
       const rank     = start + i + 1;
       const sc       = r.scarcity === 'super_rare' ? 'sr' : r.scarcity === 'rare' ? 'rare' : 'limited';
       const scLabel  = r.scarcity === 'super_rare' ? 'SR' : r.scarcity === 'rare' ? 'Rare' : 'Limited';
-      const tier     = r.tier ? r.tier.replace('tier_', 'T') : '—';
+      const stars    = gtStars(r);
       const fmv      = r.fmv         ? `€${r.fmv.toFixed(2)}`          : '—';
       const floor    = r.floor_price ? `€${r.floor_price.toFixed(2)}`  : '—';
       const last     = r.sale_1      ? `€${r.sale_1.toFixed(2)}`       : '—';
@@ -2488,7 +2499,7 @@
         <div class="m-card-bottom">
           <div class="m-card-badges">
             <span class="sc-badge ${sc}">${scLabel}</span>
-            <span class="tier-badge">${tier}</span>
+            <span class="tier-stars">${stars}</span>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             ${renderSparkline(r)}
@@ -2595,14 +2606,14 @@
     modalPlayer = r;
     const sc      = r.scarcity === 'super_rare' ? 'sr' : r.scarcity === 'rare' ? 'rare' : 'limited';
     const scLabel = r.scarcity === 'super_rare' ? 'SR' : r.scarcity === 'rare' ? 'Rare' : 'Limited';
-    const tier    = r.tier ? r.tier.replace('tier_', 'T') : '—';
+    const stars   = gtStars(r);
 
     document.getElementById('modal-img').src    = r.picture_url || PH_IMG;
     document.getElementById('modal-name').textContent = r.player_name;
     document.getElementById('modal-team').textContent = `${r.team_name || ''} · ${r.league_name || ''}`;
     document.getElementById('modal-fmv').textContent  = r.fmv ? `€${r.fmv.toFixed(2)}` : '—';
     document.getElementById('modal-badges').innerHTML =
-      `<span class="sc-badge ${sc}">${scLabel}</span><span class="tier-badge">${tier}</span>` +
+      `<span class="sc-badge ${sc}">${scLabel}</span><span class="tier-stars">${stars}</span>` +
       `<span class="tier-badge">${rowElig(r) === 'classic' ? 'Classic' : 'In-Season'}</span>`;
 
     document.getElementById('modal-grid').innerHTML = [
