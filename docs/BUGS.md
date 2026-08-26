@@ -271,3 +271,12 @@
 - **Ursache:** Die Entwarnung prueft nur, ob **genau der angesprochene Manager** den Spieler nicht mehr aufgestellt hat (`rows.some(r => r.manager_slug === tgt)` -> `continue`). Loest jemand anderes den Konflikt, bleibt das Ziel in der Liste und der Block bricht ab. Die Sicht war "hat der Angesprochene gehorcht?" statt "ist das Problem geloest?".
 - **Fix (deployed 26.08.):** Der Konflikt gilt als geloest, wenn **entweder** der Angesprochene getauscht hat **oder** der Spieler wieder im Rahmen ist - unabhaengig davon, wer umgestellt hat. Der tatsaechliche Verursacher wird aus dem juengsten `removed_at`-Eintrag ermittelt und in der Meldung genannt. Loeste jemand anderes den Fall, ergaenzt der Text ausserdem: "<ZIEL> did not have to swap in the end." - damit der Angesprochene sieht, dass fuer ihn nichts mehr zu tun ist.
 - **Lektion:** Bestaetigungen sollten am **Zustand** haengen, nicht am erwarteten Verhalten einer bestimmten Person. Sonst bleibt jede Loesung unbemerkt, die anders zustande kommt als vorgesehen.
+
+---
+
+## BUG-026 - Doppelte Entwarnung bei mehreren Claims auf denselben Spieler (26.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Zwei identische Entwarnungen fuer Kylian Mbappe - beide "PARISBOEMBOEM swapped out Kylian Mbappe", einmal mit "Claim by FFGAJ", einmal mit "Claim by SORARE-MA". Der Spieler wurde aber nur **einmal** getauscht.
+- **Ursache:** Die Entwarnung lief **je Claim-Meldung**. Standen fuer einen Spieler zwei Claims offen (weil zwei Manager ueber dem Cap waren), erzeugte ein einziger Tausch zwei Meldungen mit identischem Inhalt.
+- **Fix (deployed 26.08.):** Ist der Spieler nach dem Tausch **wieder im Rahmen**, gibt es genau **eine** Meldung pro Spieler (Schluessel `done:<step>:<player>`), die alle offenen Claims gebuendelt als erledigt ausweist ("Claims by FFGAJ, SORARE-MA settled"). Nur solange der Spieler **weiterhin ueber dem Cap** ist, wird weiter je Angesprochenem gemeldet - dort ist die Einzelmeldung ja die Information, dass noch jemand dran ist.
+- **Zusatz:** Wer trotz Claim nicht tauschen musste, wird namentlich entlastet ("X and Y did not have to swap in the end").
