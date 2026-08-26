@@ -290,3 +290,12 @@
 - Wer angesprochen wurde, aber dank eines anderen nicht mehr tauschen muss, bekommt eine eigene Entlastung (`spared:<step>:<player>:<manager>`): "you don't have to swap X any more."
 
 **Lektion:** Ereignismeldungen an das **tatsaechliche Ereignis** haengen (hier: der Tausch), nicht an den Ausloeser, der es angefordert hat. Sonst stimmt die Anzahl der Meldungen, aber nicht ihr Inhalt.
+
+---
+
+## BUG-028 - Entwarnung meldete jeden spaeteren Kaderwechsel (26.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Zwei Entwarnungen fuer Marc Cucurella mit dem Zusatz "is back within the cap (**2/4**)". Bei 2 von 4 ist der Konflikt laengst erledigt - die Meldungen waren voellig irrelevant.
+- **Ursache:** Die Schleife lief ueber **alle** Entfernungen eines Spielers, fuer den es irgendwann Claims gab. Cucurella stand einmal ueber dem Cap (2 Claims), danach tauschten nach und nach vier Manager - und **jede** dieser Entfernungen loeste eine Entwarnung aus, obwohl der Konflikt nach den ersten beiden geloest war. Der Bot unterschied nicht zwischen "Tausch, der den Konflikt aufloest" und "normaler Kaderwechsel danach".
+- **Fix (deployed 26.08.):** Es werden nur noch so viele Tausche gemeldet, wie es Claims gab (`removedRows.slice(0, claims.length)`) - genau die Anzahl, die zur Aufloesung noetig war. Alles danach ist ein gewoehnlicher Wechsel und bleibt unerwaehnt.
+- **Lektion (vierter Fall in dieser Ecke, nach BUG-025/026/027):** Die Meldungslogik braucht nicht nur den richtigen **Ausloeser**, sondern auch ein **Ende**. Ein Ereignis, das einmal relevant war, bleibt es nicht dauerhaft - jede Ereignismeldung braucht eine Bedingung, ab wann sie nicht mehr gilt.
