@@ -200,6 +200,20 @@ Programmierfehler — Details INC-006 in INCIDENTS.md), **Supabase Pro + Micro-C
 Cron-Kernjobs wiederhergestellt (accuracy 05:45, refresh 09:20, rollup Mo 06:30); Squad-Poller
 bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.08. pruefen.
 
+## 🎯 LANGFRISTZIEL FMV (festgelegt von Jonas, 26.08.): den Last-5-Schnitt schlagen
+
+Sorare Inside nutzt den ungewichteten Durchschnitt der letzten 5 Verkaeufe. Vergleich
+auf 11.917 identischen Walk-Forward-Zielen (tools/2026-08-26_avg5-vergleich.mjs):
+v3.3 ist praktisch gleichauf (gesamt ±23,9 vs ±23,7), gewinnt Rare (±24,1 vs ±25,1)
+und Classic, verliert Limited/in_season knapp (±24,5 vs ±23,5). Unsere strukturellen
+Vorteile: Bias ±2 % statt −4…−7 %, Ausreisser-Trimmen, Abdeckung ohne frische Sales.
+
+**ZIEL: FMV schlaegt avg5 im Median in ALLEN Segmenten, bei |Bias| < 5 %.**
+Messlatte: das Vergleichs-Skript nach jeder Formel-Aenderung neu laufen lassen
+(gleiche Zielmenge = fairer Vergleich). Kandidat v3.4: bei sehr frischer, sehr
+liquider Basis die juengsten Verkaeufe noch staerker gewichten (kuerzere effektive
+Halbwertszeit bei hoher Sales-Dichte) — wie immer erst Backtest, dann Deploy.
+
 ## FMV-Faktoren-Analyse (25.08.) — ✅ v3.3 DEPLOYED (25.08. abends)
 
 **Deploy-Status:** Von Jonas freigegeben ("hau in die tasten"). lib/fmv.mjs ersetzt
