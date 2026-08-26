@@ -262,3 +262,12 @@
 - **Fix (25.08.):** (1) `update-scarcity.mjs`: Sobald ein `activeClub` vorhanden ist, werden Team UND Liga-Felder **als Einheit** geschrieben - auch auf null. Liga-Land faellt auf das Club-Land zurueck, damit ligalose Clubs unterm Land filterbar bleiben. (2) Gleicher Fallback in `sync-club-rosters.mjs`. (3) Einmal-Reparatur `tools/repair-club-leagues.mjs` (via `railway run`): setzt alle Zeilen der 228 gemischten Clubs auf die Live-Wahrheit von Sorare. Danach heilt der normale Tageszyklus jede kuenftige Drift selbst.
 - **Verifiziert:** DB-Werte fuer Burnley/Ipswich/Leeds gegen Sorare live geprueft (identisch); UI-Filterpfade (Menue, Ranking, eq-Query) waren korrekt - es war ein reines Datenproblem.
 - **Lektion:** "Nur schreiben wenn nicht-null" konserviert bei zusammengehoerigen Feldern (Team+Liga) einen halb-alten Zustand. Zusammengehoerige Felder immer als Einheit schreiben, Leerwerte eingeschlossen.
+
+---
+
+## BUG-025 - Entwarnung blieb aus, wenn ein ANDERER den Konflikt loeste (26.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Sorare | MA haette laut Bot den Torwart wechseln muessen. Stattdessen zog **jr3hr** seine eigene Kopie - der Cap war damit ebenfalls eingehalten. Der Bot meldete dazu **nichts**: kein Hinweis, dass der Fall erledigt ist.
+- **Ursache:** Die Entwarnung prueft nur, ob **genau der angesprochene Manager** den Spieler nicht mehr aufgestellt hat (`rows.some(r => r.manager_slug === tgt)` -> `continue`). Loest jemand anderes den Konflikt, bleibt das Ziel in der Liste und der Block bricht ab. Die Sicht war "hat der Angesprochene gehorcht?" statt "ist das Problem geloest?".
+- **Fix (deployed 26.08.):** Der Konflikt gilt als geloest, wenn **entweder** der Angesprochene getauscht hat **oder** der Spieler wieder im Rahmen ist - unabhaengig davon, wer umgestellt hat. Der tatsaechliche Verursacher wird aus dem juengsten `removed_at`-Eintrag ermittelt und in der Meldung genannt. Loeste jemand anderes den Fall, ergaenzt der Text ausserdem: "<ZIEL> did not have to swap in the end." - damit der Angesprochene sieht, dass fuer ihn nichts mehr zu tun ist.
+- **Lektion:** Bestaetigungen sollten am **Zustand** haengen, nicht am erwarteten Verhalten einer bestimmten Person. Sonst bleibt jede Loesung unbemerkt, die anders zustande kommt als vorgesehen.
