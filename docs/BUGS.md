@@ -274,9 +274,19 @@
 
 ---
 
-## BUG-026 - Doppelte Entwarnung bei mehreren Claims auf denselben Spieler (26.08.) - BEHOBEN
+## BUG-026/027 - Entwarnung nannte den falschen Tauscher (26.08.) - BEHOBEN
 
 - **Symptom (Jonas):** Zwei identische Entwarnungen fuer Kylian Mbappe - beide "PARISBOEMBOEM swapped out Kylian Mbappe", einmal mit "Claim by FFGAJ", einmal mit "Claim by SORARE-MA". Der Spieler wurde aber nur **einmal** getauscht.
 - **Ursache:** Die Entwarnung lief **je Claim-Meldung**. Standen fuer einen Spieler zwei Claims offen (weil zwei Manager ueber dem Cap waren), erzeugte ein einziger Tausch zwei Meldungen mit identischem Inhalt.
 - **Fix (deployed 26.08.):** Ist der Spieler nach dem Tausch **wieder im Rahmen**, gibt es genau **eine** Meldung pro Spieler (Schluessel `done:<step>:<player>`), die alle offenen Claims gebuendelt als erledigt ausweist ("Claims by FFGAJ, SORARE-MA settled"). Nur solange der Spieler **weiterhin ueber dem Cap** ist, wird weiter je Angesprochenem gemeldet - dort ist die Einzelmeldung ja die Information, dass noch jemand dran ist.
 - **Zusatz:** Wer trotz Claim nicht tauschen musste, wird namentlich entlastet ("X and Y did not have to swap in the end").
+
+**Nachtrag 26.08. (Korrektur des ersten Fixes):** Mein erster Ansatz - alle Claims zu EINER Meldung zusammenzufassen - war falsch. Jonas: *"Wenn es 2 Claims gab, haette es auch 2 Meldungen geben muessen. Aber nicht 2x vom gleichen Spieler. Paris kann nicht 2x Mbappe ausgewechselt haben."*
+
+**Der eigentliche Fehler:** Die Schleife lief ueber die **Claims** und setzte fuer jede denselben "letzten Tauscher" (`removedRows[0]`) als Verursacher ein. Bei zwei Claims stand deshalb zweimal PARISBOEMBOEM, obwohl er nur einmal getauscht hatte.
+
+**Richtige Loesung:** Die Meldung haengt jetzt am **Tausch-Vorgang**, nicht am Claim - ein Tausch, eine Meldung, mit dem tatsaechlichen Namen (Schluessel `done:<step>:<player>:<manager>`). Zwei Tausche ergeben zwei Meldungen mit den jeweils richtigen Namen; ein Tausch ergibt eine. Zusaetzlich:
+- Wer ohne Aufforderung getauscht hat, bekommt "Solved without being asked - thanks."
+- Wer angesprochen wurde, aber dank eines anderen nicht mehr tauschen muss, bekommt eine eigene Entlastung (`spared:<step>:<player>:<manager>`): "you don't have to swap X any more."
+
+**Lektion:** Ereignismeldungen an das **tatsaechliche Ereignis** haengen (hier: der Tausch), nicht an den Ausloeser, der es angefordert hat. Sonst stimmt die Anzahl der Meldungen, aber nicht ihr Inhalt.
