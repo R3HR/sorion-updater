@@ -1,6 +1,7 @@
 # SORION — Handoff & Status
 
 > Zentrale Übergabedatei für alle Bots/Agents. **Vor jeder Arbeit lesen, nach jeder Arbeit aktualisieren — auch bei kleinen Sessions!**
+> **Squad-Bot - Wegweiser zu allen Dateien: `C:\craft-log\squad-bot\README.md`** (Function, Migrationen, Tabellen, Cron-Jobs, Actions, Secrets, Kanal-Aufteilung, offene Punkte). Erster Anlaufpunkt bei Bot-Arbeit.
 > **Squad-Leaderboard-Spezifikation (24.08., von Jonas): [SQUAD_LEADERBOARD.md](SQUAD_LEADERBOARD.md)** - vollstaendiges Regel- und Rechenwerk (Zyklen, Punkte, Strafen, Cap-Entscheidungsbaum, Ausgabeformate). **Maßgeblich bei Widerspruechen zu aelteren Notizen hier.**
 > Bugs → [BUGS.md](BUGS.md) · Crashes/Sicherheit → [INCIDENTS.md](INCIDENTS.md) · Vorgemerkte Konzepte → [IDEAS.md](IDEAS.md)
 > **Monetarisierungsstrategie (20.08., externe Product-Lead-Analyse): [MONETARISIERUNG.md](MONETARISIERUNG.md)** — Freemium-Empfehlung (Pro 3,99 €/Monat um Rendite-Suite/Alerts/Historie), Validierung vor Bau (Fake-Door + Founding Supporter), 5 priorisierte nächste Schritte. Preise/Schwellen sind Hypothesen.
