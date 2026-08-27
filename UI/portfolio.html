@@ -328,6 +328,41 @@
   .p-filter.rar.active { border-color: var(--rare); color: var(--rare); background: rgba(255,85,85,0.08); }
   .p-filter.sr.active  { border-color: var(--sr); color: var(--sr); background: rgba(112,144,255,0.08); }
 
+  /* ── Markt-Filter im Portfolio: Dropdowns + Bereichs-Slider (27.08.) ── */
+  .pdd { position: relative; display: inline-block; }
+  .pdd-panel { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 45;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    min-width: 235px; max-height: 340px; overflow-y: auto; padding: 5px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.55); }
+  .pdd-panel.open { display: block; }
+  .pdd-row { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text);
+    padding: 8px 11px; border-radius: 5px; cursor: pointer; display: flex; align-items: center;
+    gap: 9px; white-space: nowrap; }
+  .pdd-row:hover { background: var(--surface2); color: var(--purple); }
+  .pdd-count { margin-left: auto; color: var(--text2); font-size: 10px; }
+  .rng-box { display: flex; align-items: center; gap: 9px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; height: 35px; }
+  .rng-lab { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text2); white-space: nowrap; }
+  .rng-track { position: relative; height: 20px; width: 104px; flex-shrink: 0; }
+  .rng-rail  { position: absolute; top: 8.5px; left: 0; right: 0; height: 3px;
+    background: var(--surface2); border-radius: 2px; }
+  .rng-fill  { position: absolute; top: 8.5px; height: 3px; background: var(--purple); border-radius: 2px; }
+  .rng-track input[type=range] { position: absolute; left: 0; top: 0; width: 100%; height: 20px;
+    margin: 0; -webkit-appearance: none; appearance: none; background: none; pointer-events: none; }
+  .rng-track input[type=range]::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+  .rng-track input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto;
+    width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; background: var(--purple);
+    border: 2px solid rgba(255,255,255,.35); cursor: pointer; }
+  .rng-track input[type=range]::-moz-range-track { background: transparent; }
+  .rng-track input[type=range]::-moz-range-thumb { pointer-events: auto; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--purple); border: 2px solid rgba(255,255,255,.35); cursor: pointer; }
+  .rng-vals { display: flex; align-items: center; gap: 4px;
+    font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--text2); }
+  .rng-vals input { width: 62px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 5px; color: var(--text); font: inherit; padding: 2px 6px; text-align: right; }
+  .rng-vals input:focus { outline: none; border-color: var(--purple); }
+
   /* Cards Grid */
   .cards-grid {
     display: grid;
@@ -713,6 +748,48 @@
       <span id="p-count" style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2)"></span>
     </div>
 
+    <!-- Markt-Filter (Wunsch Jonas: dieselben Filter wie die Marktseite).
+         Rein clientseitig: Dropdowns bauen sich aus dem EIGENEN Bestand auf
+         (buildMetaFilters nach loadFMV), keine zusaetzlichen Abfragen. -->
+    <div class="p-controls" id="meta-filters" style="display:none">
+      <div class="pdd" id="plg-wrap">
+        <button class="p-filter" id="plg-btn" onclick="toggleMeta(event,'plg')">🌍 All leagues ▾</button>
+        <div class="pdd-panel" id="plg-panel"></div>
+      </div>
+      <div class="pdd" id="pcl-wrap">
+        <button class="p-filter" id="pcl-btn" onclick="toggleMeta(event,'pcl')">🏟️ All clubs ▾</button>
+        <div class="pdd-panel" id="pcl-panel"></div>
+      </div>
+      <div class="pdd" id="pna-wrap">
+        <button class="p-filter" id="pna-btn" onclick="toggleMeta(event,'pna')">🛂 All nations ▾</button>
+        <div class="pdd-panel" id="pna-panel"></div>
+      </div>
+      <div class="pdd" id="pgt-wrap">
+        <button class="p-filter" id="pgt-btn" onclick="toggleMeta(event,'pgt')">⭐ All tiers ▾</button>
+        <div class="pdd-panel" id="pgt-panel"></div>
+      </div>
+      <div class="rng-box" id="pval-box">
+        <div class="rng-lab">Value €</div>
+        <div class="rng-track">
+          <div class="rng-rail"></div><div class="rng-fill" id="pval-fill"></div>
+          <input type="range" id="pval-lo" min="0" max="100" step="1" value="0"   aria-label="Value minimum">
+          <input type="range" id="pval-hi" min="0" max="100" step="1" value="100" aria-label="Value maximum">
+        </div>
+        <div class="rng-vals">€&nbsp;<input id="pval-lo-v" inputmode="decimal" aria-label="Value min">
+          <span>–</span> €&nbsp;<input id="pval-hi-v" inputmode="decimal" aria-label="Value max"></div>
+      </div>
+      <div class="rng-box" id="page-box">
+        <div class="rng-lab">Age</div>
+        <div class="rng-track">
+          <div class="rng-rail"></div><div class="rng-fill" id="page-fill"></div>
+          <input type="range" id="page-lo" min="15" max="45" step="1" value="15" aria-label="Age minimum">
+          <input type="range" id="page-hi" min="15" max="45" step="1" value="45" aria-label="Age maximum">
+        </div>
+        <div class="rng-vals">Min&nbsp;<input id="page-lo-v" inputmode="numeric" aria-label="Age min">
+          <span>–</span> Max&nbsp;<input id="page-hi-v" inputmode="numeric" aria-label="Age max"></div>
+      </div>
+    </div>
+
     <!-- Cards -->
     <div class="p-controls">
       <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--purple);letter-spacing:.2em">SORT BY:</span>
@@ -1069,7 +1146,7 @@
     const fetchBatch = async (rarity, batch, retry = 1) => {
       try {
         const res = await fetch(
-          `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(s => `"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name,eligibility,sale_1,change_7d`,
+          `${SUPABASE_URL}/rest/v1/card_prices?scarcity=eq.${rarity}&player_slug=in.(${batch.map(s => `"${s}"`).join(',')})&select=player_slug,fmv,floor_price,team_name,eligibility,sale_1,change_7d,league_name,league_country,player_nation,player_age,gameplay_tier`,
           { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } }
         );
         if (res.ok) {
@@ -1087,6 +1164,7 @@
         for (const row of data) fmvCache[`${row.player_slug}_${rarity}_${row.eligibility ?? 'in_season'}`] = row;
       }
     }
+    buildMetaFilters();   // Liga/Club/Nation/Tier-Dropdowns aus dem Bestand
   }
 
   // ── Filter & Render ───────────────────────────────────────────
@@ -1103,6 +1181,9 @@
 
   // ── Filter-/Sortier-Zustand ────────────────────────────────
   let fElig = 'all', fOrigin = 'all', fPnl = 'all', fSort = '';
+  // Markt-Filter (null = aus; Slider an den Anschlaegen = aus)
+  let fLeague = null, fClub = null, fNation = null, fTier = null;
+  let fValMin = null, fValMax = null, fAgeMin = null, fAgeMax = null;
 
   const SORT_IDS = { '': 'ps-none', pnlp_desc: 'ps-gain', pnlp_asc: 'ps-loss', pnla_desc: 'ps-pnla', val_desc: 'ps-val', buy_desc: 'ps-buy', date_desc: 'ps-date', d7_desc: 'ps-d7', name_asc: 'ps-name' };
   function setSort(v) {
@@ -1121,6 +1202,143 @@
   function setElig2(v)  { fElig = v;   setPill('e', { all: 'pfe-all', in_season: 'pfe-is', classic: 'pfe-cl' }, v); filterCards(); }
   function setOrigin(v) { fOrigin = v; setPill('o', { all: 'pfo-all', bought: 'pfo-buy', crafted: 'pfo-craft', reward: 'pfo-rew' }, v); filterCards(); }
   function setPnl(v)    { fPnl = v;    setPill('p', { all: 'pfp-all', win: 'pfp-win', los: 'pfp-los' }, v); filterCards(); }
+
+  // ── Markt-Filter: Liga/Club/Nation/Tier + Wert-/Alters-Slider ───────────
+  // Aufgebaut aus dem EIGENEN Bestand (Metadaten der card_prices-Zeilen) —
+  // gleiche Semantik wie die Marktseite, aber komplett clientseitig.
+  const P_FLAG_X = { 'gb-eng': '\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}',
+                     'gb-sct': '\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}',
+                     'gb-wls': '\u{1F3F4}\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}' };
+  const pFlag = c => !c ? '\u{1F3F3}\u{FE0F}' : (P_FLAG_X[c] ?? (c.length === 2
+    ? String.fromCodePoint(...[...c.toUpperCase()].map(ch => 127397 + ch.charCodeAt(0)))
+    : '\u{1F3F3}\u{FE0F}'));
+  const pCountry = c => { if (!c) return 'Other';
+    try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(c.slice(0, 2).toUpperCase()) || c; }
+    catch { return c; } };
+  const P_GT = { GOAT: '★★★★★', STAR: '★★★★', IMPACT: '★★★', ROSTER: '★★', DNP: '★' };
+
+  function toggleMeta(ev, pfx) {
+    if (ev) ev.stopPropagation();
+    for (const p of document.querySelectorAll('.pdd-panel'))
+      if (p.id !== pfx + '-panel') p.classList.remove('open');
+    document.getElementById(pfx + '-panel')?.classList.toggle('open');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.pdd'))
+      for (const p of document.querySelectorAll('.pdd-panel')) p.classList.remove('open');
+  });
+
+  function metaRow(label, count, onclick) {
+    const d = document.createElement('div');
+    d.className = 'pdd-row';
+    const t = document.createElement('span');
+    t.textContent = label;
+    d.appendChild(t);
+    if (count != null) {
+      const n = document.createElement('span');
+      n.className = 'pdd-count';
+      n.textContent = count;
+      d.appendChild(n);
+    }
+    d.onclick = onclick;
+    return d;
+  }
+  function setMetaBtn(pfx, label, active) {
+    const b = document.getElementById(pfx + '-btn');
+    if (b) { b.textContent = label + ' ▾'; b.classList.toggle('active', active); }
+    document.getElementById(pfx + '-panel')?.classList.remove('open');
+  }
+  function pickLeagueP(v) { fLeague = v; setMetaBtn('plg', v ? pFlag(v.c) + ' ' + v.name : '🌍 All leagues', !!v); filterCards(); }
+  function pickClubP(v)   { fClub = v;   setMetaBtn('pcl', v ? '🏟️ ' + v : '🏟️ All clubs', !!v); filterCards(); }
+  function pickNationP(v) { fNation = v; setMetaBtn('pna', v ? pFlag(v) + ' ' + pCountry(v) : '🛂 All nations', !!v); filterCards(); }
+  function pickTierP(v)   { fTier = v;   setMetaBtn('pgt', v ? '⭐ ' + v : '⭐ All tiers', !!v); filterCards(); }
+
+  function buildMetaFilters() {
+    const wrap = document.getElementById('meta-filters');
+    if (!wrap) return;
+    // Zaehlen ueber alle Karten (Meta der zugehoerigen card_prices-Zeile)
+    const leagues = new Map(), clubs = new Map(), nations = new Map(), tiers = new Map();
+    const bump = (m, k) => m.set(k, (m.get(k) || 0) + 1);
+    for (const c of allCards) {
+      const rarity = c.rarityTyped?.toLowerCase() || '';
+      const meta = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
+      if (!meta) continue;
+      if (meta.league_name)   bump(leagues, JSON.stringify({ name: meta.league_name, c: meta.league_country ?? null }));
+      if (meta.team_name)     bump(clubs, meta.team_name);
+      if (meta.player_nation) bump(nations, meta.player_nation);
+      if (meta.gameplay_tier) bump(tiers, meta.gameplay_tier);
+    }
+    const fill = (pfx, entries, allLabel, allPick, rowOf) => {
+      const panel = document.getElementById(pfx + '-panel');
+      if (!panel) return;
+      panel.innerHTML = '';
+      panel.appendChild(metaRow(allLabel, null, allPick));
+      for (const [k, n] of entries) panel.appendChild(rowOf(k, n));
+    };
+    const byCount = m => [...m.entries()].sort((a, b) => b[1] - a[1]);
+    fill('plg', byCount(leagues), 'All leagues', () => pickLeagueP(null),
+      (k, n) => { const v = JSON.parse(k); return metaRow(pFlag(v.c) + '  ' + v.name, n, () => pickLeagueP(v)); });
+    fill('pcl', byCount(clubs), 'All clubs', () => pickClubP(null),
+      (k, n) => metaRow(k, n, () => pickClubP(k)));
+    fill('pna', byCount(nations), 'All nations', () => pickNationP(null),
+      (k, n) => metaRow(pFlag(k) + '  ' + pCountry(k), n, () => pickNationP(k)));
+    const tierOrder = ['GOAT', 'STAR', 'IMPACT', 'ROSTER', 'DNP'];
+    fill('pgt', tierOrder.filter(t => tiers.has(t)).map(t => [t, tiers.get(t)]), 'All tiers', () => pickTierP(null),
+      (k, n) => { const r = metaRow(k, null, () => pickTierP(k));
+        const s = document.createElement('span'); s.className = 'pdd-count';
+        s.textContent = `${P_GT[k]}  ·  ${n}`; r.appendChild(s); return r; });
+    // Zeile erst zeigen, wenn es etwas zu filtern gibt
+    if (leagues.size || clubs.size || nations.size || tiers.size) wrap.style.display = 'flex';
+  }
+
+  // Doppel-Slider (kompakt, wie Marktseite): getippte Werte gelten exakt
+  function initRangeP(pfx, cfg) {
+    const lo = document.getElementById(pfx + '-lo'), hi = document.getElementById(pfx + '-hi'),
+          lov = document.getElementById(pfx + '-lo-v'), hiv = document.getElementById(pfx + '-hi-v'),
+          fill = document.getElementById(pfx + '-fill');
+    if (!lo) return;
+    const span = +lo.max - +lo.min;
+    const paint = () => {
+      fill.style.left  = ((+lo.value - +lo.min) / span * 100) + '%';
+      fill.style.width = (Math.max(0, +hi.value - +lo.value) / span * 100) + '%';
+    };
+    const render = () => { paint(); lov.value = cfg.fmt(cfg.toVal(+lo.value)); hiv.value = cfg.fmt(cfg.toVal(+hi.value)); };
+    let deb;
+    const commit = () => { clearTimeout(deb); deb = setTimeout(() => {
+      cfg.apply(cfg.toVal(+lo.value), cfg.toVal(+hi.value)); filterCards(); }, 350); };
+    lo.oninput = () => { if (+lo.value > +hi.value) lo.value = hi.value; render(); commit(); };
+    hi.oninput = () => { if (+hi.value < +lo.value) hi.value = lo.value; render(); commit(); };
+    const fromBox = () => {
+      const vMin = cfg.toVal(+lo.min), vMax = cfg.toVal(+hi.max);
+      const pa = cfg.parse(lov.value), pb = cfg.parse(hiv.value);
+      let a = pa != null ? Math.min(vMax, Math.max(vMin, pa)) : cfg.toVal(+lo.value);
+      let b = pb != null ? Math.min(vMax, Math.max(vMin, pb)) : cfg.toVal(+hi.value);
+      if (b < a) b = a;
+      lo.value = Math.min(+lo.max, Math.max(+lo.min, cfg.toT(a)));
+      hi.value = Math.min(+hi.max, Math.max(+hi.min, cfg.toT(b)));
+      paint(); lov.value = cfg.fmt(a); hiv.value = cfg.fmt(b);
+      clearTimeout(deb); cfg.apply(a, b); filterCards();
+    };
+    lov.onchange = fromBox; hiv.onchange = fromBox;
+    render();
+  }
+  const pNum = s => { const n = parseFloat(String(s).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+  const P_VLO = 0.10, P_VHI = 1000, P_LLO = Math.log(P_VLO), P_LHI = Math.log(P_VHI);
+  initRangeP('pval', {
+    toVal: t => Math.exp(P_LLO + (t / 100) * (P_LHI - P_LLO)),
+    toT:   v => Math.round(100 * (Math.log(Math.min(P_VHI, Math.max(P_VLO, v))) - P_LLO) / (P_LHI - P_LLO)),
+    fmt:   v => v >= 100 ? String(Math.round(v)) : v >= 10 ? v.toFixed(1) : v.toFixed(2),
+    parse: pNum,
+    // Anschlag = Filter aus (null). VOR dem Vergleich runden: exp(log(0,1))
+    // liefert 0,10000000000000002 — ohne Rundung bliebe der Filter am
+    // Anschlag aktiv und wuerde "no data"-Karten aussperren.
+    apply: (a, b) => { a = +a.toFixed(2); b = +b.toFixed(2);
+                       fValMin = a <= P_VLO ? null : a; fValMax = b >= P_VHI ? null : b; },
+  });
+  initRangeP('page', {
+    toVal: t => t, toT: v => Math.round(v), fmt: String, parse: pNum,
+    apply: (a, b) => { fAgeMin = a <= 15 ? null : a; fAgeMax = b >= 45 ? null : b; },
+  });
 
   // Sorare zieht beim Verkauf eine Marktgebuehr ab ("Marktgebuehr inkl. Steuerabgaben,
   // falls zutreffend" -> "Du erhaeltst"). Unsere Sale-Preise und damit der FMV sind
@@ -1331,6 +1549,25 @@
         if (!p) return false;
         if (fPnl === 'win' && p.pct < 0) return false;
         if (fPnl === 'los' && p.pct >= 0) return false;
+      }
+      // Markt-Filter: Metadaten haengen an der card_prices-Zeile der Karte.
+      // Aktiver Filter + fehlende Daten => Karte faellt raus (konsistent zur
+      // Marktseite; "no data"-Karten kann man ueber All-Zustand weiter sehen).
+      if (fLeague || fClub || fNation || fTier || fAgeMin != null || fAgeMax != null) {
+        const meta = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
+        if (fLeague && !(meta && meta.league_name === fLeague.name
+                              && (meta.league_country ?? null) === fLeague.c)) return false;
+        if (fClub   && meta?.team_name      !== fClub)   return false;
+        if (fNation && meta?.player_nation  !== fNation) return false;
+        if (fTier   && meta?.gameplay_tier  !== fTier)   return false;
+        if (fAgeMin != null && !(meta?.player_age >= fAgeMin)) return false;
+        if (fAgeMax != null && !(meta?.player_age <= fAgeMax)) return false;
+      }
+      if (fValMin != null || fValMax != null) {
+        const v = cardData(c).val;
+        if (v == null) return false;
+        if (fValMin != null && v < fValMin) return false;
+        if (fValMax != null && v > fValMax) return false;
       }
       if (search) {
         const name = (c.player?.displayName || '').toLowerCase();
