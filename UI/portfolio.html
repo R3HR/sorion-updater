@@ -730,7 +730,7 @@
       <span class="p-filter" id="sync-state" style="border:none;cursor:default;color:var(--text2)"></span>
       <span style="width:1px;align-self:stretch;background:var(--border)"></span>
       <button class="p-filter active" id="pf-net" onclick="toggleNetMode()"
-              title="P&L nach 5 % Sorare-Marktgebühr — das, was du beim Verkauf wirklich erhältst">NET −5%</button>
+              title="P&L nach Sorare-Marktgebühr (5 %, mind. 0,10 €) — das, was du beim Verkauf wirklich erhältst">NET −5%</button>
       <span style="width:1px;align-self:stretch;background:var(--border)"></span>
       <button class="p-filter active" id="pfe-all" onclick="setElig2('all')">All</button>
       <button class="p-filter" id="pfe-is" onclick="setElig2('in_season')">In-Season</button>
@@ -1345,12 +1345,22 @@
   // BRUTTO (das, was der Kaeufer gezahlt hat) — die Gebuehr steckt nirgends in den Daten.
   // Einzige Stellschraube, falls Sorare den Satz aendert:
   const MARKET_FEE = 0.05;
+  // Sorare-Marktupdate 27.08.2026: Mindestgebuehr 0,10 EUR je Manager-Sale —
+  // unter 2 EUR gilt kuenftig die Pauschale statt 5 % (73 % der Classic-Karten
+  // liegen unter 2 EUR, deshalb ist das kein Randfall). Gilt fuer KUENFTIGE
+  // Verkaeufe (Bewertung/Break-Even); die Trade-History rechnet historische
+  // Verkaeufe weiter mit flachen 5 % — so sind sie tatsaechlich abgerechnet.
+  const MIN_FEE = 0.10;
   const feePct = () => (MARKET_FEE * 100).toFixed(0);
+  const saleFee = v => (v == null || v <= 0) ? null : Math.max(v * MARKET_FEE, MIN_FEE);
   // Netto-Modus: was tatsaechlich bei einem Verkauf herauskaeme.
   let netMode = true;
-  const sellValue = v => (v == null ? null : (netMode ? v * (1 - MARKET_FEE) : v));
-  // Preis, den man aufrufen muss, um den Einkauf wieder hereinzuholen (NICHT Kauf x 1,05).
-  const breakEven = buy => (buy > 0 ? buy / (1 - MARKET_FEE) : null);
+  const sellValue = v => (v == null ? null : (netMode ? Math.max(0, v - saleFee(v)) : v));
+  // Preis, den man aufrufen muss, um den Einkauf wieder hereinzuholen.
+  // Ab 2 EUR Verkaufspreis greift 5 % (Kauf/0,95), darunter die Pauschale (+0,10).
+  const breakEven = buy => (buy > 0
+    ? (buy >= 2 * (1 - MARKET_FEE) ? buy / (1 - MARKET_FEE) : buy + MIN_FEE)
+    : null);
 
   function toggleNetMode() {
     netMode = !netMode;
@@ -1359,7 +1369,7 @@
       b.textContent = netMode ? `NET −${feePct()}%` : 'GROSS';
       b.classList.toggle('active', netMode);
       b.title = netMode
-        ? `P&L nach ${feePct()} % Sorare-Marktgebuehr — das, was du beim Verkauf wirklich erhaeltst`
+        ? `P&L nach Sorare-Marktgebuehr (${feePct()} %, mind. €${MIN_FEE.toFixed(2)}) — das, was du beim Verkauf wirklich erhaeltst`
         : 'P&L auf Bruttobasis (ohne Marktgebuehr)';
     }
     updateStats();
@@ -1698,7 +1708,7 @@
       const pct = (pnl / pnlBasis) * 100;
       pnlEl.textContent = `${pnl >= 0 ? '+' : ''}€${pnl.toFixed(0)} (${pnl >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
       const pnlLbl = document.getElementById('stat-pnl-label');
-      if (pnlLbl) pnlLbl.textContent = netMode ? `// P&L · net of ${feePct()}% fee` : '// P&L · gross';
+      if (pnlLbl) pnlLbl.textContent = netMode ? `// P&L · net of fees (${feePct()}%, min €${MIN_FEE.toFixed(2)})` : '// P&L · gross';
       pnlEl.style.color = pnl >= 0 ? 'var(--up)' : 'var(--down)';
     } else {
       pnlEl.textContent = '—';
@@ -1755,14 +1765,14 @@
         <div class="pm-stat"><div class="pm-label">Date</div><div class="pm-val" style="font-size:11px">${buyDate}</div></div>
         <div class="pm-stat"><div class="pm-label">Origin</div><div class="pm-val" style="font-size:11px">${origin}</div></div>
       </div>
-      <div class="pm-section">// If you sell (${feePct()}% Sorare fee)</div>
+      <div class="pm-section">// If you sell (${feePct()}% fee, min €${MIN_FEE.toFixed(2)})</div>
       <div class="pm-grid3">
-        <div class="pm-stat"><div class="pm-label">You receive</div><div class="pm-val">${val != null ? fmtEur(val * (1 - MARKET_FEE)) : '—'}</div>
+        <div class="pm-stat"><div class="pm-label">You receive</div><div class="pm-val">${val != null ? fmtEur(Math.max(0, val - saleFee(val))) : '—'}</div>
           <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">ask ${val != null ? fmtEur(val) : '—'}</div></div>
         <div class="pm-stat"><div class="pm-label">Break-even ask</div><div class="pm-val" style="color:${be != null && val != null ? (val >= be ? 'var(--up)' : 'var(--down)') : 'var(--text)'}">${be != null ? fmtEur(be) : '—'}</div>
           <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">${be != null && val != null ? (val >= be ? 'reached' : fmtEur(be - val) + ' to go') : 'no purchase price'}</div></div>
-        <div class="pm-stat"><div class="pm-label">Fee</div><div class="pm-val">${val != null ? fmtEur(val * MARKET_FEE) : '—'}</div>
-          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">on ${feePct()}% of ask</div></div>
+        <div class="pm-stat"><div class="pm-label">Fee</div><div class="pm-val">${val != null ? fmtEur(saleFee(val)) : '—'}</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);margin-top:3px">${val != null && val < 2 ? 'flat min fee' : feePct() + '% of ask'}</div></div>
       </div>
       <div class="pm-section">// Market</div>
       <div class="pm-grid3">
