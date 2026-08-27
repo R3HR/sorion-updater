@@ -299,3 +299,14 @@
 - **Ursache:** Die Schleife lief ueber **alle** Entfernungen eines Spielers, fuer den es irgendwann Claims gab. Cucurella stand einmal ueber dem Cap (2 Claims), danach tauschten nach und nach vier Manager - und **jede** dieser Entfernungen loeste eine Entwarnung aus, obwohl der Konflikt nach den ersten beiden geloest war. Der Bot unterschied nicht zwischen "Tausch, der den Konflikt aufloest" und "normaler Kaderwechsel danach".
 - **Fix (deployed 26.08.):** Es werden nur noch so viele Tausche gemeldet, wie es Claims gab (`removedRows.slice(0, claims.length)`) - genau die Anzahl, die zur Aufloesung noetig war. Alles danach ist ein gewoehnlicher Wechsel und bleibt unerwaehnt.
 - **Lektion (vierter Fall in dieser Ecke, nach BUG-025/026/027):** Die Meldungslogik braucht nicht nur den richtigen **Ausloeser**, sondern auch ein **Ende**. Ein Ereignis, das einmal relevant war, bleibt es nicht dauerhaft - jede Ereignismeldung braucht eine Bedingung, ab wann sie nicht mehr gilt.
+
+---
+
+## BUG-029 - report lieferte eine zufaellige Runde (27.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Der Cowork-Leaderboard-Bot konnte die Runde nicht auswerten - "die Stage wurde wohl nicht als beendet deklariert". Jonas musste wieder Screenshots schicken.
+- **Ursache:** Die `report`-Action waehlte die Runde mit `rowsAll[0].step_id` bei `order=updated_at.desc`. Der Poller aktualisiert aber bei **jedem** Lauf die Zeilen **aller** Steps - alle haben damit praktisch denselben `updated_at`, die Sortierung ist ein Gleichstand und der Gewinner **zufaellig**. Mal kam die fertige Runde, mal die noch laufende (ohne Scores, state LINEUP_SET). Genau das sah der Cowork-Bot als "nicht beendet".
+- **Fix (deployed 27.08.):** Die Runde wird jetzt deterministisch gewaehlt - die **zuletzt gespielte abgeschlossene** Runde, bestimmt ueber den juengsten Aufstellungszeitpunkt (`max(first_seen_at)` je Step aus `squad_lineup_log`). Abgeschlossen = CLAIMED, CLAIMABLE oder FAILED. Gibt es keine fertige Runde, faellt der Report auf die offene zurueck.
+- **Zusaetzlich:** Zwei neue Felder fuer den Cowork-Bot - **`round.final`** (boolean: darf gewertet werden, ohne auf einzelne Zustandsnamen pruefen zu muessen) und **`openRound`** (die gerade laufende Runde, falls vorhanden). Damit muss der Konsument keine Zustandslogik nachbauen.
+- **Verifiziert:** drei Abrufe hintereinander liefern identisch Stage 3, `final=true`, 10/10 Scores - vorher wechselte das Ergebnis.
+- **Lektion:** `order by` auf einem Feld, das fuer alle Zeilen gleichzeitig geschrieben wird, ist keine Sortierung, sondern ein Muenzwurf. Fuer "die neueste Runde" braucht es einen Zeitstempel, der die Runde beschreibt - nicht einen, der beim letzten Schreibvorgang entsteht.
