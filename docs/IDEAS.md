@@ -237,3 +237,188 @@ notfalls ohne volle Mandantenfaehigkeit) und pruefen, ob sie es nach vier Wochen
 behalten wollen. Erst dann ToS klaeren, und dann eher als Bestandteil von
 **Sorion Pro** (Captain zahlt, Squad profitiert) statt als zweites Abo - sonst
 kannibalisiert es das Hauptprodukt.
+
+---
+
+## IDEA-005 — Liveticker fuer Positionswechsel (erwogen 27.08.2026, offen)
+
+**Frage Jonas:** "ob ein liveticker cool waere bei dem wir anzeigen wenn leute bei
+der stage die position tauschen oder ob dafuer sowieso jeder in die Sorare App
+schaut. wie viel performance wuerde uns das kosten?"
+
+**Gemessen an Runde 25 (27.08., 83 Snapshots, 07:10-17:00 UTC), Action `rank_history`:**
+
+| Groesse | Wert |
+|---|---|
+| Uebergaenge zwischen Snapshots | 82 |
+| davon mit veraenderten Punkten | 14 |
+| davon mit veraenderter Reihenfolge | 11 |
+| davon mit veraenderter Top-3-Besetzung | 11 |
+| Fuehrungswechsel | 6 |
+| Poll-Laufzeit | 3,9 / 7,2 / 3,9 s |
+
+**Kosten: praktisch null.** Die Punkte kommen mit **jedem ohnehin laufenden Poll**
+mit - keine zusaetzliche Sorare-Abfrage, keine zusaetzlichen DB-Schreibvorgaenge.
+Dazu kaemen nur ~11 Zeilen in `squad_notifications` und ~11 Discord-Posts je
+Spieltag (Limit: 5 Posts/2 s - irrelevant).
+
+**Wichtigster Befund: Schneller pollen bringt nichts.** Sorare aktualisiert die
+Scores in **Schueben** - nur 14 von 82 Intervallen zeigten ueberhaupt eine
+Aenderung, im Schnitt also alle ~45 min. Ein 2-Minuten-Ticker faende **dieselben
+11 Ereignisse** bei fuenffacher Schreiblast - und genau diese Last hat laut
+INC-006 die DB zweimal lahmgelegt. Der 10-Minuten-Takt bleibt richtig.
+
+**Einschraenkung Signalqualitaet:** Die Haelfte der Wechsel fiel in die Phase, in
+der die meisten Manager noch bei 0 standen (z. B. "enexxx fuehrt" um 11:00 bei
+6 Managern ohne Punkte). Das sind Artefakte einer leeren Tabelle, keine Ereignisse.
+**Empfehlung:** nur Top-3-Grenze und Fuehrung melden, und erst ab >= 5 Managern mit
+Punkten. Das haette heute ~6 statt 17 Meldungen ergeben.
+
+**Zur Gegenfrage "schaut nicht jeder eh in die App?":** Die reinen Zahlen stehen in
+der Sorare-App. Der Mehrwert eines Tickers waere **nicht die Zahl, sondern der Push
+und die Einordnung** - Abstand zum Stage-Ziel, wer gerade in den zaehlenden Top 3
+steht und was die Runde fuer die Saisontabelle bedeutet (`live.projected`). Das
+zeigt die App nicht.
+
+**Status: GEBAUT am 27.08.2026.** Eigener Discord-Kanal (`DISCORD_TICKER_WEBHOOK_URL`,
+Secret siehe SEC-005). Gemeldet werden **Ueberholvorgaenge im Tagesergebnis** der
+laufenden Stage - eine Zeile je Aufsteiger mit den Namen der Ueberholten; wer faellt,
+steht dort bereits drin. Der Zielfortschritt wird nur angehaengt, wenn der Wechsel die
+wertenden Top 3 beruehrt. Erst ab 5 Managern mit Punkten (siehe Messung oben).
+**Sortierung deterministisch** (Punkte, dann Slug) - sonst haetten Punktgleichstaende
+Phantom-Wechsel erzeugt. Simulation auf den echten Snapshots des 27.08.: **10 Meldungen**
+ueber den Spieltag. Zwei Verwerfungen auf dem Weg dorthin, beide von Jonas korrigiert:
+erst nur Top-3-Grenze (zu wenig), dann komplette Tabelle je Meldung ("sieht langweilig
+aus") - final nur die Einzelwechsel.
+
+### Nachtrag 27.08. abends — Ticker auf editierte Embed-Nachricht umgestellt
+
+Der ereignisbasierte Ticker (eine Nachricht je Ueberholvorgang) hatte zwei Maengel,
+die Jonas benannt hat: Ein Manager konnte in **zwei** Gruppen vorkommen und tauchte
+damit doppelt auf, und der Kanal fuellte sich mit Wiederholungen.
+
+**Neu:** genau **eine Embed-Nachricht je Runde**, die alle 10 min per
+`PATCH /webhooks/{id}/{token}/messages/{message_id}` still aktualisiert wird. Die
+`message_id` kommt aus dem POST mit `?wait=true` und liegt in
+`squad_ticker_messages` (Schluessel: Kanal x Step).
+
+Inhalt: Fortschrittsbalken zum Stage-Ziel (genau einmal, ganz oben), darunter die
+feste Rangliste 1-10 im Codeblock mit buendigen Spalten, Rang 1-3 als Medaille, je
+Zeile das Delta zum letzten gespeicherten Stand aus `squad_score_snapshots`.
+Farbe: rot < 80 %, gelb 80-99 %, gruen ab erreicht. Zahlenformat durchgehend
+`1105.69`. Fussnote `Stand: HH:MM` (Berlin).
+
+**Neu gepostet** wird nur bei: Rangwechsel in den Top 3 (erst ab 5 Managern mit
+Punkten), erreichtem Stage-Ziel oder einem Punktesprung >= `TICKER_JUMP_PTS`
+(Standard 40, ueber die Umgebung aenderbar). Sonst bleibt es bei der stillen
+Bearbeitung. Wird die Nachricht in Discord geloescht, faellt der Ticker beim
+naechsten Lauf automatisch auf einen Neupost zurueck (PATCH 404), statt zu
+verstummen.
+
+**Historie** landet nur noch in `squad_score_snapshots`, nicht mehr im Kanal.
+
+**Ereignismeldungen (Nachtrag 27.08.):** Die editierte Tabelle zeigt den Stand,
+faellt aber niemandem auf. Fuer die drei Anlaesse mit Bedeutung gibt es daher eine
+eigene Nachricht im selben Kanal, direkt vor dem Neuanker der Tabelle:
+
+- `🔀 Top 3 change — ⏫ ANDREIHAHA [75.25] 3rd · ⏬ NAMIUNK_022 [74.55] 4th`
+  (alle, deren Rang sich geaendert hat und die jetzt in den Top 3 stehen oder
+  vorher drin waren)
+- `🎯 Target reached! 1145.20 / 1140 — 🥇 … 🥈 … 🥉 …`
+- `⚠️ Back below target — 1132.10 / 1140 · 7.90 short again.`
+
+Der letzte Fall fehlte bisher voellig: Sorare korrigiert Punkte nachtraeglich auch
+nach unten - am 27.08. sank der Squad Score innerhalb eines Laufs von 1105.69 auf
+1105.38. Ohne diese Meldung haette der Squad ein einmal gemeldetes "geschafft" fuer
+endgueltig gehalten. Entsprechend ankert die Tabelle jetzt bei **jedem** Wechsel des
+Ziel-Zustands neu (`cleared !== clearedBefore`), nicht nur beim Erreichen.
+
+Simulation auf den echten Snapshots des 27.08.: **11 Top-3-Ereignisse** ueber den
+Spieltag, alle ab ~19:45.
+
+**Neuanker loescht die alte Tabelle (Nachtrag 27.08.):** Befund Jonas - "das
+Leaderboard dass wir bearbeiten verschwindet". Zwei Probleme in einem:
+
+1. Nach einer Ereignismeldung stand die editierte Tabelle **oberhalb** davon und
+   rutschte aus dem Blick.
+2. Beim Neuposten blieb die **alte** Tabelle als veralteter Zwilling im Kanal
+   stehen - zwei Staende, und man muss raten, welcher gilt.
+
+**Loesung:** Beim Neuanker wird die alte Nachricht per
+`DELETE /webhooks/{id}/{token}/messages/{message_id}` entfernt, bevor die neue
+gepostet wird. Geloescht wird ausschliesslich die eigene, ueber die gespeicherte
+`message_id` eindeutig bestimmte Nachricht. Damit gilt dauerhaft: **genau eine
+Tabelle, und sie ist immer die neueste Nachricht im Kanal.** Ereignismeldungen
+bleiben als Verlauf darueber stehen. Ein 404 beim Loeschen (Nachricht war schon
+weg) wird ignoriert.
+
+**"Ziel SICHER erreicht" (27.08.):** Vorgabe Jonas - Memes posten, wenn das Ziel
+sicher steht, also drei durchgespielte Aufstellungen es allein tragen.
+
+`cleared` (Summe >= Ziel) genuegt dafuer nicht: Die Summe kann wieder fallen, weil
+Sorare nachbewertet - am 27.08. sank sie innerhalb eines Laufs um 0,31. Die API
+liefert keinen Spielstatus, wohl aber `lockedAt` (Anpfiff) je Spieler. **Korrigiert am selben Abend, zweimal, beide Male durch Jonas:**
+
+1. Die Zeitschaetzung war falsch. Sorare liefert den Status direkt:
+   `taskAppearances { game { statusTyped } }` mit `played` / `playing` /
+   `scheduled`. Befund Jonas: "matthias ginter ist zum beispiel schon fertig ...
+   im vergleich zu pedri der noch spielt" - Ginter stand auf `played`, Pedri auf
+   `playing`. Das Feld war nie abgefragt worden. Die 150-Minuten-Regel haette am
+   27.08. um 23:30 "sicher" gemeldet, waehrend das Barca-Spiel noch lief. Sie
+   bleibt nur noch als Notnagel, falls der Status fehlt (`FINAL_AFTER_MIN`).
+2. "Aufstellung komplett durch" war zu streng. Befund Jonas: "Da spieler nicht
+   unter 0 punkte fallen koennen kann das ziel auch erreicht werden wenn ... nur
+   3 oder 4 von 5" fertig sind. Richtig: Die Summe der **fertigen** Spieler einer
+   Aufstellung ist eine **Untergrenze**, die nicht mehr unterschritten werden kann.
+
+**Endgueltige Regel:** Je Aufstellung die Punkte der bereits fertigen Spieler
+aufsummieren (= garantierte Untergrenze), die drei hoechsten Untergrenzen addieren;
+erreicht diese Summe das Ziel, ist es sicher. Damit zaehlt eine Aufstellung mit 4
+von 5 fertigen Spielern anteilig mit, statt gar nicht.
+
+Gegenprobe: Die Spielerpunkte summieren sich exakt zur Aufstellungspunktzahl,
+sobald alle fertig sind (mcbeast 351.75 vs. 351.74). Bei laufenden Partien hinkt der
+Live-Wert der Aufstellung den Einzelwerten um wenige Punkte hinterher - fuer die
+Untergrenze irrelevant, da dort nur fertige Spieler eingehen.
+
+Wirkung am 27.08. (Ziel 1140): alte Regel 705.51 (nur 2 komplette Aufstellungen),
+neue Regel **990.56** (sorare_jens 353.76 + mcbeast 351.75 + andreihaha 285.05 bei
+4/5 fertig).
+
+Meldung `🎯 TARGET HIT!` mit den drei tragenden Aufstellungen und einem Meme aus dem
+**eigenen Pool `kind = 'target'`** (darf sich mit 'reminder'/'allclear' nicht
+vermischen). Einmalig je Runde (`target-hit:<step>`).
+
+**Verifiziert am 27.08. (Stage 4, Ziel 1140):** Beste drei durchgespielte waeren
+maisonpanda 424.69 + andreihaha 392.77 + jr3hr 392.49 = 1209.95. Letzter Anpfiff
+19:00 UTC, also sicher ab 21:30 UTC = 23:30 Berlin - genau dann feuert die Meldung.
+
+**Gegenstueck "Ziel verfehlt" (27.08.):** Meldung `😞 Target missed.` mit
+Endstand, Rueckstand und den drei besten Aufstellungen, dazu ein Meme aus dem
+eigenen Pool `kind = 'missed'` (7 Stueck). **Zwei Ausloeser** (Korrektur 28.08. nach Befund Jonas "Die stage ist durch, keine
+chance mehr zu gewinnen. Wo ist die benachrichtigung vom bot?"):
+
+1. **Frueh und rechnerisch sicher:** ALLE Spiele aller Aufstellungen sind gelaufen
+   (`game.statusTyped = played`) und der Squad Score liegt unter dem Ziel. Was dann
+   darunter liegt, bleibt darunter - kein Punkt kommt mehr dazu.
+2. **Spaet und formal:** Sorare setzt `state = FAILED`.
+
+Anfangs haing die Meldung nur an (2). Das Flag kommt aber deutlich spaeter als das
+Ergebnis: Am 28.08. stand die verlorene Stage 5 (1259.45 / 1280) laengst fest,
+waehrend der Bot noch schwieg. Beide Wege teilen sich denselben Schluessel
+(`target-missed:<step>`), es geht also genau eine Meldung raus - je nachdem, was
+zuerst eintritt.
+
+Die Meldung selbst liegt als Funktion `postMissed()` vor, damit beide Ausloeser
+dieselbe Formulierung und denselben Meme-Pool nutzen und nicht auseinanderlaufen
+koennen (die Ursache von BUG-022/023/024 war genau solche Doppelung).
+
+**Vier getrennte Meme-Pools** (duerfen sich nie vermischen, Vorgabe Jonas 26.08.):
+`reminder` (12) · `allclear` (10) · `target` (6) · `missed` (7). In allen gilt
+dieselbe Regel: zufaellige Auswahl, aber nie zweimal hintereinander dasselbe.
+
+**Erster echter Durchlauf (27.08., Runde 25, Ziel 1140):** Die 🎯-Meldung ging um
+21:10 UTC (23:10 Berlin) raus, garantierte Summe **1315.02 / 1140**. Danach hat der
+Poller die Runde automatisch als **R25** in `squad_step_rounds` eingetragen, und der
+Saisonstand rechnet sie seitdem mit - ohne einen einzigen Handgriff. Damit ist die
+gesamte Kette einmal komplett unter echten Bedingungen gelaufen.

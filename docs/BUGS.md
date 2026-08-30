@@ -310,3 +310,52 @@
 - **Zusaetzlich:** Zwei neue Felder fuer den Cowork-Bot - **`round.final`** (boolean: darf gewertet werden, ohne auf einzelne Zustandsnamen pruefen zu muessen) und **`openRound`** (die gerade laufende Runde, falls vorhanden). Damit muss der Konsument keine Zustandslogik nachbauen.
 - **Verifiziert:** drei Abrufe hintereinander liefern identisch Stage 3, `final=true`, 10/10 Scores - vorher wechselte das Ergebnis.
 - **Lektion:** `order by` auf einem Feld, das fuer alle Zeilen gleichzeitig geschrieben wird, ist keine Sortierung, sondern ein Muenzwurf. Fuer "die neueste Runde" braucht es einen Zeitstempel, der die Runde beschreibt - nicht einen, der beim letzten Schreibvorgang entsteht.
+
+---
+
+## BUG-030 - Saison-Stand veraltete strukturell (27.08.) - DAUERHAFT BEHOBEN
+
+- **Symptom (Jonas):** "kann es sein, dass der bot mit veralteten leaderboard Daten arbeitet?" - Der Stand war bis Runde 21 geseedet, seither gespielte Runden fehlten. Betroffen war nicht nur die Anzeige, sondern der **Tie-Break bei gleichem Bonus**: Bei Gleichstand behaelt der schlechter Platzierte den Spieler - stand die Platzierung falsch, entschied der Bot **falsch**, wer tauschen muss.
+- **Ursache (die eigentliche):** Der Punktestand war ein **gespeicherter Wert** (`squad_season_state`), der nach jeder Runde haette fortgeschrieben werden muessen. Genau diese Fortschreibung existierte nie. Jede Korrektur hielt nur bis zur naechsten Runde - das Problem kam garantiert wieder. BUG-023 war derselbe Fehler an anderer Stelle.
+- **Fix (deployed 27.08.):** Der Punktestand wird **nicht mehr gespeichert**, sondern bei **jedem Abruf** aus den Rohdaten neu gerechnet (`computeStandings()`):
+  - `squad_history_rounds` / `squad_history_results` - Historie R1-R23, einmalig geseedet, unveraenderlich
+  - `squad_step_scores` + `squad_step_rounds` - jede abgeschlossene Runde, Nummer automatisch beim Rundenende vergeben
+  - `squad_penalties` - Cap-Strafen des Captains
+  - Regeln: Platzierungspunkte [10,9,8,6,5,4,3,2,1,0], Stage-Bonus nur fuer Top 3 und nur bei geschafftem Ziel, Ø ueber alle gewerteten Runden, Sortierung Punkte -> Ø
+- **Alle drei Verbraucher lesen jetzt dieselbe Berechnung:** `season`, `report.standings` und der **Tie-Break im Poller**. Damit kann keiner mehr abweichen (die Ursache von BUG-022/023/024 war genau diese Mehrfach-Implementierung).
+- **Verifiziert:** Ohne laufende Runden reproduziert die Berechnung R23 exakt (ParisBoemboem 152 P / Ø 353,25; Sorare | MA auf Platz 4). Nach Zuordnung der Runde 24 steht Paris bei 164 P - der erwartete Wert. Ein Poll-Lauf danach vergab **keine** neuen Nummern (idempotent).
+- **Gegenprobe am offiziellen Board (27.08., nach R24):** alle 10 Manager deckungsgleich in Punkten und Ø, Stage Clears 6/5/5/3/1 und Squad Ø 1168,63 exakt, Auf-/Absteiger-Pfeile identisch. Die Berechnung ist damit gegen 24 Runden geprueft.
+- **Lektion:** Ein gespeicherter abgeleiteter Wert braucht einen Pfleger. Fehlt der, veraltet er nicht *vielleicht*, sondern **sicher**. Wo die Rohdaten vorhanden sind, ist Neuberechnung bei Abruf die einzige Bauart, die nicht veralten kann.
+
+---
+
+## BUG-031 - Entwarnung ging an Manager, die nie aufgefordert wurden (27.08.) - BEHOBEN
+
+- **Symptom (Jonas):** "Die blauen nachrichten machen kein sinn. beide manager mussten nicht wechseln. wurden auch nicht vom bot zum wechseln alamiert." PARISBOEMBOEM bekam "you don't have to swap **Raphinha** any more", ENEXXX dasselbe fuer **Lamine Yamal** - beide hatten nie eine Aufforderung erhalten.
+- **Ursache:** Die Entwarnung leitete den Empfaenger aus dem **Dedup-Schluessel** ab (`claim:<step>:<player>:<claimer>:<target>`, letztes Segment = Ziel). Der Schluessel endet aber **auch bei abgelehnten Claims** auf den Ziel-Manager - obwohl dort der **Claimer** angeschrieben wird ("line up a different player") und das Ziel **gar nichts erfaehrt**. Jeder abgelehnte Claim erzeugte damit einen Phantom-Empfaenger.
+- **Belegt an den echten Daten:** Raphinha hatte zwei Claims - abgelehnt (sorare-ma, Bonus niedriger als parisboemboem) und gueltig (andreihaha → ffgaj). Angeschrieben wurden sorare-ma und ffgaj, **beide tauschten**. Die Entwarnung ging trotzdem an parisboemboem, weil dessen Name im Schluessel des **abgelehnten** Claims stand. Bei Lamine Yamal dasselbe Muster (abgelehnt: sorare-ma, Phantom: enexxx), ebenso bei Ginter um 11:30 (Phantom: ffgaj).
+- **Fix (deployed 27.08.):** Der Empfaenger kommt jetzt aus der gespeicherten **Nutzlast**, nicht aus dem Schluessel. Sie unterscheidet sauber: gueltiger Claim → `{claimer, target}`, abgelehnt → `{claimer, reason}`. Daraus ergibt sich pro Claim, **wer handeln sollte**: bei gueltigem Claim das Ziel (muss tauschen), bei abgelehntem der Claimer (muss anders aufstellen). Zusaetzlich bekommt niemand eine Entwarnung, der selbst getauscht hat - dafuer gibt es die gruene Meldung. Keine Schluessel geaendert, also keine Nachzuendung alter Meldungen.
+- **Lektion:** Der Dedup-Schluessel ist eine **Identitaet**, keine Datenquelle. Wer Fachlogik aus Schluesselbestandteilen rekonstruiert, uebernimmt stillschweigend auch die Faelle, fuer die das Segment etwas anderes bedeutet. Die Nutzlast, die beim Senden ohnehin mitgeschrieben wird, sagt eindeutig, was gemeint war.
+- **Nebenbei:** `status` akzeptiert jetzt `like`, `payload` und `limit` - damit lassen sich Meldungen gezielt nachvollziehen (genau so wurde dieser Bug belegt).
+
+---
+
+## BUG-032 - Cowork-Bot las eine 14 Stunden alte Antwort (27.08.) - UMGANGEN
+
+- **Symptom:** Der Cowork-Leaderboard-Bot meldete abends unveraendert Runde 22 (Stage 1, Ziel 700), Standings mit 23 Runden und ParisBoemboem bei 152, dazu "das Feld `final` existiert nicht". Er schloss daraus auf einen fehlgeschlagenen Deploy und empfahl einen Blick in die Function-Logs.
+- **Gegenprobe:** Drei bzw. sechs Abrufe des Endpoints von hier - jedes Mal Stage 4, `final: true`, Standings mit 25 Runden, ParisBoemboem 176 P. Neu eingefuegtes Feld **`generatedAt`** wechselte im Sekundentakt. `CF-Cache-Status: DYNAMIC`, also kein Cloudflare-Cache.
+- **Beweis der Herkunft seiner Daten:** Der von ihm gemeldete `squadScore` **1151.24** ist exakt die Top-3-Summe von R22 (411.70 + 381.40 + 358.14). Es waren also echte Daten unseres Endpoints - nur aus einer Antwort von **heute frueh (updatedAt 07:10:02)**, vor allen Korrekturen des Tages. Dazu passt, dass `final` fehlte (kam erst mittags) und die Standings noch aus der inzwischen abgeloesten `squad_season_state` stammten.
+- **Ursache:** Der Abrufweg des Cowork-Bots cacht die Antwort und **ignoriert dabei Query-Parameter** - `&nocache=1&ts=...` erzeugte denselben Body. Sein eigener Befund "vier URLs, byte-identischer Body" war der Beleg dafuer, nicht dagegen.
+- **Umgehung (deployed 27.08.):** Die Cowork-URLs nutzen jetzt ein **Pfad-Suffix**: `/functions/v1/squad-poll/v2?...`. Supabase leitet jeden Pfad unterhalb des Function-Namens an dieselbe Function; fuer einen Cache ist es eine neue Ressource. **Kein zweiter Deploy, kein duplizierter Code** - die Alternative "unter neuem Namen deployen" haette die 1900-Zeilen-Function verdoppelt und damit gegen die Regel verstossen, dass jede Logik genau einmal existiert. Faellt es wieder auf, wird das Suffix hochgezaehlt.
+- **Dauerhafte Absicherung:** `report` liefert jetzt `generatedAt`. Damit ist Staleness in jeder Antwort selbst erkennbar, statt aus Inhalten erschlossen werden zu muessen.
+- **Lektion:** Eine plausible Diagnose von aussen ("dein Deploy haengt") ist eine Hypothese, keine Tatsache. Entscheidend war ein **Fingerabdruck in den Daten** - eine Zahl, die nur zu einem bestimmten Zeitpunkt gehoeren kann. Die 1151.24 hat die Frage in einem Schritt geklaert, nachdem zwei Runden Log-Suche nichts ergeben haetten.
+
+---
+
+## BUG-033 - Dieselbe Tausch-Aufforderung ein zweites Mal (28.08.) - BEHOBEN
+
+- **Symptom (Jonas):** Harry Kane stand in 6 Aufstellungen. sorare_jens wurde um 10:50 zum Tausch aufgefordert (Claim von maisonpanda, 5. Kopie), jr3hr um 11:10 (Claim von ffgaj, 6. Kopie). Nachdem **jr3hr** getauscht hatte, kam um 11:20 **erneut** eine Aufforderung an sorare_jens. "warum?"
+- **Ursache:** Der Dedup-Schluessel enthielt den **Claimer**: `claim:<step>:<player>:<claimer>:<target>`. Nach jr3hrs Tausch waren es noch 5 Kopien; der Bot rechnete neu, der verbliebene Ueberzaehlige war jetzt ffgaj, und der traf wieder auf sorare_jens als Schwaechsten. `…:maisonpanda:sorare_jens` und `…:ffgaj:sorare_jens` sind verschiedene Schluessel - also ging dieselbe Aufforderung ein zweites Mal raus. Fuer den Empfaenger ist es aber **dieselbe Pflicht**; wer sie ausgeloest hat, ist ihm gleichgueltig.
+- **Fix (deployed 28.08.):** Der Schluessel haengt jetzt am **Adressaten**: `claim:<step>:<player>:<recipient>`. Adressat ist bei einem gueltigen Claim das Ziel (muss tauschen), sonst der Claimer (muss anders aufstellen) - genau die Person, die die Nachricht bekommt. Wechselt dagegen das **Ziel**, ist es ein anderer Adressat und damit zu Recht eine neue Meldung; die Absicht von BUG-022 bleibt erhalten.
+- **Gegenprobe an den echten Ereignissen:** Alte Logik 3 Meldungen (sorare_jens doppelt), neue Logik 2 - an sorare_jens und jr3hr je genau eine.
+- **Lektion (dritter Fall dieser Art, nach BUG-022 und BUG-031):** Der Dedup-Schluessel muss die **Identitaet des Ereignisses aus Sicht des Empfaengers** abbilden. Steht Material darin, das den Empfaenger nicht betrifft - hier der Auslöser -, wiederholt sich die Nachricht, sobald sich nur dieses Material aendert.

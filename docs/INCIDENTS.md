@@ -145,3 +145,25 @@
 - **Fenster-Wiederherstellung:** Die railway-*.tomls im Repo tragen weiterhin die vollen Fenster (`*/5 22-23,0-4,16-20`); die 6-h-Kuerzung lebt nur in den Railway-Einstellungen. Ein Redeploy je Updater-Service stellt die vollen Fenster wieder her (Config-as-code gewinnt).
 - **Status:** 🟢 behoben, Ursache bewiesen, Pro aktiv seit 26.08. Offen: Micro bestaetigen → Fenster oeffnen · Squad-Poller wiederherstellen (command aus Block-1-Sicherung oder Squad-Session) · Index-Messung 26.08.
 
+
+---
+
+## SEC-005 — Discord-Webhook des Ticker-Kanals im Klartext geteilt (27.08.2026) 🟡 ROTATION EMPFOHLEN
+
+- **Was:** Die Webhook-URL des neuen Liveticker-Kanals wurde im Chat im Klartext uebermittelt. Sie liegt damit im Sitzungsprotokoll auf Jonas' Rechner (`~\.claude\projects\C--craft-log\*.jsonl`) und ist ueber den Modellanbieter gelaufen. **Nicht** oeffentlich, **nicht** in Code oder Git (per `grep` geprueft).
+- **Sofort getan:** URL nach `C:\Users\Jonas\.claude\secrets\discord_ticker_webhook.txt` (ausserhalb aller Repos) und als Supabase-Secret `DISCORD_TICKER_WEBHOOK_URL` gesetzt. Der Code liest ausschliesslich `Deno.env.get`.
+- **Risiko, konkret:** Wer die URL hat, kann **in genau diesen einen Kanal schreiben** - beliebiger Text, Einbettungen, Dateien, unter frei gewaehltem Namen und Avatar (also auch als "Coordinator Bot"). Je nach Kanalrechten auch mit `@everyone`. Ausserdem laesst sich der Webhook **loeschen**, dann schweigt der Ticker.
+- **Was ausdruecklich NICHT geht:** nichts lesen (keine Nachrichten, keine Mitgliederliste, keine anderen Kanaele), nicht dem Server beitreten, keine Rechte aendern, kein Zugriff auf Sorare-Daten, Datenbank oder andere Secrets. Ein Webhook ist **schreibend, auf einen Kanal begrenzt**.
+- **Empfehlung:** Webhook in Discord loeschen und neu anlegen (Kanal → Einstellungen → Integrationen → Webhooks). Die **neue** URL nicht in den Chat, sondern direkt in `discord_ticker_webhook.txt` schreiben - dann wird nur noch aus der Datei gelesen.
+- **Regel fuer kuenftige Secrets:** Datei anlegen, Pfad nennen. Der Wert selbst gehoert nie in eine Nachricht. So wurde es bei `discord_webhook.txt` und `discord_lineups_webhook.txt` bereits gehandhabt ("Die txt liegt jetzt im Ordner") - genau richtig.
+
+---
+
+## INC-007 — Squad-Bot 12 h stumm: Helfer vor seiner Definition benutzt (29.08.2026) 🟢 BEHOBEN
+
+- **Symptom (Jonas):** "der bot läuft nicht". Heute frueh keine einzige Meldung, obwohl sieben Manager bereits aufgestellt hatten.
+- **Befund:** Der pg_cron-Lauf funktionierte durchgehend (Snapshots 09:30, 09:40, 09:50). Der Poller schrieb also Rohdaten, brach aber danach ab: `POST /poll` antwortete **HTTP 500 — "Cannot access 'appDone' before initialization"**.
+- **Ursache (selbst verursacht, 28.08. nachts):** Beim Einbau der Frueherkennung "Ziel nicht mehr erreichbar" wurde der Helfer `appDone` an einer Stelle **oberhalb** seiner eigenen Definition verwendet. In JavaScript ist ein `const` bis zu seiner Definition gesperrt (Temporal Dead Zone) - der Zugriff wirft. Der Fehler lag im Ticker-Block, der nur bei **offener Runde** laeuft; beim Deploy um 23:30 waren alle Runden abgeschlossen, deshalb blieb er beim Testen unsichtbar und schlug erst am naechsten Morgen zu.
+- **Auswirkung:** Rund 12 Stunden ohne Aufstellungs- und Cap-Meldungen. Rohdaten gingen **nicht** verloren (Snapshot und Log werden vor dem Ticker geschrieben). Beim ersten erfolgreichen Lauf wurden die sieben Aufstellungsmeldungen nachgeholt; Cap-Verstoesse hatte es in der Zeit keine gegeben, nur Messi bei 4/4.
+- **Fix (deployed 29.08.):** (1) `appDone` steht jetzt ganz oben bei den uebrigen Helfern, vor jeder Verwendung. (2) **Der gesamte Ticker-Block liegt in try/catch.** Der Ticker ist Beiwerk, die Cap- und Claim-Logik ist der Kern - ein Fehler im Beiwerk darf den Kern nie mitreissen.
+- **Lektion:** Ein Codepfad, der nur unter bestimmten Bedingungen laeuft (hier: offene Runde), ist beim Deploy ausserhalb dieser Bedingungen **nicht getestet**, auch wenn der Aufruf "ok" zurueckgibt. Nach einem Deploy ausserhalb der Spielzeit gehoert ein Testlauf mit offener Runde dazu - oder die riskanten Teile werden so gekapselt, dass ihr Ausfall folgenlos bleibt.
