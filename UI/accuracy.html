@@ -182,12 +182,19 @@
     try {
       const BASE = 'https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1';
       const KEY = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
-      const res = await fetch(`${BASE}/rpc/accuracy_benchmark`, {
-        method: 'POST',
-        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ p_days: 3 })
-      });
-      if (!res.ok) return;
+      // Live-Perzentile koennen unter Updater-Schreiblast vereinzelt in den
+      // Timeout laufen (Preflight 27.08.: ein 500er, danach stabil ~0,9 s) —
+      // ein zweiter Versuch nach kurzer Pause reicht als Absicherung.
+      let res = null;
+      for (let attempt = 0; attempt < 3 && !(res && res.ok); attempt++) {
+        if (attempt) await new Promise(r => setTimeout(r, 2500 * attempt));
+        res = await fetch(`${BASE}/rpc/accuracy_benchmark`, {
+          method: 'POST',
+          headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_days: 3 })
+        }).catch(() => null);
+      }
+      if (!res || !res.ok) return;
       const data = await res.json();
       if (!Array.isArray(data) || !data.length) return;
 
