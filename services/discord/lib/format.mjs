@@ -17,7 +17,10 @@ const money = (amount, cur) => {
   const sym = { EUR: '€', USD: '$', GBP: '£' }[cur] ?? `${cur} `;
   return `${sym}${amount.toFixed(2)}`;
 };
-const who = ev => ev.name ? `**${escapeMd(ev.name)}**` : 'Someone';
+// Oeffentlicher Spender mit verknuepftem Discord: als <@id> — Discord rendert
+// den klickbaren Namen. allowed_mentions unten verhindert den Ping.
+const who = ev => ev.isPublic && ev.discordUserId ? `<@${ev.discordUserId}>`
+                : ev.name ? `**${escapeMd(ev.name)}**` : 'Someone';
 const escapeMd = s => String(s).replace(/([*_`~|>\\])/g, '\\$1');
 const quote = msg => msg ? `\n\n> ${escapeMd(msg).split('\n').join('\n> ')}` : '';
 
@@ -52,6 +55,7 @@ export function buildEmbed(ev, ctx = {}) {
   // in Discord (Jonas hat den Bot dort "Penny" genannt). So bleibt die Pflege
   // an einem Ort und der Code muss bei einer Umbenennung nicht angefasst werden.
   return {
+    allowed_mentions: { parse: [] },   // Name verlinken, niemanden benachrichtigen
     embeds: [{
       title,
       description: body,

@@ -28,6 +28,7 @@ create table if not exists public.kofi_events (
   tier_key            text,                           -- supporter | pro | vip | member
   tier_name           text,
   discord_message_id  text,                           -- fuer spaetere Korrekturen
+  discord_userid      text,                           -- von Ko-fi, wenn der Spender Discord verknuepft hat (Rollenvergabe)
   created_at          timestamptz not null default now()
 );
 create index if not exists idx_kofi_events_time on public.kofi_events (occurred_at desc);

@@ -41,6 +41,7 @@ export async function logEvent(ev, discordMessageId = null) {
     from_name: ev.isPublic ? ev.name : null, is_public: ev.isPublic,
     message: ev.message, tier_key: ev.tier?.key ?? null, tier_name: ev.tierName,
     discord_message_id: discordMessageId,
+    discord_userid: ev.discordUserId,
   };
   const { error } = await sb.from('kofi_events').upsert(row, { onConflict: 'message_id', ignoreDuplicates: true });
   if (error) console.warn('[store] Event nicht gespeichert:', error.message);

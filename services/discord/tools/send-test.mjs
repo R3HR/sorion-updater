@@ -21,6 +21,7 @@ const base = {
   url: 'https://ko-fi.com/sorionpro',
   kofi_transaction_id: `00000000-1111-2222-3333-${Date.now()}`,
   shop_items: null, shipping: null,
+  discord_username: 'Jo#4105', discord_userid: '012345678901234567',
 };
 const variants = {
   donation:  { type: 'Tip', amount: '3.00', message: 'Great tool, the accuracy page convinced me.',

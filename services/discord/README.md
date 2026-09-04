@@ -29,9 +29,11 @@ og-image als Avatar. Keine Ausrufezeichen-Kaskaden, kein „Donation Bot"-Look.
 1. **Discord**: Kanal „💰・donations" → Integrationen → Webhook anlegen → URL kopieren.
 2. **Ko-fi**: <https://ko-fi.com/manage/webhooks> → Verification Token kopieren.
 3. **Supabase** (optional, für Statistik/Dedup): `migrations/2026-09-04_kofi_events.sql` ausführen.
-4. **Railway**: New Service → dieses Repo → Config-Datei `railway-discord.toml`.
-   Variablen: `KOFI_VERIFICATION_TOKEN`, `DISCORD_DONATIONS_WEBHOOK`,
-   optional `SUPABASE_URL` + `SUPABASE_SERVICE_KEY`. Public Domain erzeugen.
+4. **Railway** (so eingerichtet am 04.09., per CLI aus dem Repo-Root):
+   `railway add --service sorion-discord`, Variablen setzen, dann aus **diesem Ordner**
+   `railway up --service sorion-discord --path-as-root` (ohne `--path-as-root` lädt die CLI
+   das ganze Repo hoch und startet den Preis-Updater, Fehlerbild „Cannot find module update.mjs").
+   Domain: `railway domain --service sorion-discord`. Deploy bei Änderungen: derselbe `up`-Befehl.
 5. **Ko-fi**: Webhook-URL eintragen: `https://<railway-domain>/kofi`, dann „Send single test".
 
 ## Lokal testen
@@ -55,7 +57,7 @@ Die Verarbeitung ist eine Pipeline in `handlers/kofi.mjs`:
 
 Vorbereitet, aber noch nicht gebaut:
 
-- **Rollenvergabe** nach Tier: braucht einen Discord-**Bot** (Webhooks können keine Rollen setzen) und die Zuordnung Ko-fi-Spender → Discord-Nutzer (Ko-fi liefert die nicht; Weg: Ko-fi-Discord-Integration oder ein `/link`-Befehl). Feld `discordRole` in `lib/tiers.mjs` ist dafür da.
+- **Rollenvergabe: NICHT hier.** Die übernimmt bereits Ko-fis eigener Discord-Bot auf dem Server (Stand Jonas 04.09.). Unser Service kündigt nur an. Ko-fi liefert trotzdem `discord_userid` mit (wenn der Spender Discord verknüpft hat); wir nutzen sie, um den Spender in der Nachricht zu verlinken (ohne Ping) und speichern sie für Statistik je Nutzer. Das Feld `discordRole` in `lib/tiers.mjs` bleibt als Reserve, falls Ko-fis Bot einmal wegfällt.
 - **Milestones** („50. Supporter", „100 € diesen Monat"): Zahlen liegen in `kofi_events`, `kofi_stats()` liefert sie; ein Schritt `checkMilestone` vor `announce` kann Titel/Text ergänzen.
 - **Monatsrückblick**: eigener Cron-Service (`railway-*.toml`), liest `kofi_events`, postet eine Zusammenfassung.
 - **Tier-spezifische Texte**: `blurb` je Tier in `lib/tiers.mjs`.

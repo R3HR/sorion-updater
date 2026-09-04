@@ -8,7 +8,8 @@
 // type ("Tip" | "Subscription" | "Commission" | "Shop Order"), is_public,
 // from_name, message, amount ("3.00"), url, email, currency,
 // is_subscription_payment, is_first_subscription_payment,
-// kofi_transaction_id, shop_items, tier_name, shipping.
+// kofi_transaction_id, shop_items, tier_name, shipping,
+// discord_username, discord_userid (wenn der Spender Discord bei Ko-fi verknuepft hat).
 //
 // DATENSCHUTZ: "email" wird gelesen, aber NIE weitergegeben — nicht an
 // Discord, nicht ins Log. Sie bleibt in dieser Datei.
@@ -66,6 +67,11 @@ export function parseKofiRequest(raw, contentType) {
       tierName:    p.tier_name ?? null,
       tier,                                        // aufgeloester Tier oder null
       url:         p.url ?? null,
+      // Ko-fi liefert die Discord-Zuordnung mit, wenn der Spender sein Discord
+      // bei Ko-fi verknuepft hat (Beispiel-Payload 04.09.). Grundlage fuer
+      // Erwaehnung in der Nachricht und spaeter fuer die Rollenvergabe.
+      discordUserId:   p.discord_userid ? String(p.discord_userid) : null,
+      discordUsername: p.discord_username ? String(p.discord_username) : null,
     },
   };
 }

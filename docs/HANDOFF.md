@@ -365,9 +365,16 @@ falsches Token abgelehnt, Duplikat uebersprungen, E-Mail nie im Ausgang.
 Zwei Fehler dabei gefunden und behoben: Tier-Teilstring („Pro-Supporter" →
 „Supporter") und Dedup-Zeitpunkt (ID erst am Pipeline-Ende gemerkt).
 
-**Noch nicht gebaut (bewusst, Community klein):** Rollenvergabe (braucht
-Bot-Token + Zuordnung Ko-fi-Spender ↔ Discord-Nutzer, die Ko-fi nicht
-liefert), Milestones, Monatsrueckblick. Alles in README skizziert.
+**Rollenvergabe: macht Ko-fis eigener Discord-Bot** (Jonas 04.09.) — nicht
+unser Service. Ko-fi liefert `discord_userid` mit; wir verlinken den Spender
+damit in der Nachricht (ohne Ping) und speichern sie fuer Statistik.
+**Noch nicht gebaut (bewusst, Community klein):** Milestones, Monatsrueckblick.
+
+**Deploy-Weg (04.09.):** per CLI, Service `sorion-discord`, Domain
+`sorion-discord-production.up.railway.app`. Aus `services/discord/`:
+`railway up --service sorion-discord --path-as-root`. OHNE `--path-as-root`
+laedt die CLI das ganze Repo hoch → startet `update.mjs` → Crash (so passiert
+beim ersten Versuch). Ko-fi-Webhook-URL: `https://sorion-discord-production.up.railway.app/kofi`.
 
 **Manuelle Schritte Jonas:** siehe „Offene Aktionen" Punkt D.
 
