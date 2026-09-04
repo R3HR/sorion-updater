@@ -344,6 +344,41 @@
   .p-filter.sr.active  { border-color: var(--sr); color: var(--sr); background: rgba(112,144,255,0.08); }
 
   /* ── Markt-Filter im Portfolio: Dropdowns + Bereichs-Slider (27.08.) ── */
+  /* ── Sidebar-Layout (04.09.): Filter gebuendelt links, Karten rechts ──
+     Vorher lagen ~25 Knoepfe in drei vollbreiten Zeilen — schwer zu ueber-
+     blicken. Gruppiert und beschriftet ist auf einen Blick klar, WONACH
+     gefiltert wird. Unter 900 px klappt die Sidebar auf Knopfdruck auf. */
+  .p-topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .p-topbar .p-search { flex: 1; min-width: 220px; max-width: 420px; }
+  .p-topbar #p-count { margin-left: auto; font-family: 'Share Tech Mono', monospace;
+                       font-size: 12px; color: var(--text2); }
+  .p-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .p-side { position: sticky; top: 14px; display: flex; flex-direction: column; gap: 16px;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+            padding: 16px 14px; max-height: calc(100vh - 28px); overflow-y: auto; }
+  .side-grp { display: flex; flex-direction: column; gap: 7px; }
+  .side-lab { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .2em;
+              text-transform: uppercase; color: var(--purple); opacity: .9; }
+  .side-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .p-side .p-filter { font-size: 11px; padding: 7px 10px; }
+  .p-side .side-wide { width: 100%; text-align: left; }
+  .p-side .rng-box { width: 100%; height: auto; flex-direction: column; align-items: stretch;
+                     gap: 6px; padding: 10px 12px; }
+  .p-side .rng-track { width: 100%; }
+  .p-side .rng-vals { justify-content: space-between; }
+  .p-side .rng-vals input { width: 64px; }
+  .p-side .pdd { display: block; }
+  .p-side .pdd-panel { left: 0; right: auto; min-width: 100%; }
+  .p-sortbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .sortbar-lab { font-family: 'Share Tech Mono', monospace; font-size: 11px;
+                 color: var(--purple); letter-spacing: .2em; }
+  .p-sidebar-toggle { display: none; }
+  @media (max-width: 900px) {
+    .p-layout { grid-template-columns: 1fr; }
+    .p-side { position: static; max-height: none; display: none; }
+    .p-side.open { display: flex; }
+    .p-sidebar-toggle { display: inline-block; }
+  }
   .pdd { position: relative; display: inline-block; }
   .pdd-panel { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 45;
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
@@ -742,92 +777,125 @@
     </div>
 
     <div id="view-cards">
-    <div class="p-controls">
+
+    <!-- Kopfzeile: was den ganzen Bestand betrifft (Suche, Sync, Netto-Sicht) -->
+    <div class="p-topbar">
       <input class="p-search" id="p-search" type="text" placeholder="search player or team..." oninput="filterCards()">
-      <button class="p-filter active" id="pf-all"     onclick="setFilter('all')">All</button>
-      <button class="p-filter ltd"    id="pf-limited" onclick="setFilter('limited')">◆ Limited</button>
-      <button class="p-filter rar"    id="pf-rare"    onclick="setFilter('rare')">◆ Rare</button>
-      <button class="p-filter sr"     id="pf-sr"      onclick="setFilter('super_rare')">◆ SR</button>
-      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
       <button class="p-filter" id="btn-sync" onclick="syncNow(true)" title="Aktualisiert dein Portfolio bei Sorare (frühestens alle 10 Minuten)">⟳ Sync</button>
       <span class="p-filter" id="sync-state" style="border:none;cursor:default;color:var(--text2)"></span>
-      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
       <button class="p-filter active" id="pf-net" onclick="toggleNetMode()"
               title="P&L nach Sorare-Marktgebühr (5 %, mind. 0,10 €) — das, was du beim Verkauf wirklich erhältst">NET −5%</button>
-      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
-      <button class="p-filter active" id="pfe-all" onclick="setElig2('all')">All</button>
-      <button class="p-filter" id="pfe-is" onclick="setElig2('in_season')">In-Season</button>
-      <button class="p-filter" id="pfe-cl" onclick="setElig2('classic')">Classic</button>
-      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
-      <button class="p-filter active" id="pfo-all" onclick="setOrigin('all')">All</button>
-      <button class="p-filter" id="pfo-buy" onclick="setOrigin('bought')">💰 Bought</button>
-      <button class="p-filter" id="pfo-craft" onclick="setOrigin('crafted')">⚗️ Crafted</button>
-      <button class="p-filter" id="pfo-rew" onclick="setOrigin('reward')">🏆 Reward</button>
-      <span style="width:1px;align-self:stretch;background:var(--border)"></span>
-      <button class="p-filter active" id="pfp-all" onclick="setPnl('all')">All</button>
-      <button class="p-filter" id="pfp-win" onclick="setPnl('win')" style="color:var(--up)">▲ Winners</button>
-      <button class="p-filter" id="pfp-los" onclick="setPnl('los')" style="color:var(--down)">▼ Losers</button>
-      
-      <span id="p-count" style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2)"></span>
+      <span id="p-count"></span>
+      <button class="p-filter p-sidebar-toggle" id="btn-filters" onclick="toggleSidebar()">☰ Filters</button>
     </div>
 
-    <!-- Markt-Filter (Wunsch Jonas: dieselben Filter wie die Marktseite).
-         Rein clientseitig: Dropdowns bauen sich aus dem EIGENEN Bestand auf
-         (buildMetaFilters nach loadFMV), keine zusaetzlichen Abfragen. -->
-    <div class="p-controls" id="meta-filters" style="display:none">
-      <div class="pdd" id="plg-wrap">
-        <button class="p-filter" id="plg-btn" onclick="toggleMeta(event,'plg')">🌍 All leagues ▾</button>
-        <div class="pdd-panel" id="plg-panel"></div>
-      </div>
-      <div class="pdd" id="pcl-wrap">
-        <button class="p-filter" id="pcl-btn" onclick="toggleMeta(event,'pcl')">🏟️ All clubs ▾</button>
-        <div class="pdd-panel" id="pcl-panel"></div>
-      </div>
-      <div class="pdd" id="pna-wrap">
-        <button class="p-filter" id="pna-btn" onclick="toggleMeta(event,'pna')">🛂 All nations ▾</button>
-        <div class="pdd-panel" id="pna-panel"></div>
-      </div>
-      <div class="pdd" id="pgt-wrap">
-        <button class="p-filter" id="pgt-btn" onclick="toggleMeta(event,'pgt')">⭐ All tiers ▾</button>
-        <div class="pdd-panel" id="pgt-panel"></div>
-      </div>
-      <div class="rng-box" id="pval-box">
-        <div class="rng-lab">Value €</div>
-        <div class="rng-track">
-          <div class="rng-rail"></div><div class="rng-fill" id="pval-fill"></div>
-          <input type="range" id="pval-lo" min="0" max="100" step="1" value="0"   aria-label="Value minimum">
-          <input type="range" id="pval-hi" min="0" max="100" step="1" value="100" aria-label="Value maximum">
+    <div class="p-layout">
+      <!-- ── Sidebar: alle Filter, thematisch gruppiert ────────────────── -->
+      <aside class="p-side" id="p-side">
+        <div class="side-grp">
+          <div class="side-lab">Rarity</div>
+          <div class="side-row">
+            <button class="p-filter active" id="pf-all"     onclick="setFilter('all')">All</button>
+            <button class="p-filter ltd"    id="pf-limited" onclick="setFilter('limited')">◆ Limited</button>
+            <button class="p-filter rar"    id="pf-rare"    onclick="setFilter('rare')">◆ Rare</button>
+            <button class="p-filter sr"     id="pf-sr"      onclick="setFilter('super_rare')">◆ SR</button>
+          </div>
         </div>
-        <div class="rng-vals">€&nbsp;<input id="pval-lo-v" inputmode="decimal" aria-label="Value min">
-          <span>–</span> €&nbsp;<input id="pval-hi-v" inputmode="decimal" aria-label="Value max"></div>
-      </div>
-      <div class="rng-box" id="page-box">
-        <div class="rng-lab">Age</div>
-        <div class="rng-track">
-          <div class="rng-rail"></div><div class="rng-fill" id="page-fill"></div>
-          <input type="range" id="page-lo" min="15" max="45" step="1" value="15" aria-label="Age minimum">
-          <input type="range" id="page-hi" min="15" max="45" step="1" value="45" aria-label="Age maximum">
+
+        <div class="side-grp">
+          <div class="side-lab">Season</div>
+          <div class="side-row">
+            <button class="p-filter active" id="pfe-all" onclick="setElig2('all')">All</button>
+            <button class="p-filter" id="pfe-is" onclick="setElig2('in_season')">In-Season</button>
+            <button class="p-filter" id="pfe-cl" onclick="setElig2('classic')">Classic</button>
+          </div>
         </div>
-        <div class="rng-vals">Min&nbsp;<input id="page-lo-v" inputmode="numeric" aria-label="Age min">
-          <span>–</span> Max&nbsp;<input id="page-hi-v" inputmode="numeric" aria-label="Age max"></div>
-      </div>
-    </div>
 
-    <!-- Cards -->
-    <div class="p-controls">
-      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--purple);letter-spacing:.2em">SORT BY:</span>
-      <button class="p-sort active" id="ps-none" onclick="setSort('')">Default</button>
-      <button class="p-sort" id="ps-gain" onclick="setSort('pnlp_desc')" title="Biggest gain since purchase first">▲ Top Gains</button>
-      <button class="p-sort" id="ps-loss" onclick="setSort('pnlp_asc')" title="Biggest loss since purchase first">▼ Top Losses</button>
-      <button class="p-sort" id="ps-pnla" onclick="setSort('pnla_desc')" title="Biggest gain in euros first">€ P&amp;L</button>
-      <button class="p-sort" id="ps-val" onclick="setSort('val_desc')" title="Most valuable card first">Highest Value</button>
-      <button class="p-sort" id="ps-buy" onclick="setSort('buy_desc')" title="Highest purchase price first">Highest Paid</button>
-      <button class="p-sort" id="ps-date" onclick="setSort('date_desc')" title="Most recently bought first">Newest Buys</button>
-      <button class="p-sort" id="ps-d7" onclick="setSort('d7_desc')" title="Best 7-day trend first">7d Trend</button>
-      <button class="p-sort" id="ps-name" onclick="setSort('name_asc')" title="Alphabetical">A–Z</button>
-    </div>
+        <div class="side-grp">
+          <div class="side-lab">Origin</div>
+          <div class="side-row">
+            <button class="p-filter active" id="pfo-all" onclick="setOrigin('all')">All</button>
+            <button class="p-filter" id="pfo-buy" onclick="setOrigin('bought')">💰 Bought</button>
+            <button class="p-filter" id="pfo-craft" onclick="setOrigin('crafted')">⚗️ Crafted</button>
+            <button class="p-filter" id="pfo-rew" onclick="setOrigin('reward')">🏆 Reward</button>
+          </div>
+        </div>
 
-    <div class="cards-grid" id="cards-grid"></div>
+        <div class="side-grp">
+          <div class="side-lab">P&amp;L</div>
+          <div class="side-row">
+            <button class="p-filter active" id="pfp-all" onclick="setPnl('all')">All</button>
+            <button class="p-filter" id="pfp-win" onclick="setPnl('win')" style="color:var(--up)">▲ Winners</button>
+            <button class="p-filter" id="pfp-los" onclick="setPnl('los')" style="color:var(--down)">▼ Losers</button>
+          </div>
+        </div>
+
+        <!-- Earnings: was die Karte in Aufstellungen eingebracht hat -->
+        <div class="side-grp" id="earn-filter-grp" style="display:none">
+          <div class="side-lab">Earnings</div>
+          <div class="side-row">
+            <button class="p-filter active" id="pfr-all"  onclick="setEarn('all')">All</button>
+            <button class="p-filter" id="pfr-yes" onclick="setEarn('yes')" title="Karten, die schon etwas erspielt haben">✦ Earned</button>
+            <button class="p-filter" id="pfr-no"  onclick="setEarn('no')"  title="Karten ohne Ertrag aus Aufstellungen">○ None</button>
+          </div>
+        </div>
+
+        <div class="side-grp" id="meta-filters" style="display:none">
+          <div class="side-lab">Squad</div>
+          <div class="pdd"><button class="p-filter side-wide" id="plg-btn" onclick="toggleMeta(event,'plg')">🌍 All leagues ▾</button>
+            <div class="pdd-panel" id="plg-panel"></div></div>
+          <div class="pdd"><button class="p-filter side-wide" id="pcl-btn" onclick="toggleMeta(event,'pcl')">🏟️ All clubs ▾</button>
+            <div class="pdd-panel" id="pcl-panel"></div></div>
+          <div class="pdd"><button class="p-filter side-wide" id="pna-btn" onclick="toggleMeta(event,'pna')">🛂 All nations ▾</button>
+            <div class="pdd-panel" id="pna-panel"></div></div>
+          <div class="pdd"><button class="p-filter side-wide" id="pgt-btn" onclick="toggleMeta(event,'pgt')">⭐ All tiers ▾</button>
+            <div class="pdd-panel" id="pgt-panel"></div></div>
+        </div>
+
+        <div class="side-grp">
+          <div class="side-lab">Ranges</div>
+          <div class="rng-box" id="pval-box">
+            <div class="rng-lab">Value €</div>
+            <div class="rng-track">
+              <div class="rng-rail"></div><div class="rng-fill" id="pval-fill"></div>
+              <input type="range" id="pval-lo" min="0" max="100" step="1" value="0"   aria-label="Value minimum">
+              <input type="range" id="pval-hi" min="0" max="100" step="1" value="100" aria-label="Value maximum">
+            </div>
+            <div class="rng-vals">€&nbsp;<input id="pval-lo-v" inputmode="decimal" aria-label="Value min">
+              <span>–</span> €&nbsp;<input id="pval-hi-v" inputmode="decimal" aria-label="Value max"></div>
+          </div>
+          <div class="rng-box" id="page-box">
+            <div class="rng-lab">Age</div>
+            <div class="rng-track">
+              <div class="rng-rail"></div><div class="rng-fill" id="page-fill"></div>
+              <input type="range" id="page-lo" min="15" max="45" step="1" value="15" aria-label="Age minimum">
+              <input type="range" id="page-hi" min="15" max="45" step="1" value="45" aria-label="Age maximum">
+            </div>
+            <div class="rng-vals">Min&nbsp;<input id="page-lo-v" inputmode="numeric" aria-label="Age min">
+              <span>–</span> Max&nbsp;<input id="page-hi-v" inputmode="numeric" aria-label="Age max"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ── Hauptbereich: Sortierung + Karten ─────────────────────────── -->
+      <div class="p-main">
+        <div class="p-sortbar">
+          <span class="sortbar-lab">SORT BY:</span>
+          <button class="p-sort active" id="ps-none" onclick="setSort('')">Default</button>
+          <button class="p-sort" id="ps-earn" onclick="setSort('earn_desc')" title="Karten mit dem hoechsten Ertrag aus Aufstellungen zuerst">✦ Top Earners</button>
+          <button class="p-sort" id="ps-gain" onclick="setSort('pnlp_desc')" title="Biggest gain since purchase first">▲ Top Gains</button>
+          <button class="p-sort" id="ps-loss" onclick="setSort('pnlp_asc')" title="Biggest loss since purchase first">▼ Top Losses</button>
+          <button class="p-sort" id="ps-pnla" onclick="setSort('pnla_desc')" title="Biggest gain in euros first">€ P&amp;L</button>
+          <button class="p-sort" id="ps-val" onclick="setSort('val_desc')" title="Most valuable card first">Highest Value</button>
+          <button class="p-sort" id="ps-buy" onclick="setSort('buy_desc')" title="Highest purchase price first">Highest Paid</button>
+          <button class="p-sort" id="ps-date" onclick="setSort('date_desc')" title="Most recently bought first">Newest Buys</button>
+          <button class="p-sort" id="ps-d7" onclick="setSort('d7_desc')" title="Best 7-day trend first">7d Trend</button>
+          <button class="p-sort" id="ps-name" onclick="setSort('name_asc')" title="Alphabetical">A–Z</button>
+        </div>
+
+        <div class="cards-grid" id="cards-grid"></div>
+      </div><!-- /p-main -->
+    </div><!-- /p-layout -->
     </div><!-- /view-cards -->
 
     <div id="view-trades" style="display:none">
@@ -1237,9 +1305,10 @@
   let fElig = 'all', fOrigin = 'all', fPnl = 'all', fSort = '';
   // Markt-Filter (null = aus; Slider an den Anschlaegen = aus)
   let fLeague = null, fClub = null, fNation = null, fTier = null;
+  let fEarn = 'all';        // 'all' | 'yes' | 'no' — Ertrag aus Aufstellungen
   let fValMin = null, fValMax = null, fAgeMin = null, fAgeMax = null;
 
-  const SORT_IDS = { '': 'ps-none', pnlp_desc: 'ps-gain', pnlp_asc: 'ps-loss', pnla_desc: 'ps-pnla', val_desc: 'ps-val', buy_desc: 'ps-buy', date_desc: 'ps-date', d7_desc: 'ps-d7', name_asc: 'ps-name' };
+  const SORT_IDS = { '': 'ps-none', earn_desc: 'ps-earn', pnlp_desc: 'ps-gain', pnlp_asc: 'ps-loss', pnla_desc: 'ps-pnla', val_desc: 'ps-val', buy_desc: 'ps-buy', date_desc: 'ps-date', d7_desc: 'ps-d7', name_asc: 'ps-name' };
   function setSort(v) {
     fSort = v;
     for (const [key, id] of Object.entries(SORT_IDS)) {
@@ -1256,6 +1325,15 @@
   function setElig2(v)  { fElig = v;   setPill('e', { all: 'pfe-all', in_season: 'pfe-is', classic: 'pfe-cl' }, v); filterCards(); }
   function setOrigin(v) { fOrigin = v; setPill('o', { all: 'pfo-all', bought: 'pfo-buy', crafted: 'pfo-craft', reward: 'pfo-rew' }, v); filterCards(); }
   function setPnl(v)    { fPnl = v;    setPill('p', { all: 'pfp-all', win: 'pfp-win', los: 'pfp-los' }, v); filterCards(); }
+  function setEarn(v)   { fEarn = v;   setPill('r', { all: 'pfr-all', yes: 'pfr-yes', no: 'pfr-no' }, v); filterCards(); }
+
+  // Mobil: Sidebar auf Knopfdruck ein-/ausklappen (unter 900 px ist sie zu)
+  function toggleSidebar() {
+    const el = document.getElementById('p-side');
+    const open = el.classList.toggle('open');
+    const b = document.getElementById('btn-filters');
+    if (b) { b.classList.toggle('active', open); b.textContent = open ? '✕ Filters' : '☰ Filters'; }
+  }
 
   // ── Markt-Filter: Liga/Club/Nation/Tier + Wert-/Alters-Slider ───────────
   // Aufgebaut aus dem EIGENEN Bestand (Metadaten der card_prices-Zeilen) —
@@ -1494,6 +1572,10 @@
       }
       earnState.gws = new Set(stored.map(r => r.card_slug)).size ? -1 : 0;  // Anzeige unten korrigiert
     }
+    if (earnByCard.size) {
+      const g = document.getElementById('earn-filter-grp');
+      if (g) g.style.display = '';
+    }
     const knownRows = await rpcJson('so5_known_fixtures', { p_manager: slug });
     const known = new Set((knownRows ?? []).map(r => r.fixture_slug));
     earnState.gws = known.size;
@@ -1516,7 +1598,25 @@
       earnState.done = true;
     } catch {}
     earnState.running = false;
+    if (earnByCard.size) {
+      const g = document.getElementById('earn-filter-grp');
+      if (g) g.style.display = '';
+    }
   }
+
+  // Geschaetzter Euro-Wert dessen, was eine Karte in Aufstellungen erspielt hat
+  // (Essence per CraftLog-Kurs + Preisgeld; XP bleibt unbewertet — kein Markt).
+  function earnValue(cardSlug) {
+    const e = earnByCard.get(cardSlug);
+    if (!e) return 0;
+    const rate = r => Number(essRate?.find(x => x.scarcity === r)?.eur_per_1k ?? 0) / 1000;
+    return Object.entries(e.ess).reduce((s, [r, n]) => s + rate(r) * n, 0) + (e.cash ?? 0);
+  }
+  const hasEarnings = slug => {
+    const e = earnByCard.get(slug);
+    if (!e) return false;
+    return Object.values(e.ess).some(v => v >= 0.5) || Object.values(e.xp).some(v => v >= 0.5) || (e.cash ?? 0) >= 0.005;
+  };
 
   const curLabel = c => String(c ?? '').replace(/_/g, ' ').toLowerCase()
     .replace(/\b\w/g, m => m.toUpperCase()).replace(/\bXp\b/, 'XP');
@@ -1741,6 +1841,11 @@
         if (fAgeMin != null && !(meta?.player_age >= fAgeMin)) return false;
         if (fAgeMax != null && !(meta?.player_age <= fAgeMax)) return false;
       }
+      if (fEarn !== 'all') {
+        const has = hasEarnings(c.slug);
+        if (fEarn === 'yes' && !has) return false;
+        if (fEarn === 'no'  &&  has) return false;
+      }
       if (fValMin != null || fValMax != null) {
         const v = cardData(c).val;
         if (v == null) return false;
@@ -1769,6 +1874,7 @@
           case 'buy_desc':  return cd.buy;
           case 'date_desc': return cd.date ? new Date(cd.date).getTime() : null;
           case 'd7_desc':   return cd.d7;
+          case 'earn_desc': { const v = earnValue(c.slug); return v > 0 ? v : null; }
           case 'name_asc':  return (c.player?.displayName || c.slug || '').toLowerCase();
           default: return null;
         }
