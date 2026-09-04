@@ -31,7 +31,7 @@ og-image als Avatar. Keine Ausrufezeichen-Kaskaden, kein „Donation Bot"-Look.
 3. **Supabase** (optional, für Statistik/Dedup): `migrations/2026-09-04_kofi_events.sql` ausführen.
 4. **Railway** (so eingerichtet am 04.09., per CLI aus dem Repo-Root):
    `railway add --service sorion-discord`, Variablen setzen, dann aus **diesem Ordner**
-   `railway up --service sorion-discord --path-as-root` (ohne `--path-as-root` lädt die CLI
+   `railway up . --service sorion-discord --path-as-root` (ohne `--path-as-root` lädt die CLI
    das ganze Repo hoch und startet den Preis-Updater, Fehlerbild „Cannot find module update.mjs").
    Domain: `railway domain --service sorion-discord`. Deploy bei Änderungen: derselbe `up`-Befehl.
 5. **Ko-fi**: Webhook-URL eintragen: `https://<railway-domain>/kofi`, dann „Send single test".

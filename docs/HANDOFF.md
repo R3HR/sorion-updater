@@ -372,7 +372,7 @@ damit in der Nachricht (ohne Ping) und speichern sie fuer Statistik.
 
 **Deploy-Weg (04.09.):** per CLI, Service `sorion-discord`, Domain
 `sorion-discord-production.up.railway.app`. Aus `services/discord/`:
-`railway up --service sorion-discord --path-as-root`. OHNE `--path-as-root`
+`railway up . --service sorion-discord --path-as-root`. OHNE `--path-as-root`
 laedt die CLI das ganze Repo hoch → startet `update.mjs` → Crash (so passiert
 beim ersten Versuch). Ko-fi-Webhook-URL: `https://sorion-discord-production.up.railway.app/kofi`.
 
