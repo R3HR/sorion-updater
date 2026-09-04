@@ -1437,8 +1437,10 @@
   const earnState = { gws: 0, running: false, done: false };
   let essRate = null;
 
-  const EARN_CACHE_KEY = slug => `sorion_earn_${slug}`;
-  const EARN_TTL = 6 * 3600 * 1000;
+  const rpcJson = (name, body) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.ok ? r.json() : null).catch(() => null);
 
   const so5 = body => fetch(`${SUPABASE_URL}/functions/v1/so5-results`, {
     method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
@@ -1450,64 +1452,61 @@
       const counting = (r.players ?? []).filter(p => p.counted);
       const total = counting.reduce((s, p) => s + (p.score ?? 0), 0);
       if (!total) continue;
-      for (const rw of r.rewards ?? []) {
-        for (const p of counting) {
-          if (!p.card?.slug) continue;
-          const share = (p.score ?? 0) / total;
-          const e = earnByCard.get(p.card.slug) ?? { ess: {}, xp: {}, cash: 0, n: 0 };
+      for (const p of counting) {
+        if (!p.card?.slug) continue;
+        const share = (p.score ?? 0) / total;
+        const e = earnByCard.get(p.card.slug) ?? { ess: {}, xp: {}, cash: 0, n: 0 };
+        for (const rw of r.rewards ?? []) {
           if (rw.kind === 'essence') e.ess[rw.rarity] = (e.ess[rw.rarity] ?? 0) + share * rw.amount;
           else if (rw.kind === 'currency') e.xp[rw.currency] = (e.xp[rw.currency] ?? 0) + share * rw.amount;
           else if (rw.kind === 'cash') e.cash += share * rw.eur;
-          earnByCard.set(p.card.slug, e);
         }
-      }
-      for (const p of counting) if (p.card?.slug) {
-        const e = earnByCard.get(p.card.slug); if (e) e.n++;
+        e.n++;
+        earnByCard.set(p.card.slug, e);
       }
     }
   }
 
+  // Zweistufig: (1) was SORION schon gespeichert hat, kommt sofort aus der
+  // eigenen Datenbank — unabhaengig davon, wer die Gameweek einmal geholt hat.
+  // (2) Fehlende Gameweeks werden im Hintergrund nachgeladen; die Edge Function
+  // legt sie dabei dauerhaft ab, sodass jede (Manager, GW) weltweit nur EINMAL
+  // bei Sorare abgefragt wird (schont das geteilte API-Kontingent).
   async function loadEarnings(slug) {
     if (earnState.running || !slug) return;
     earnState.running = true;
-    try {
-      // Cache zuerst — macht den Seitenwechsel sofort nutzbar
-      const raw = localStorage.getItem(EARN_CACHE_KEY(slug));
-      if (raw) {
-        const c = JSON.parse(raw);
-        if (Date.now() - c.t < EARN_TTL) {
-          for (const [k, v] of Object.entries(c.cards)) earnByCard.set(k, v);
-          earnState.gws = c.gws; earnState.done = true;
-        }
+
+    essRate = await rpcJson('essence_value', {});
+    const stored = await rpcJson('so5_earnings_by_card', { p_manager: slug });
+    if (Array.isArray(stored)) {
+      for (const r of stored) {
+        earnByCard.set(r.card_slug, {
+          ess: r.essence ?? {}, xp: r.currency ?? {},
+          cash: Number(r.cash_eur ?? 0), n: r.lineups ?? 0,
+        });
       }
-    } catch {}
-    essRate = await fetch(`${SUPABASE_URL}/rest/v1/rpc/essence_value`, {
-      method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' }, body: '{}',
-    }).then(r => r.ok ? r.json() : null).catch(() => null);
-    if (earnState.done) { earnState.running = false; return; }
+      earnState.gws = new Set(stored.map(r => r.card_slug)).size ? -1 : 0;  // Anzeige unten korrigiert
+    }
+    const knownRows = await rpcJson('so5_known_fixtures', { p_manager: slug });
+    const known = new Set((knownRows ?? []).map(r => r.fixture_slug));
+    earnState.gws = known.size;
+    if (known.size) earnState.done = true;      // schon Brauchbares da
 
     try {
       const fixtures = (await so5({ depth: 120 })).fixtures ?? [];
-      let empty = 0, found = 0, seen = 0;
+      let empty = 0, found = known.size;
       for (const f of fixtures) {
+        if (known.has(f.slug)) continue;        // liegt schon bei uns
         try {
           const d = await so5({ manager: slug, fixture: f.slug });
-          if (d.results?.length) { addLineup(d.results); found++; empty = 0; }
+          if (d.results?.length) { addLineup(d.results); found++; empty = 0; earnState.gws = found; }
           else empty++;
         } catch { empty++; }
-        seen++;
-        earnState.gws = found;
-        // Vor dem ersten Spieltag des Managers: abbrechen statt weiterlaufen
-        if (empty >= 6 && found) break;
+        if (empty >= 6 && found) break;         // vor dem ersten Spieltag des Managers
         if (empty >= 12 && !found) break;
         await new Promise(r => setTimeout(r, 160));
       }
       earnState.done = true;
-      try {
-        localStorage.setItem(EARN_CACHE_KEY(slug), JSON.stringify({
-          t: Date.now(), gws: earnState.gws, cards: Object.fromEntries(earnByCard),
-        }));
-      } catch {}
     } catch {}
     earnState.running = false;
   }
