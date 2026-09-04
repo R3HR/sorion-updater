@@ -5,7 +5,7 @@
 // JSON, falls Ko-fi das Format einmal aendert oder wir intern testen.
 //
 // Felder laut Ko-fi (Stand 2026): verification_token, message_id, timestamp,
-// type ("Donation" | "Subscription" | "Commission" | "Shop Order"), is_public,
+// type ("Tip" | "Subscription" | "Commission" | "Shop Order"), is_public,
 // from_name, message, amount ("3.00"), url, email, currency,
 // is_subscription_payment, is_first_subscription_payment,
 // kofi_transaction_id, shop_items, tier_name, shipping.
@@ -55,13 +55,14 @@ export function parseKofiRequest(raw, contentType) {
       id:          String(p.message_id ?? p.kofi_transaction_id ?? ''),
       txId:        String(p.kofi_transaction_id ?? ''),
       at:          p.timestamp ? new Date(p.timestamp) : new Date(),
-      type,                                        // Donation | Subscription | Commission | Shop Order
+      type,                                        // Tip | Subscription | Commission | Shop Order
       kind:        isSub ? (p.is_first_subscription_payment ? 'sub_new' : 'sub_renew') : 'donation',
       amount,
       currency:    String(p.currency ?? 'EUR').toUpperCase(),
+      // Ko-fi-Vorgabe: bei is_public=false Name UND Nachricht verbergen.
       name:        p.is_public === false ? null : (String(p.from_name ?? '').trim() || null),
       isPublic:    p.is_public !== false,
-      message:     (p.message ?? '').toString().trim() || null,
+      message:     p.is_public === false ? null : ((p.message ?? '').toString().trim() || null),
       tierName:    p.tier_name ?? null,
       tier,                                        // aufgeloester Tier oder null
       url:         p.url ?? null,

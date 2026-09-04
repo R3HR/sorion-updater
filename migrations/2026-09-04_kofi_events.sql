@@ -18,7 +18,7 @@ create table if not exists public.kofi_events (
   message_id          text        primary key,        -- Ko-fi message_id (Dedup)
   tx_id               text,
   occurred_at         timestamptz not null,
-  type                text        not null,           -- Donation | Subscription | ...
+  type                text        not null,           -- Tip | Subscription | Commission | Shop Order
   kind                text        not null,           -- donation | sub_new | sub_renew
   amount              numeric     not null,
   currency            text        not null default 'EUR',

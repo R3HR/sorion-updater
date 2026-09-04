@@ -23,7 +23,7 @@ const base = {
   shop_items: null, shipping: null,
 };
 const variants = {
-  donation:  { type: 'Donation', amount: '3.00', message: 'Great tool, the accuracy page convinced me.',
+  donation:  { type: 'Tip', amount: '3.00', message: 'Great tool, the accuracy page convinced me.',
                is_subscription_payment: false, is_first_subscription_payment: false, tier_name: null },
   sub_new:   { type: 'Subscription', amount: '5.00', message: 'Pro it is.',
                is_subscription_payment: true, is_first_subscription_payment: true, tier_name: 'Pro-Supporter' },
