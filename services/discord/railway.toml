@@ -1,0 +1,10 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Wird gelesen, wenn der Service per `railway up` AUS DIESEM ORDNER deployt
+# wird (services/discord). Fuer den GitHub-Deploy aus dem Repo-Root gilt
+# stattdessen ../../railway-discord.toml (Config-as-code-Pfad im Dashboard).
+startCommand = "node server.mjs"
+healthcheckPath = "/health"
+restartPolicyType = "always"

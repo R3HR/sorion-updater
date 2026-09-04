@@ -1,0 +1,16 @@
+{
+  "name": "sorion-discord",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ko-fi webhooks -> Discord #donations (SORION community service)",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.mjs",
+    "test:donation": "node --env-file=../../.env tools/send-test.mjs donation",
+    "test:vip": "node --env-file=../../.env tools/send-test.mjs vip"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}
