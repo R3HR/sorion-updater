@@ -79,19 +79,6 @@
        every lineup with scores, rank, percentile and rewards.</p>
   </div>
 
-  <!-- Ertrag je Spieler: Geld, XP und Essence GETRENNT (Ansage Jonas 04.09.);
-       neben der Essence-Menge ein dezenter Euro-Schaetzwert. -->
-  <div class="panel" id="earn-panel" style="display:none;margin-bottom:18px">
-    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px">
-      <h2 style="margin:0">// Earnings per player</h2>
-      <span class="gw-dates" id="earn-scope"></span>
-    </div>
-    <table class="earn"><thead><tr>
-      <th>Player</th><th>Essence</th><th>XP</th><th>Cash</th>
-    </tr></thead><tbody id="earn-body"></tbody></table>
-    <div class="earn-note" id="earn-note"></div>
-  </div>
-
   <div id="gw-list"></div>
 </div>
 
@@ -126,27 +113,6 @@
   .lu-players .cid { font-size: 9px; color: var(--text2); opacity: .7; margin-left: 5px; }
   .lu-sum { max-width: 380px; display: flex; justify-content: space-between; gap: 12px;
             border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; color: var(--text); }
-  /* Ertrag je Spieler */
-  table.earn { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  table.earn th { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .15em;
-    text-transform: uppercase; color: var(--text2); text-align: right; padding: 6px 8px;
-    border-bottom: 1px solid var(--border); font-weight: 400; }
-  table.earn th:first-child { text-align: left; }
-  table.earn td { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text);
-    padding: 6px 8px; text-align: right; white-space: nowrap; }
-  table.earn td:first-child { text-align: left; color: var(--text); font-size: 12px; }
-  table.earn tr + tr td { border-top: 1px solid rgba(42,42,69,.5); }
-  table.earn .ess { color: var(--limited); }
-  table.earn .ess.rare { color: var(--rare); }
-  table.earn .xp { color: var(--sr); }
-  table.earn .cash { color: var(--up); }
-  /* Schaetzwert: bewusst leiser als die harte Zahl davor */
-  table.earn .est { color: var(--text2); opacity: .65; font-size: 10px; }
-  table.earn .card-id { font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--text2); opacity: .75; margin-top: 1px; }
-  table.earn .none { color: var(--text2); opacity: .4; }
-  .earn-note { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2);
-    opacity: .8; margin-top: 10px; line-height: 1.5; }
   .gw-more { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em;
              background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text2);
              padding: 8px 14px; cursor: pointer; }
@@ -215,95 +181,11 @@
       + (bench.length ? `<div class="sep">did not count</div>` + bench.map(line).join('') : '');
   }
 
-  // ── Ertrag je Spieler ───────────────────────────────────────────────────
-  // Geld, XP und Essence bleiben GETRENNT — sie sind nicht dasselbe und lassen
-  // sich nicht seriös in eine Zahl gießen. Der Euro-Betrag neben der Essence
-  // ist eine SCHÄTZUNG (CraftLog-Kurs) und deshalb bewusst leiser gesetzt.
-  // Verteilung nach Punkteanteil, nur über zählende Spieler (Regel IDEA-001).
-  // Schluessel ist die KARTE (slug), nicht der Spielername: derselbe Spieler
-  // kann mehrfach im Depot liegen und in mehreren Aufstellungen laufen — jede
-  // Karte ist ein eigenes Investment mit eigenem Ertrag (Hinweis Jonas 04.09.).
-  const earn = new Map();          // cardSlug -> {name, card, ess:{}, xp:{}, cash}
-  const earnGws = new Set();
-  let essRate = null;              // {limited:{eur_per_1k,samples}, ...}
-
-  fn.rate = () => fetch(`${SUPABASE_URL}/rest/v1/rpc/essence_value`, {
-    method: 'POST', headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' }, body: '{}',
-  }).then(r => r.ok ? r.json() : []).catch(() => []);
-
-  function collectEarnings(fixtureSlug, results) {
-    for (const r of results) {
-      const counting = (r.players ?? []).filter(p => p.counted);
-      const total = counting.reduce((s, p) => s + (p.score ?? 0), 0);
-      if (!total) continue;
-      for (const rw of r.rewards ?? []) {
-        for (const p of counting) {
-          const share = (p.score ?? 0) / total;
-          const key = p.card?.slug ?? `name:${p.name}`;   // Fallback: alte Antwort ohne Karte
-          const e = earn.get(key) ?? { name: p.name, card: p.card ?? null, ess: {}, xp: {}, cash: 0 };
-          if (rw.kind === 'essence') e.ess[rw.rarity] = (e.ess[rw.rarity] ?? 0) + share * rw.amount;
-          else if (rw.kind === 'currency') e.xp[rw.currency] = (e.xp[rw.currency] ?? 0) + share * rw.amount;
-          else if (rw.kind === 'cash') e.cash += share * rw.eur;
-          earn.set(key, e);
-        }
-      }
-    }
-    earnGws.add(fixtureSlug);
-    renderEarnings();
-  }
-
-  const shortCur = c => String(c ?? '').replace(/_/g, ' ').replace(/\bXP\b/i, 'XP')
-    .toLowerCase().replace(/\b\w/g, m => m.toUpperCase()).replace(/Xp/, 'XP');
-
-  function renderEarnings() {
-    if (!earn.size) return;
-    const rateOf = r => essRate?.find(x => x.scarcity === r);
-    const eurOf = e => Object.entries(e.ess)
-      .reduce((s, [r, n]) => s + (Number(rateOf(r)?.eur_per_1k ?? 0) / 1000) * n, 0);
-    const rows = [...earn.values()]
-      .map(e => ({ e, sort: eurOf(e) || Object.values(e.ess).reduce((a, b) => a + b, 0) / 1000 }))
-      .sort((a, b) => b.sort - a.sort);
-
-    document.getElementById('earn-body').innerHTML = rows.map(({ e }) => {
-      const name = e.name;
-      // Karten-Kennung: erst bei Mehrfachbesitz entscheidend, aber immer
-      // sichtbar — sonst raet der Nutzer, WELCHE seiner Karten gemeint ist.
-      const c = e.card;
-      const cardTag = c
-        ? `<div class="card-id">${esc(c.rarity ?? '')}${c.season ? ' ' + c.season : ''}${c.serial ? ' #' + c.serial : ''}</div>`
-        : '';
-      // Spieler mit 0 Punkten bekommen 0 Anteil — als "—" zeigen statt "0 XP"
-      const ess = Object.entries(e.ess).filter(([, n]) => n >= 0.5).sort((a, b) => b[1] - a[1]).map(([r, n]) => {
-        const rate = rateOf(r);
-        const est = rate ? ` <span class="est">(≈€${((Number(rate.eur_per_1k) / 1000) * n).toFixed(2)})</span>` : '';
-        return `<span class="ess ${r === 'rare' ? 'rare' : ''}">${Math.round(n)} ${esc(r)}</span>${est}`;
-      }).join('<br>');
-      const xp = Object.entries(e.xp).filter(([, n]) => n >= 0.5).sort((a, b) => b[1] - a[1])
-        .map(([c, n]) => `<span class="xp">${Math.round(n).toLocaleString('en-GB')}</span> ${esc(shortCur(c))}`).join('<br>');
-      return `<tr><td>${esc(name)}${cardTag}</td>
-        <td>${ess || '<span class="none">—</span>'}</td>
-        <td>${xp || '<span class="none">—</span>'}</td>
-        <td>${e.cash >= 0.005 ? `<span class="cash">€${e.cash.toFixed(2)}</span>` : '<span class="none">—</span>'}</td></tr>`;
-    }).join('');
-
-    document.getElementById('earn-scope').textContent =
-      `${earnGws.size} gameweek${earnGws.size === 1 ? '' : 's'} loaded`;
-    const thin = (essRate ?? []).filter(r => r.samples < 20).map(r => `${r.scarcity} (${r.samples} crafts)`);
-    document.getElementById('earn-note').innerHTML = essRate?.length
-      ? `// Rewards are split across a lineup's scoring players by their share of its points.`
-        + ` Money, XP and essence are kept separate — the €-figure next to essence is an estimate`
-        + ` based on <a href="https://craftlog.pro">CraftLog</a> craft data`
-        + (thin.length ? `, still thin for ${thin.join(', ')}` : '') + `.`
-      : `// Rewards are split across a lineup's scoring players by their share of its points.`;
-    document.getElementById('earn-panel').style.display = '';
-  }
-
   async function loadFixtureInto(el, slug, fixture) {
     el.innerHTML = '<div class="gw-loading">// loading…</div>';
     try {
       const d = await fn({ manager: slug, fixture });
       if (!d.results?.length) { el.innerHTML = '<div class="gw-empty">// no lineups entered this gameweek</div>'; return; }
-      collectEarnings(fixture, d.results);
       el.innerHTML = d.results
         .sort((a, b) => (a.topPercent ?? 999) - (b.topPercent ?? 999))
         .map(r => `<details class="lu">
@@ -324,12 +206,10 @@
     const slug = (new URLSearchParams(location.search).get('manager')
       || localStorage.getItem('sorion_own') || '').toLowerCase();
     if (!slug) { document.getElementById('no-slug').style.display = ''; return; }
+    currentManager = slug;
     document.querySelector('.sub').textContent = `// SO5 results for ${slug.toUpperCase()}`;
     const list = document.getElementById('gw-list');
     list.innerHTML = '<div class="gw"><div class="gw-loading">// loading gameweeks…</div></div>';
-    // Essence-Kurs (CraftLog) fuer die Schaetzwerte — parallel, nicht blockierend.
-    // Fehlt die RPC noch, bleiben die Mengen stehen, nur ohne Euro-Klammer.
-    fn.rate().then(r => { if (Array.isArray(r) && r.length) { essRate = r; renderEarnings(); } });
     let fixtures = [];
     try { fixtures = (await fn({})).fixtures ?? []; }
     catch (e) {

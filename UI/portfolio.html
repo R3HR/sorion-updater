@@ -580,6 +580,7 @@
   .pm-val { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--text); }
   .pm-section { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .2em; color: var(--text2); text-transform: uppercase; margin: 16px 0 8px; }
   .pm-nodata { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); padding: 8px 0; }
+  .pm-earn-row { font-family: 'Share Tech Mono', monospace; font-size: 12px; padding: 3px 0; }
 
   .logo-mark { font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
   .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
@@ -1154,6 +1155,7 @@
       await loadFMV();        // Werte kommen aus card_prices nach
       filterCards();          // erst danach stimmen Wert, P&L und Sortierung
       updateStats();
+      loadEarnings(slug);     // SO5-Ertraege im Hintergrund (blockiert nichts)
       return;
     }
     // Noch nie gespiegelt -> einmalig holen (die TTL schuetzt vor Missbrauch)
@@ -1179,6 +1181,7 @@
     await loadFMV();
     filterCards();
     updateStats();
+    loadEarnings(slug);       // SO5-Ertraege im Hintergrund
   }
 
 
@@ -1419,6 +1422,118 @@
     updateStats();
     filterCards();
     if (tradesLoaded) renderTrades();   // NET/GROSS gilt auch fuer realisierte Trades
+  }
+
+  // ── Ertraege aus Aufstellungen (SO5) je KARTE ────────────────────────────
+  // Quelle: Edge Function so5-results (oeffentliche Sorare-Daten). Belohnungen
+  // werden nach Punkteanteil auf die zaehlenden Karten einer Aufstellung
+  // verteilt (Regel IDEA-001) und je Karten-Slug summiert — derselbe Spieler
+  // kann mehrfach im Depot liegen. Geld, XP und Essence bleiben GETRENNT;
+  // neben der Essence steht ein leiser Euro-Schaetzwert (CraftLog-Kurs).
+  // Laeuft im HINTERGRUND nach dem Portfolio-Aufbau und wird zwischen den
+  // Seiten in localStorage gecacht (6 h) — Sorares Rate-Limit teilen wir uns
+  // mit den Preis-Updatern, deshalb sequenziell mit Pause.
+  const earnByCard = new Map();
+  const earnState = { gws: 0, running: false, done: false };
+  let essRate = null;
+
+  const EARN_CACHE_KEY = slug => `sorion_earn_${slug}`;
+  const EARN_TTL = 6 * 3600 * 1000;
+
+  const so5 = body => fetch(`${SUPABASE_URL}/functions/v1/so5-results`, {
+    method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.ok ? r.json() : Promise.reject(r.status));
+
+  function addLineup(results) {
+    for (const r of results) {
+      const counting = (r.players ?? []).filter(p => p.counted);
+      const total = counting.reduce((s, p) => s + (p.score ?? 0), 0);
+      if (!total) continue;
+      for (const rw of r.rewards ?? []) {
+        for (const p of counting) {
+          if (!p.card?.slug) continue;
+          const share = (p.score ?? 0) / total;
+          const e = earnByCard.get(p.card.slug) ?? { ess: {}, xp: {}, cash: 0, n: 0 };
+          if (rw.kind === 'essence') e.ess[rw.rarity] = (e.ess[rw.rarity] ?? 0) + share * rw.amount;
+          else if (rw.kind === 'currency') e.xp[rw.currency] = (e.xp[rw.currency] ?? 0) + share * rw.amount;
+          else if (rw.kind === 'cash') e.cash += share * rw.eur;
+          earnByCard.set(p.card.slug, e);
+        }
+      }
+      for (const p of counting) if (p.card?.slug) {
+        const e = earnByCard.get(p.card.slug); if (e) e.n++;
+      }
+    }
+  }
+
+  async function loadEarnings(slug) {
+    if (earnState.running || !slug) return;
+    earnState.running = true;
+    try {
+      // Cache zuerst — macht den Seitenwechsel sofort nutzbar
+      const raw = localStorage.getItem(EARN_CACHE_KEY(slug));
+      if (raw) {
+        const c = JSON.parse(raw);
+        if (Date.now() - c.t < EARN_TTL) {
+          for (const [k, v] of Object.entries(c.cards)) earnByCard.set(k, v);
+          earnState.gws = c.gws; earnState.done = true;
+        }
+      }
+    } catch {}
+    essRate = await fetch(`${SUPABASE_URL}/rest/v1/rpc/essence_value`, {
+      method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' }, body: '{}',
+    }).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (earnState.done) { earnState.running = false; return; }
+
+    try {
+      const fixtures = (await so5({ depth: 120 })).fixtures ?? [];
+      let empty = 0, found = 0, seen = 0;
+      for (const f of fixtures) {
+        try {
+          const d = await so5({ manager: slug, fixture: f.slug });
+          if (d.results?.length) { addLineup(d.results); found++; empty = 0; }
+          else empty++;
+        } catch { empty++; }
+        seen++;
+        earnState.gws = found;
+        // Vor dem ersten Spieltag des Managers: abbrechen statt weiterlaufen
+        if (empty >= 6 && found) break;
+        if (empty >= 12 && !found) break;
+        await new Promise(r => setTimeout(r, 160));
+      }
+      earnState.done = true;
+      try {
+        localStorage.setItem(EARN_CACHE_KEY(slug), JSON.stringify({
+          t: Date.now(), gws: earnState.gws, cards: Object.fromEntries(earnByCard),
+        }));
+      } catch {}
+    } catch {}
+    earnState.running = false;
+  }
+
+  const curLabel = c => String(c ?? '').replace(/_/g, ' ').toLowerCase()
+    .replace(/\b\w/g, m => m.toUpperCase()).replace(/\bXp\b/, 'XP');
+
+  function renderCardEarnings(cardSlug) {
+    const e = earnByCard.get(cardSlug);
+    if (!e) return `<div class="pm-nodata">${earnState.done ? '// no lineup rewards yet' : '// loading…'}</div>`;
+    const rateOf = r => essRate?.find(x => x.scarcity === r);
+    const parts = [];
+    for (const [r, n] of Object.entries(e.ess).sort((a, b) => b[1] - a[1])) {
+      if (n < 0.5) continue;
+      const rate = rateOf(r);
+      const est = rate ? ` <span style="color:var(--text2);opacity:.6;font-size:10px">(≈€${((Number(rate.eur_per_1k) / 1000) * n).toFixed(2)})</span>` : '';
+      parts.push(`<div class="pm-earn-row"><span style="color:${r === 'rare' ? 'var(--rare)' : 'var(--limited)'}">${Math.round(n)} ${esc(r)} essence</span>${est}</div>`);
+    }
+    for (const [c, n] of Object.entries(e.xp).sort((a, b) => b[1] - a[1])) {
+      if (n < 0.5) continue;
+      parts.push(`<div class="pm-earn-row"><span style="color:var(--sr)">${Math.round(n).toLocaleString('en-GB')} ${esc(curLabel(c))}</span></div>`);
+    }
+    if (e.cash >= 0.005) parts.push(`<div class="pm-earn-row"><span style="color:var(--up)">€${e.cash.toFixed(2)} prize money</span></div>`);
+    if (!parts.length) return '<div class="pm-nodata">// no rewards from lineups</div>';
+    return parts.join('') + `<div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);opacity:.7;margin-top:6px">`
+      + `// share of ${e.n} lineup${e.n === 1 ? '' : 's'}, by points contributed</div>`;
   }
 
   // ── Trade History: realisierte Trades (Kauf -> Verkauf) ──────────────────
@@ -1824,6 +1939,8 @@
         <div class="pm-stat"><div class="pm-label">Floor</div><div class="pm-val">${fmtEur(fmvData?.floor_price)}</div></div>
         <div class="pm-stat"><div class="pm-label">Last sale</div><div class="pm-val">${fmtEur(fmvData?.sale_1)}</div></div>
       </div>
+      <div class="pm-section">// Earned in lineups${earnState.gws ? ` (${earnState.gws} gameweeks)` : ''}</div>
+      <div id="pm-earn">${renderCardEarnings(c.slug)}</div>
       <div class="pm-section">// Trend</div>
       <div id="pm-trend"><div class="pm-nodata">// loading…</div></div>`;
 
