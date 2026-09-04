@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORION — GW History</title>
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
+<script>
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
+</script>
+<link href="fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d1a; --surface: #13131f; --surface2: #1a1a2e; --border: #2a2a45;
+    --purple: #b060ff; --text: #e8e8ff; --text2: #9090c0;
+    --limited: #ffb830; --rare: #ff5555; --sr: #7090ff; --up: #00f5a0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; line-height: 1.7; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+  a { color: var(--purple); }
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .logo { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 900; color: var(--text); text-decoration: none; }
+  .logo span { color: var(--purple); }
+  nav a { font-family: 'Share Tech Mono', monospace; font-size: 12px; margin-left: 14px; text-decoration: none; color: var(--text2); }
+  nav a:hover { color: var(--text); }
+  h1 { font-family: 'Orbitron', monospace; font-size: 22px; margin-bottom: 10px; }
+  .sub { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 24px; }
+  .pnav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+          font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em; }
+  .pnav a { padding: 8px 14px; border: 1px solid var(--border); border-radius: 6px;
+            text-decoration: none; color: var(--text2); }
+  .pnav a:hover { border-color: var(--purple); color: var(--purple); }
+  .pnav a.active { border-color: var(--purple); color: var(--purple); background: rgba(176,96,255,.08); }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 26px; }
+  .panel h2 { font-family: 'Orbitron', monospace; font-size: 15px; color: var(--purple); margin-bottom: 12px; }
+  .panel p, .panel li { font-size: 14px; color: var(--text2); margin-bottom: 10px; }
+  .panel ul { padding-left: 20px; }
+  .soon { display: inline-block; font-family: 'Share Tech Mono', monospace; font-size: 10px;
+          letter-spacing: .15em; text-transform: uppercase; color: var(--limited);
+          border: 1px solid var(--limited); border-radius: 5px; padding: 3px 9px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="index.html">SORION<span>_</span></a>
+    <nav>
+      <a href="index.html">Market</a>
+      <a href="portfolio.html">Portfolio</a>
+      <a href="profile.html">Account</a>
+    </nav>
+  </header>
+
+  <h1>Gameweek History</h1>
+  <div class="sub">// your SO5 results, week by week</div>
+
+  <div class="pnav" id="pnav">
+    <a href="portfolio.html" id="pnav-pf">◆ PORTFOLIO</a>
+    <a href="gameweeks.html" class="active">▦ GW HISTORY</a>
+    <a href="profile.html">⚙ ACCOUNT</a>
+  </div>
+
+  <div class="panel">
+    <div class="soon">coming soon</div>
+    <h2>// What this page will show</h2>
+    <p>Your complete competition history, one row per gameweek and lineup:</p>
+    <ul>
+      <li><strong>Every lineup you entered</strong> — competition, division, all players with their weighted scores and your captain</li>
+      <li><strong>Rank &amp; percentile</strong> — where you finished, out of how many managers</li>
+      <li><strong>Rewards</strong> — essence, XP, energy and cards you earned, correctly labeled per type</li>
+      <li><strong>Trends over time</strong> — is your squad getting better?</li>
+    </ul>
+    <p style="margin-top:14px">The data pipeline for this is already proven — we can reconstruct
+       any manager's past gameweeks from public Sorare data. We're building the view next.</p>
+  </div>
+</div>
+
+<script>
+  // Portfolio-Tab auf das EIGENE Portfolio zeigen lassen, falls verknuepft
+  (function () {
+    try {
+      const own = localStorage.getItem('sorion_own');
+      if (own) document.getElementById('pnav-pf').href = 'portfolio.html?manager=' + encodeURIComponent(own);
+    } catch (e) {}
+  })();
+</script>
+<script src="discord.js" defer></script>
+<script src="a11y.js" defer></script>
+</body>
+</html>

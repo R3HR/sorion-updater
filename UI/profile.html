@@ -145,6 +145,21 @@
   <div id="profile-view" style="display:none">
     <h1>// Mein Profil</h1>
 
+    <!-- Profil-Unternavigation: Portfolio ist die Startseite der Uebersicht -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.1em">
+      <a id="pnav-pf" href="portfolio.html" style="padding:8px 14px;border:1px solid var(--border);border-radius:6px;text-decoration:none;color:var(--text2)">◆ PORTFOLIO</a>
+      <a href="gameweeks.html" style="padding:8px 14px;border:1px solid var(--border);border-radius:6px;text-decoration:none;color:var(--text2)">▦ GW HISTORY</a>
+      <a href="profile.html" style="padding:8px 14px;border:1px solid var(--purple);border-radius:6px;text-decoration:none;color:var(--purple);background:rgba(176,96,255,.08)">⚙ ACCOUNT</a>
+    </div>
+    <script>
+      (function () {
+        try {
+          const own = localStorage.getItem('sorion_own');
+          if (own) document.getElementById('pnav-pf').href = 'portfolio.html?manager=' + encodeURIComponent(own);
+        } catch (e) {}
+      })();
+    </script>
+
     <div class="card">
       <h2>Profildaten</h2>
       <div class="hint" id="pr-email-line"></div>

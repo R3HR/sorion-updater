@@ -978,12 +978,40 @@
     if (btnL) {
       btnL.style.display = '';
       btnL.textContent = ownSlug ? `◉ ${ownSlug.toUpperCase()}` : 'Login';
-      btnL.onclick = () => { window.location.href = 'profile.html'; };
-      btnL.title = ownSlug ? 'Dein Sorion-Profil' : 'Anmelden';
+      // Eigener Name -> Profiluebersicht (Start: eigenes Portfolio);
+      // ohne Verknuepfung weiter zu Login/Account.
+      btnL.onclick = () => { window.location.href = ownSlug
+        ? `portfolio.html?manager=${encodeURIComponent(ownSlug)}` : 'profile.html'; };
+      btnL.title = ownSlug ? 'Deine Profiluebersicht' : 'Anmelden';
     }
     // "Portfolio" fuehrt immer zum EIGENEN Portfolio
     const navPf = document.querySelector('.nav-link.active');
     if (navPf) navPf.setAttribute('href', ownSlug ? `portfolio.html?manager=${encodeURIComponent(ownSlug)}` : 'portfolio.html');
+  }
+
+  // Profil-Unternavigation (nur auf der EIGENEN Uebersicht): Das Portfolio ist
+  // die Startseite der Profiluebersicht; GW History folgt als eigene Seite
+  // (API-Pfad bewiesen, siehe HANDOFF), Account = bestehende profile.html.
+  function renderProfileNav(slug) {
+    const own = ownSlug && slug && slug.toLowerCase() === ownSlug;
+    let el = document.getElementById('profile-nav');
+    if (!own) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'profile-nav';
+      el.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;'
+        + "font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:.1em";
+      const ps = document.getElementById('portfolio-screen');
+      ps.insertBefore(el, ps.firstChild);
+    }
+    const tab = (label, href, active) =>
+      `<a href="${href}" style="padding:8px 14px;border:1px solid ${active ? 'var(--purple)' : 'var(--border)'};`
+      + `border-radius:6px;text-decoration:none;color:${active ? 'var(--purple)' : 'var(--text2)'};`
+      + `${active ? 'background:rgba(176,96,255,.08);' : ''}">${label}</a>`;
+    el.innerHTML =
+      tab('◆ PORTFOLIO', `portfolio.html?manager=${encodeURIComponent(ownSlug)}`, true)
+      + tab('▦ GW HISTORY', 'gameweeks.html', false)
+      + tab('⚙ ACCOUNT', 'profile.html', false);
   }
 
   // Hinweis, wenn man ein FREMDES Portfolio ansieht — inkl. Rueckweg
@@ -1026,6 +1054,7 @@
     document.getElementById('portfolio-screen').style.display = 'block';
     const btnC = document.getElementById('btn-connect'); if (btnC) btnC.style.display = 'none';
     renderHeader();          // Header zeigt DICH, nicht den betrachteten Manager
+    renderProfileNav(slug);
     renderViewingBanner(slug);
     showSkeletons();
     await loadCards(slug);

@@ -3170,7 +3170,12 @@
   (async () => {
     const b = document.getElementById('btn-profile');
     if (!b) return;
-    const paint = s => { b.textContent = s ? '◉ ' + String(s).toUpperCase() : '◉ Profile'; };
+    // Klick auf den eigenen Namen -> Profiluebersicht (Start: eigenes
+    // Portfolio); ohne verknuepften Slug weiter zu Login/Account.
+    const paint = s => {
+      b.textContent = s ? '◉ ' + String(s).toUpperCase() : '◉ Profile';
+      b.href = s ? `portfolio.html?manager=${encodeURIComponent(s)}` : 'profile.html';
+    };
     paint(localStorage.getItem('sorion_own'));   // sofort aus dem Cache
     let session = null;
     try { session = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
