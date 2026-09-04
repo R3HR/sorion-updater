@@ -332,6 +332,8 @@ Modal-Oeffnung (Cache daempft); SORARE_APIKEY als Supabase-Secret wuerde das Lim
 
 ## Architektur-Wissen (Kern)
 
+- **SO5-Ergebnisse je Manager sind OEFFENTLICH abrufbar (entdeckt 01.09.):** `so5.so5Fixture(slug:"football-<tag>-<monat>-<jahr>").userFixtureResults(userSlug:"<slug>")` -> `so5LeaderboardContenders` -> je Lineup `so5Appearances` (Spieler, Kapitaen, gewichtete Scores) + `so5Rankings` (Rang, rankingRatio, Score) + `so5Rewards.rewards` (`... on CardShardsReward{quantity rarity}`, `... on InGameCurrencyReward{coinAmount}`). Fixture-Slugs nach Muster `football-28-aug-1-sep-2026`; Leaderboard-Slugs enthalten `all_seasons` = Klassisch. ACHTUNG: anonym gilt Query-Tiefe max 7 / Komplexitaet 500 — fuer die volle Abfrage den SORARE_APIKEY nutzen (liegt in den Railway-Updater-Services; lokal: `railway run --service "Updater Limited" node ...`). Feature-Idee: SO5-Ergebnis-Ansicht im Portfolio (Raenge, Scores, Gewinne je GW).
+
 - **Sorare GraphQL**: anonym Depth 7 / Complexity 500; mit APIKEY-Header Depth 13 / Complexity 30.000. Jonas' Key: 200 req/min (geteilt von allen Nutzern des Keys!). `@example.com`-Testmails lehnt Resend ab (GoTrue → „Error sending confirmation email")
 - **Kaufdaten sind öffentlich**: `card.tokenOwner { amounts, from, transferType }` (SHARDS=gecraftet, REWARD, SINGLE_SALE_OFFER…) — Grundlage des P&L-Portfolios
 - **Karten-Slug-Format**: `<player>-<jahr>-<rarity>-<serial>` (rarity auch `super_rare` MIT Unterstrich!)
