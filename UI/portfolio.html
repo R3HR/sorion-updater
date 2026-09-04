@@ -1626,6 +1626,12 @@
     if (!e) return `<div class="pm-nodata">${earnState.done ? '// no lineup rewards yet' : '// loading…'}</div>`;
     const rateOf = r => essRate?.find(x => x.scarcity === r);
     const parts = [];
+    // Reihenfolge: echtes Geld zuerst — es ist das einzige, was ohne Umrechnung
+    // ein Wert IST; danach Essence (geschaetzt), zuletzt XP (unbewertet).
+    if (e.cash >= 0.005) {
+      parts.push(`<div class="pm-earn-row"><span style="color:var(--up);border:1px solid var(--up);`
+        + `background:rgba(0,245,160,.10);border-radius:4px;padding:1px 7px">€${e.cash.toFixed(2)} prize money</span></div>`);
+    }
     for (const [r, n] of Object.entries(e.ess).sort((a, b) => b[1] - a[1])) {
       if (n < 0.5) continue;
       const rate = rateOf(r);
@@ -1639,7 +1645,6 @@
       if (n < 0.5) continue;
       parts.push(`<div class="pm-earn-row"><span style="color:var(--sr)">${Math.round(n).toLocaleString('en-GB')} ${esc(curLabel(c))}</span></div>`);
     }
-    if (e.cash >= 0.005) parts.push(`<div class="pm-earn-row"><span style="color:var(--up)">€${e.cash.toFixed(2)} prize money</span></div>`);
     if (!parts.length) return '<div class="pm-nodata">// no rewards from lineups</div>';
     return parts.join('')
       + `<div class="pm-earn-note">// share of ${e.n} lineup${e.n === 1 ? '' : 's'}, by points contributed</div>`;
