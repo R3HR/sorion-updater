@@ -106,7 +106,7 @@
 
 ---
 
-## INC-006 — Zweiter Totalausfall der DB binnen vier Tagen 🔴 OFFEN (2026-08-25)
+## INC-006 · Erstbefund (08:15 UTC) — Zweiter Totalausfall der DB (2026-08-25) — ⚠️ frühe Momentaufnahme, ersetzt durch den Abschlussbericht INC-006 weiter unten
 
 - **Symptom:** Ab spaetestens **07:45 UTC** antworten REST und Auth nicht mehr (HTTP 000 nach 20-25 s). Die Edge Function `squad-poll` scheitert mit `Unexpected token '<', "<!DOCTYPE "... is not valid JSON` - sie bekommt eine **Cloudflare-Fehlerseite statt JSON**. Folge: Der Squad-Bot hat am 25.08. **keine einzige Meldung** abgesetzt, obwohl bereits drei Aufstellungen standen (Befund Jonas).
 - **Abgrenzung zu INC-005 (22.08.):** Gleiche Fehlerklasse, **anderer Ausloeser**. Der Cache-Waermer ist seit 22.08. abgeschaltet und scheidet aus.
@@ -124,7 +124,7 @@
 - **Offene Diagnose nach dem Neustart:** `select jobname, schedule from cron.job` (laeuft noch etwas Unerwartetes?) und `cron.job_run_details` auf Laufzeiten pruefen - genau die Abfrage, die INC-005 aufgeklaert hat.
 - **Status:** 🔴 offen - DB zum Zeitpunkt der Dokumentation (08:15 UTC) weiterhin nicht erreichbar, Neustart steht aus.
 
-## INC-006 — Zweiter Totalausfall binnen drei Tagen 🔴 LAUFEND (2026-08-25)
+## INC-006 — Zweiter Totalausfall binnen drei Tagen (2026-08-25) — Abschlussbericht 🟢 BEHOBEN
 
 - **Symptom (25.08., 08:21 UTC):** REST, RPC und Auth antworten gar nicht mehr (HTTP 000 nach 12–20 s). Edge Functions weiter 200 — sie brauchen die DB-Platte nicht. sorion.pro und craftlog.pro laden als Seite, zeigen aber keine Daten und kein Login. Um 08:31 unveraendert; die DB erholt sich NICHT von selbst.
 - **Railway als Ursache ausgeschlossen (per CLI geprueft):** alle Dienste **0/1 running**, kein Container rennt gegen die tote DB an (anders als bei INC-005, wo der Kader-Abgleich eine Stunde weiter retryte). Die Updater-Fenster sind bereits von 11 h auf 6 h gekuerzt (`*/5 22-23,0-4`), naechster Lauf erst in 13 Stunden. **Die Last kommt von innen.**
@@ -167,3 +167,12 @@
 - **Auswirkung:** Rund 12 Stunden ohne Aufstellungs- und Cap-Meldungen. Rohdaten gingen **nicht** verloren (Snapshot und Log werden vor dem Ticker geschrieben). Beim ersten erfolgreichen Lauf wurden die sieben Aufstellungsmeldungen nachgeholt; Cap-Verstoesse hatte es in der Zeit keine gegeben, nur Messi bei 4/4.
 - **Fix (deployed 29.08.):** (1) `appDone` steht jetzt ganz oben bei den uebrigen Helfern, vor jeder Verwendung. (2) **Der gesamte Ticker-Block liegt in try/catch.** Der Ticker ist Beiwerk, die Cap- und Claim-Logik ist der Kern - ein Fehler im Beiwerk darf den Kern nie mitreissen.
 - **Lektion:** Ein Codepfad, der nur unter bestimmten Bedingungen laeuft (hier: offene Runde), ist beim Deploy ausserhalb dieser Bedingungen **nicht getestet**, auch wenn der Aufruf "ok" zurueckgibt. Nach einem Deploy ausserhalb der Spielzeit gehoert ein Testlauf mit offener Runde dazu - oder die riskanten Teile werden so gekapselt, dass ihr Ausfall folgenlos bleibt.
+
+## INC-003 — Plattform-Risiko: Totalabhängigkeit von Sorare-API (Risiko-Analyse)
+
+- **Erfasst:** 2026-08-26 (Frage von Jonas: „Was wenn Sorare den API-Zugriff entzieht?")
+- **Lage:** Preis-Daten laufen anonym über die öffentliche GraphQL-API (kein Key im Spiel); OAuth-App (CraftLog-Login) ist separat. Sorare kann jederzeit: Auth-Pflicht einführen, Rate-Limits verschärfen, Railway-IPs blocken, OAuth-App sperren.
+- **Auswirkung je Szenario:** OAuth-Sperre → nur CraftLog-Login tot. API-Einschränkung → keine frischen Preise; Seite läuft mit letztem DB-Stand weiter.
+- **Kritisch:** `price_history` ist NICHT rekonstruierbar (Sorare liefert nur letzte 20 Sales) — nach einer Lücke ist die Historie für immer weg.
+- **Abfederung:** (1) DB-Backups automatisieren — wichtigste Einzelmaßnahme; (2) offiziellen API-Key beantragen (HANDOFF TODO #8) = registrierter statt anonymer Nutzer; (3) Rate-Limits respektieren (Delays/Backoff seit 2026-07-06 drin); (4) Plan B: API-Calls über User-OAuth-Tokens der eigenen Nutzer verteilen (CraftLog-Flow ausbaubar).
+- **Status:** 🟡 dauerhaftes Restrisiko — Backups + API-Key als nächste Schritte

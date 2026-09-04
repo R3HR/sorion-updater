@@ -359,3 +359,14 @@
 - **Fix (deployed 28.08.):** Der Schluessel haengt jetzt am **Adressaten**: `claim:<step>:<player>:<recipient>`. Adressat ist bei einem gueltigen Claim das Ziel (muss tauschen), sonst der Claimer (muss anders aufstellen) - genau die Person, die die Nachricht bekommt. Wechselt dagegen das **Ziel**, ist es ein anderer Adressat und damit zu Recht eine neue Meldung; die Absicht von BUG-022 bleibt erhalten.
 - **Gegenprobe an den echten Ereignissen:** Alte Logik 3 Meldungen (sorare_jens doppelt), neue Logik 2 - an sorare_jens und jr3hr je genau eine.
 - **Lektion (dritter Fall dieser Art, nach BUG-022 und BUG-031):** Der Dedup-Schluessel muss die **Identitaet des Ereignisses aus Sicht des Empfaengers** abbilden. Steht Material darin, das den Empfaenger nicht betrifft - hier der Auslöser -, wiederholt sich die Nachricht, sobald sich nur dieses Material aendert.
+
+---
+
+## BUG-035 - Sorare-Aussetzer als Auswechslungen fehlgedeutet (31.08.) - BEHOBEN
+
+- **Symptom (Jonas):** "Es gab bei Sorare heute einen Bug bei den Squad aufstellungen. Scheinbar hat dieser auch unseren Bot gekillt."
+- **Befund - der Bot lief durchgehend:** 71 Roh-Snapshots von 07:10 bis 16:30 ohne Luecke, 36 Meldungen ueber den Tag, Ticker zuletzt 16:30:09 aktualisiert, Fristerinnerung um 18:30 Berlin korrekt in der Handlungs-Variante (eine Aufstellung fehlte). Er war nicht tot, sondern **getaeuscht**.
+- **Der Aussetzer, aus den Snapshots rekonstruiert:** Die Zahl der Aufstellungen im Board lief 2 → 3 → … → 9 (10:50), fiel um **11:30 auf 8** und stieg um **15:40 zurueck auf 9**. Verschwunden und zurueckgekehrt ist genau **jr3hr** - vier Stunden lang lieferte Sorare dessen Aufstellung nicht mehr aus.
+- **Ursache im Bot:** Die Umstellungs-Erkennung vergleicht die gespeicherten Zeilen mit dem, was das Board gerade liefert. Fehlt eine Zeile, gilt der Spieler als herausgenommen. Verschwindet eine **ganze Aufstellung**, sieht das aus wie fuenf gleichzeitige Auswechslungen. Der Bot meldete daraufhin "JR3HR swapped out Pedri" und "JR3HR swapped out Eric García" - beides ist nie passiert - und schickte andreihaha eine Entwarnung, die auf derselben Fehlannahme beruhte.
+- **Fix (deployed 31.08.):** Fehlt ein Manager **komplett** im Board, obwohl er gespeicherte Zeilen hat, werden seine Zeilen unangetastet gelassen und keine Auswechslung gemeldet. Begruendung: Niemand nimmt sein halbes Team binnen zehn Minuten heraus, und selbst dann bliebe die Aufstellung im Board. Der Fall wird als Warnung geloggt.
+- **Lektion:** Aus "Daten fehlen" folgt nicht "der Nutzer hat gehandelt". Wo ein Bot aus **Abwesenheit** auf eine Handlung schliesst, muss er unterscheiden, ob eine Einzelheit fehlt (echte Aenderung) oder ein ganzer Block (Aussetzer der Quelle). Dieselbe Wurzel wie BUG-031: dort wurde aus einem Schluesselbestandteil, hier aus einer Luecke etwas geschlossen, das die Quelle nie behauptet hat.
