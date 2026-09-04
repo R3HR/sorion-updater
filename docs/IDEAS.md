@@ -153,6 +153,13 @@ anteil: Lewis Hall 1,69 · Matanovic 1,05 · Querfeld 0,98 · Maza 0,88 · Janss
 Essence ist ~5x wertvoller. Ohne Kurs waere die Reihenfolge falsch.)
 XP-Belohnungen sind dabei NICHT bewertet (kein Marktpreis).
 
+**ABHAENGIGKEIT (Entscheidung Jonas 04.09.): CraftLog bekommt Login-Pflicht und
+verifizierte Crafts.** Der Kurs ist jetzt Sorion-Produktgrundlage — ein falscher
+Eintrag verzerrt die Ertragszahlen aller Nutzer. Aufgabe liegt im Oekosystem-
+HANDOFF (`C:\craft-log\docs\HANDOFF.md`, offener Punkt 8). Bis dahin: Kurs mit
+Stichprobengroesse ausweisen und duenne Datenlage kenntlich machen (die
+`essence_value`-RPC liefert `samples` genau dafuer mit).
+
 **Technische Huerde fuer die Integration:** `crafts` ist RLS-geschuetzt (nur
 eigene Zeilen), CraftLog holt die Gesamtdaten ueber die Edge Function
 `get-analytics` mit Login. Sorion braucht den Kurs ohne Login -> kleine RPC
