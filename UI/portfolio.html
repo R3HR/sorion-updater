@@ -278,6 +278,12 @@
 
   .p-stat:hover { border-color: var(--purple2); }
 
+  .p-stat-sub { font-family: 'Share Tech Mono', monospace; font-size: 10.5px;
+                color: var(--text2); margin-top: 5px; line-height: 1.5; }
+  .p-stat-sub .e-cash { color: var(--up); }
+  .p-stat-sub .e-ltd  { color: var(--limited); }
+  .p-stat-sub .e-rare { color: var(--rare); }
+  .p-stat-sub .e-xp   { color: var(--sr); }
   .p-stat-label {
     font-family: 'Share Tech Mono', monospace;
     font-size: 8px;
@@ -764,6 +770,11 @@
       <div class="p-stat">
         <div class="p-stat-label" id="stat-pnl-label">// P&amp;L · net of 5% fee</div>
         <div class="p-stat-value" id="stat-pnl">—</div>
+      </div>
+      <div class="p-stat" id="stat-earn-box" style="display:none">
+        <div class="p-stat-label">// Earned in lineups</div>
+        <div class="p-stat-value" id="stat-earn" style="color:var(--up)">—</div>
+        <div class="p-stat-sub" id="stat-earn-sub"></div>
       </div>
       <div class="p-stat">
         <div class="p-stat-label">// Limited</div>
@@ -1602,6 +1613,7 @@
       const g = document.getElementById('earn-filter-grp');
       if (g) g.style.display = '';
     }
+    updateEarnStats();
     const knownRows = await rpcJson('so5_known_fixtures', { p_manager: slug });
     const known = new Set((knownRows ?? []).map(r => r.fixture_slug));
     earnState.gws = known.size;
@@ -1628,6 +1640,35 @@
       const g = document.getElementById('earn-filter-grp');
       if (g) g.style.display = '';
     }
+    updateEarnStats();
+  }
+
+  // Statistik-Kachel: Summe aller Ertraege dieses Managers, getrennt nach
+  // Geld / Essence (je Rarity) / XP; Hauptwert = Euro-Schaetzung (Geld +
+  // Essence zum CraftLog-Kurs; XP bleibt unbewertet).
+  function updateEarnStats() {
+    const box = document.getElementById('stat-earn-box');
+    if (!box) return;
+    if (!earnByCard.size) { box.style.display = 'none'; return; }
+    let cash = 0, xp = 0; const ess = {};
+    for (const e of earnByCard.values()) {
+      cash += e.cash ?? 0;
+      for (const [r, n] of Object.entries(e.ess)) ess[r] = (ess[r] ?? 0) + n;
+      for (const n of Object.values(e.xp)) xp += n;
+    }
+    const rate = r => Number(essRate?.find(x => x.scarcity === r)?.eur_per_1k ?? 0) / 1000;
+    const essEur = Object.entries(ess).reduce((s, [r, n]) => s + rate(r) * n, 0);
+    const total = cash + essEur;
+    const fmt0 = n => Math.round(n).toLocaleString('en-GB');
+
+    document.getElementById('stat-earn').textContent = `≈€${total.toFixed(2)}`;
+    const bits = [];
+    if (cash >= 0.005) bits.push(`<span class="e-cash">€${cash.toFixed(2)}</span>`);
+    for (const [r, n] of Object.entries(ess).sort((a, b) => b[1] - a[1]))
+      if (n >= 0.5) bits.push(`<span class="${r === 'rare' ? 'e-rare' : 'e-ltd'}">${fmt0(n)} ${r} ess</span>`);
+    if (xp >= 0.5) bits.push(`<span class="e-xp">${fmt0(xp)} XP</span>`);
+    document.getElementById('stat-earn-sub').innerHTML = bits.join(' · ');
+    box.style.display = '';
   }
 
   // Geschaetzter Euro-Wert dessen, was eine Karte in Aufstellungen erspielt hat
