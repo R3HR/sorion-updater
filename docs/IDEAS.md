@@ -88,6 +88,41 @@ Historie zurückreicht (Jonas' zweiter Einwand: alle vergangenen Spieltage
 durchzugehen dauert). Kommen auch mit Token keine → Idee ist tot, bevor Aufwand
 hineinfließt.
 
+### 🟢 UPDATE 04.09.2026 — DER BLOCKER IST AUFGEHOBEN, Idee ist umsetzbar
+
+Die Recherche vom 02.08. ("nur mit OAuth fuer den eigenen Nutzer, fremde
+Aufstellungen unerreichbar") ist **ueberholt**. Sie hatte den falschen Einstieg
+geprueft (`user.rewardedRankings`, `mySo5Rankings`). Der richtige Pfad ist:
+
+```
+so5.so5Fixture(slug:"<gw>").userFixtureResults(userSlug:"<manager>")
+  -> so5LeaderboardContenders.nodes
+     -> so5Lineup.so5Appearances  (Einzelpunkte, captain, substitutionState)
+     -> so5Rankings.so5Rewards    (Essence-Menge, Waehrung, Preisgeld, Karten)
+```
+
+**Live bewiesen (04.09.)** an jr3hr und GW `football-28-aug-1-sep-2026`: alle acht
+Aufstellungen mit Einzelpunkten und Belohnungen — **ohne OAuth-Token**, oeffentlich.
+Noetig ist nur der `SORARE_APIKEY` (Query-Tiefe >7), der serverseitig in der Edge
+Function `so5-results` liegt. **Damit geht die Rendite-Rechnung fuer JEDEN Manager,
+nicht nur fuer verknuepfte Konten** — die Einschraenkung von damals (und die daran
+geknuepfte Premium-Ueberlegung) faellt weg.
+
+**PRAEZISIERUNG der Verteilungsregel (Fund 04.09.):** Die Punktsumme darf nur ueber
+die **zaehlenden** Spieler gehen — `substitutionState` STARTER und SUBBED_IN.
+ON_BENCH und SUBBED_OUT liefern keine Punkte ans Lineup und duerfen deshalb auch
+keinen Ertragsanteil bekommen (sonst verwaessert die Bank die Zuordnung).
+
+**Prototyp gerechnet (GW9, Under 23 – Limited, 520 Essence auf 7 Spieler):**
+Janssen (C) 154 Pkt = 29,8 % -> 155 Essence; Nusa 82 -> 83; Wilfinger 75 -> 75;
+Dahl 65 -> 66; Raci 55 -> 55; Tiknaz 54 -> 54; van den Heuvel 33 -> 33.
+Ueber alle acht Aufstellungen aggregiert ergibt das den Ertrag je Karte in der GW.
+
+**Naechste Schritte:** (1) Ertrag ueber mehrere GWs summieren und in der
+GW-History/Portfolio-Karte je Spieler zeigen; (2) Essence-Wert in Euro ansetzen
+(CraftLog kennt ihn, siehe IDEA-002) -> daraus die Rendite-Formel oben;
+(3) Historie-Tiefe klaeren (previous-Kette, je GW ein Aufruf, gecacht).
+
 **Aufwand:** Grundstufe (Depot-Ebene) mittel · Kartenebene hoch — und laut Jonas
 zusätzlich zeitintensiv, weil alle vergangenen Aufstellungen durchlaufen werden
 müssten (paginiert, ein Spieltag nach dem anderen).
