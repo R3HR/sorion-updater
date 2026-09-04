@@ -80,7 +80,23 @@
   </div>
 
   <div id="gw-list"></div>
-  <div id="support-panel"></div>
+  <!-- Unterstuetzungs-Bereich: eigener Text im Seitenstil + offizieller
+       Ko-fi-Button. Das Ko-fi-Widget laedt ein Skript von storage.ko-fi.com,
+       deshalb steht es NUR auf Seiten mit diesem Bereich (siehe Ziffer 5c
+       der Datenschutzerklaerung). -->
+  <div class="sup-box" id="support-panel">
+    <div class="sup-top">
+      <div class="sup-txt">
+        <div class="sup-head">☕ Support SORION</div>
+        <div class="sup-sub">No ads, no paywall, no tracking. Servers and domains cost
+          about €38 a month. If SORION saves you time, you can chip in.</div>
+      </div>
+      <div class="sup-kofi">
+        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+        <script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#b060ff', 'X5L225H2O9');kofiwidget2.draw();</script>
+      </div>
+    </div>
+  </div>
 </div>
 
 <style>

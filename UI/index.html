@@ -1317,6 +1317,15 @@
     .m-card-stat-label, .pm-label, .lr-sc button,
     .lr-sub, .footer, .footer a, .footer span { font-size: 10px; }
   }
+  /* Support-Knopf in der Navigation (Sorion-Lila, wie der Ko-fi-Button) */
+  .nav-support { font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    color: #b060ff; background: rgba(176,96,255,.10); border: 1px solid rgba(176,96,255,.55);
+    border-radius: 6px; padding: 10px 16px; margin: 0; white-space: nowrap;
+    transition: all .15s; }
+  .nav-support:hover { background: #b060ff; color: #0d0d1a; border-color: #b060ff;
+    box-shadow: 0 0 18px rgba(176,96,255,.4); transform: translateY(-1px); }
+  @media (max-width: 560px) { .nav-support { font-size: 11px; padding: 9px 12px; } }
 </style>
 </head>
 <body>

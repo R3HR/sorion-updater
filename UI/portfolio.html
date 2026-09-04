@@ -699,6 +699,15 @@
     /* Schliessen-Knopf der Manager-Suche: groessere Tippflaeche */
     .pm-close { padding: 8px 12px; margin: -8px -4px -8px auto; }
   }
+  /* Support-Knopf in der Navigation (Sorion-Lila, wie der Ko-fi-Button) */
+  .nav-support { font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+    color: #b060ff; background: rgba(176,96,255,.10); border: 1px solid rgba(176,96,255,.55);
+    border-radius: 6px; padding: 10px 16px; margin: 0; white-space: nowrap;
+    transition: all .15s; }
+  .nav-support:hover { background: #b060ff; color: #0d0d1a; border-color: #b060ff;
+    box-shadow: 0 0 18px rgba(176,96,255,.4); transform: translateY(-1px); }
+  @media (max-width: 560px) { .nav-support { font-size: 11px; padding: 9px 12px; } }
 </style>
 </head>
 <body>
@@ -894,7 +903,23 @@
         </div>
 
         <div class="cards-grid" id="cards-grid"></div>
-        <div id="support-panel"></div>
+  <!-- Unterstuetzungs-Bereich: eigener Text im Seitenstil + offizieller
+       Ko-fi-Button. Das Ko-fi-Widget laedt ein Skript von storage.ko-fi.com,
+       deshalb steht es NUR auf Seiten mit diesem Bereich (siehe Ziffer 5c
+       der Datenschutzerklaerung). -->
+  <div class="sup-box" id="support-panel">
+    <div class="sup-top">
+      <div class="sup-txt">
+        <div class="sup-head">☕ Support SORION</div>
+        <div class="sup-sub">No ads, no paywall, no tracking. Servers and domains cost
+          about €38 a month. If SORION saves you time, you can chip in.</div>
+      </div>
+      <div class="sup-kofi">
+        <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
+        <script type='text/javascript'>kofiwidget2.init('Support me on Ko-fi', '#b060ff', 'X5L225H2O9');kofiwidget2.draw();</script>
+      </div>
+    </div>
+  </div>
       </div><!-- /p-main -->
     </div><!-- /p-layout -->
     </div><!-- /view-cards -->
