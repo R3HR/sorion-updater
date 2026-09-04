@@ -108,6 +108,15 @@ Function `so5-results` liegt. **Damit geht die Rendite-Rechnung fuer JEDEN Manag
 nicht nur fuer verknuepfte Konten** — die Einschraenkung von damals (und die daran
 geknuepfte Premium-Ueberlegung) faellt weg.
 
+**ZUORDNUNGS-EBENE ist die KARTE, nicht der Spieler (Ansage Jonas 04.09.):**
+Derselbe Spieler liegt oft mehrfach im Depot (andere Rarity/Saison/Serie) und
+laeuft in mehreren Aufstellungen — jede Karte ist ein eigenes Investment mit
+eigenem Kaufpreis. `so5Appearances.anyCard{slug serialNumber rarityTyped
+seasonYear}` liefert die Identitaet mit (63/63 Einsaetze in GW9 zugeordnet).
+Beispiel aus GW9: Ibrahim Maza lief als `ibrahim-maza-2025-rare-59` (Champion)
+UND `ibrahim-maza-2026-limited-117` (Bundesliga) — zwei Karten, zwei Ertraege.
+Aggregation daher IMMER ueber den Karten-Slug.
+
 **PRAEZISIERUNG der Verteilungsregel (Fund 04.09.):** Die Punktsumme darf nur ueber
 die **zaehlenden** Spieler gehen — `substitutionState` STARTER und SUBBED_IN.
 ON_BENCH und SUBBED_OUT liefern keine Punkte ans Lineup und duerfen deshalb auch
