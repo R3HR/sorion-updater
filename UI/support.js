@@ -70,8 +70,9 @@
           <button class="sup-close" type="button" aria-label="Close">×</button>
         </div>
         <div class="sup-mbody">
-          <div class="sup-sub">No ads, no paywall, no tracking. Servers and domains cost
-            about €38 a month. If SORION saves you time, you can chip in.</div>
+          <div class="sup-sub">No ads, no paywall, no tracking. SORION is built and run
+            by one person, in evenings and weekends, on top of about €38 a month for
+            servers and domains. If it saves you time, you can chip in.</div>
           <iframe src="${KOFI_EMBED}" title="Support SORION on Ko-fi" loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
             style="width:100%;height:640px;border:none;border-radius:8px;background:#f9f9f9;display:block"></iframe>
