@@ -118,6 +118,30 @@ Janssen (C) 154 Pkt = 29,8 % -> 155 Essence; Nusa 82 -> 83; Wilfinger 75 -> 75;
 Dahl 65 -> 66; Raci 55 -> 55; Tiknaz 54 -> 54; van den Heuvel 33 -> 33.
 Ueber alle acht Aufstellungen aggregiert ergibt das den Ertrag je Karte in der GW.
 
+**ESSENCE-KURS — die letzte Luecke ist geschlossen (Jonas, 04.09.):** CraftLog
+ermittelt den Essence-Wert je Rarity aus den eingetragenen Crafts:
+`EV/1k = (Summe Kartenwerte / Summe eingesetzte Essence) x 1000` (Funktion
+`calcScarcityAnalytics` in Craft_Log UI). **Mit jedem eingetragenen Craft wird
+der Kurs genauer** — die beiden Produkte greifen also ineinander: CraftLog
+liefert den Umrechnungskurs, den Sorion fuer die Rendite-Rechnung braucht.
+
+Stand 04.09. (68 Crafts, 17.03.-01.09.): **Limited 4,63 EUR / 1k Essence**
+(n=62, tragfaehig) · **Rare 22,93 EUR / 1k** (n=6 — noch duenn, mit Vorsicht
+ausweisen oder Mindest-n erzwingen).
+
+**Vollstaendige Kette einmal durchgerechnet (jr3hr, GW9):** 8 Aufstellungen ->
+728 Limited- + 255 Rare-Essence -> **9,22 EUR Ertrag**, verteilt nach Punkte-
+anteil: Lewis Hall 1,69 · Matanovic 1,05 · Querfeld 0,98 · Maza 0,88 · Janssen
+0,72 EUR. (Lernpunkt: Hall fuehrt trotz weniger Essence als Janssen — Rare-
+Essence ist ~5x wertvoller. Ohne Kurs waere die Reihenfolge falsch.)
+XP-Belohnungen sind dabei NICHT bewertet (kein Marktpreis).
+
+**Technische Huerde fuer die Integration:** `crafts` ist RLS-geschuetzt (nur
+eigene Zeilen), CraftLog holt die Gesamtdaten ueber die Edge Function
+`get-analytics` mit Login. Sorion braucht den Kurs ohne Login -> kleine RPC
+`essence_value()` (security definer, liefert NUR die Aggregate je Rarity plus
+n, keine Einzel-Crafts), taeglich guenstig zu berechnen.
+
 **Naechste Schritte:** (1) Ertrag ueber mehrere GWs summieren und in der
 GW-History/Portfolio-Karte je Spieler zeigen; (2) Essence-Wert in Euro ansetzen
 (CraftLog kennt ihn, siehe IDEA-002) -> daraus die Rendite-Formel oben;
