@@ -1523,7 +1523,10 @@
       if (n < 0.5) continue;
       const rate = rateOf(r);
       const est = rate ? ` <span style="color:var(--text2);opacity:.6;font-size:10px">(≈€${((Number(rate.eur_per_1k) / 1000) * n).toFixed(2)})</span>` : '';
-      parts.push(`<div class="pm-earn-row"><span style="color:${r === 'rare' ? 'var(--rare)' : 'var(--limited)'}">${Math.round(n)} ${esc(r)} essence</span>${est}</div>`);
+      const box = r === 'rare'
+        ? 'color:var(--rare);border:1px solid var(--rare);background:rgba(255,85,85,.10)'
+        : 'color:var(--limited);border:1px solid rgba(255,184,48,.55);background:rgba(255,184,48,.07)';
+      parts.push(`<div class="pm-earn-row"><span style="${box};border-radius:4px;padding:1px 7px">${Math.round(n)} ${esc(r)} essence</span>${est}</div>`);
     }
     for (const [c, n] of Object.entries(e.xp).sort((a, b) => b[1] - a[1])) {
       if (n < 0.5) continue;
