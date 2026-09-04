@@ -559,6 +559,19 @@
   .sc-badge.rare    { color: var(--rare);    border-color: var(--rare);    background: rgba(255,85,85,0.08); }
   .sc-badge.sr      { color: var(--sr);      border-color: var(--sr);      background: rgba(112,144,255,0.08); }
 
+  /* Live-Block im Modal: naechstes Spiel + Form */
+  .modal-live { margin: 14px 0 4px; }
+  .modal-live-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--purple); margin-bottom: 8px; }
+  .modal-live-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .modal-live-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 11px; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text); }
+  .modal-live-chip small { display: block; font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--dim); margin-bottom: 2px; }
+  .modal-live-chip .ok { color: var(--up); } .modal-live-chip .warn { color: var(--limited); }
+  .modal-live-chip .bad { color: var(--down); }
+  .modal-live-note { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--dim); margin-top: 6px; }
+  .modal-live-note a { color: var(--dim); }
   /* Spieler-Tier als Sterne (wie CraftLog: gleiche Farbe var(--limited)) */
   .tier-stars { color: var(--limited); font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
   .tier-badge {
@@ -1326,6 +1339,9 @@
       <div class="modal-fmv" id="modal-fmv"></div>
       <div class="modal-fmv-label">// Fair Market Value</div>
       <div class="modal-grid" id="modal-grid"></div>
+      <!-- Live: naechstes Spiel (Startelf-Quote, Prognose — Sorare Inside via
+           Sorare) + SO5-Form; per Edge Function player-live beim Oeffnen geholt -->
+      <div class="modal-live" id="modal-live"></div>
       <div class="modal-sales">
         <div class="modal-sales-title">// Recent Sales</div>
         <div class="modal-sales-list" id="modal-sales"></div>
@@ -2809,6 +2825,56 @@
 
     document.getElementById('modal-backdrop').classList.add('open');
     document.body.style.overflow = 'hidden';
+    loadLive(r.player_slug);
+  }
+
+  // ── Live-Daten (Edge Function player-live): Startelf-Quote + Prognose fuers
+  // naechste Spiel (Sorare Inside via Sorare, deshalb Attribution) und SO5-Form.
+  // Fluechtig — Werte erscheinen wenige Tage vor dem Spieltag und verschwinden
+  // danach; deshalb live statt aus card_prices. 10-min-Cache im Browser.
+  const liveCache = new Map();
+  let liveGen = 0;
+  async function loadLive(slug) {
+    const box = document.getElementById('modal-live');
+    if (!box || !slug) return;
+    const gen = ++liveGen;
+    box.innerHTML = `<div class="modal-live-title">// Next match &amp; form</div><div class="modal-live-note">// loading…</div>`;
+    let d = liveCache.get(slug);
+    if (!d || Date.now() - d.ts > 600000) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/player-live?slug=${encodeURIComponent(slug)}`,
+          { headers: { 'apikey': ANON_KEY } });
+        d = { ts: Date.now(), data: res.ok ? await res.json() : null };
+        liveCache.set(slug, d);
+      } catch { d = { ts: Date.now(), data: null }; }
+    }
+    if (gen !== liveGen) return;                 // Modal inzwischen gewechselt
+    const p = d.data;
+    if (!p) { box.innerHTML = ''; return; }      // Function nicht erreichbar -> Block weglassen
+
+    const chip = (label, val, cls) => `<div class="modal-live-chip"><small>${label}</small><span class="${cls || ''}">${val}</span></div>`;
+    const startCls = p.start_pct == null ? '' : p.start_pct >= 70 ? 'ok' : p.start_pct >= 40 ? 'warn' : 'bad';
+    const gradeCls = !p.grade ? '' : p.grade <= 'B' ? 'ok' : p.grade <= 'D' ? 'warn' : 'bad';
+    const statusTxt = { STARTER: 'Starter', SUBSTITUTE: 'Substitute', SUPER_SUBSTITUTE: 'Super sub',
+                        REGULAR: 'Regular', NOT_PLAYING: 'Not playing', RETIRED: 'Retired' }[p.status] || null;
+    const hasMatch = p.start_pct != null || p.grade;
+    const pctOf = (a, n) => a == null ? '—' : `${Math.round(100 * a / n)}%`;
+    const form = (l, a, n) => l == null ? '—' : `${Math.round(l)} <span style="color:var(--dim)">· ${pctOf(a, n)} played</span>`;
+
+    box.innerHTML = `
+      <div class="modal-live-title">// Next match</div>
+      <div class="modal-live-row">
+        ${hasMatch
+          ? chip('Starting XI', p.start_pct != null ? p.start_pct + '%' : '—', startCls)
+            + chip('Projection', p.grade ? `${p.grade}${p.grade_score != null ? ' · ' + Math.round(p.grade_score) + ' pts' : ''}` : '—', gradeCls)
+            + (statusTxt ? chip('Status', statusTxt) : '')
+          : `<div class="modal-live-note">// no upcoming match data yet — appears a few days before the gameweek</div>`}
+      </div>
+      <div class="modal-live-title" style="margin-top:12px">// SO5 form</div>
+      <div class="modal-live-row">
+        ${chip('Last 5', form(p.l5, p.app5, 5))}${chip('Last 10', form(p.l10, p.app10, 10))}${chip('Last 40', form(p.l40, p.app40, 40))}
+      </div>
+      <div class="modal-live-note">// lineup odds &amp; projection by <a href="https://sorareinside.com" target="_blank" rel="noopener">Sorare Inside</a> via Sorare · form data by Sorare</div>`;
   }
 
   function closeModal(e) {
