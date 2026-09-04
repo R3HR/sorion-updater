@@ -68,8 +68,8 @@
   <h3>2. Hosting & Server-Logfiles</h3>
   <p>Beim Aufruf dieser Website verarbeitet der Hosting-Anbieter automatisch technische Zugriffsdaten (u. a. IP-Adresse, Zeitpunkt, aufgerufene Ressource, User-Agent), soweit dies für die Auslieferung der Seite technisch erforderlich ist (Art. 6 Abs. 1 lit. f DSGVO). Hosting-Anbieter: GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. St, San Francisco, CA 94107, USA).</p>
 
-  <h3>3. Reichweitenmessung (eigene Statistik, ohne Dritt-Dienst)</h3>
-  <p>Wir messen die Nutzung dieser Website mit einer <strong>selbst betriebenen Statistik</strong> — es kommt kein externer Analyse-Dienst zum Einsatz, und es werden <strong>keine Cookies</strong> gesetzt. Erfasst werden pro Aufruf: die aufgerufene Seite, der Name der genutzten Funktion (z. B. „Manager-Suche"), der <em>Host</em> der verweisenden Seite, Land und Gerätetyp (mobil/Desktop) sowie ein pseudonymes Kennzeichen.</p>
+  <h3>3. Reichweitenmessung (eigene Statistik, ohne externen Analyse-Dienst)</h3>
+  <p>Wir messen die Nutzung dieser Website mit einer <strong>selbst betriebenen Statistik</strong> — es kommt kein externer Analyse-Dienst zum Einsatz (zur einzigen eingebundenen Fremdkomponente siehe Ziffer 5c), und es werden <strong>keine Cookies</strong> gesetzt. Erfasst werden pro Aufruf: die aufgerufene Seite, der Name der genutzten Funktion (z. B. „Manager-Suche"), der <em>Host</em> der verweisenden Seite, Land und Gerätetyp (mobil/Desktop) sowie ein pseudonymes Kennzeichen.</p>
   <p>Dieses Kennzeichen ist ein <strong>Hash-Wert</strong>, der aus IP-Adresse, Browser-Kennung und einem täglich wechselnden Zusatzwert gebildet wird. <strong>IP-Adresse und Browser-Kennung werden nicht gespeichert</strong>, sondern ausschließlich flüchtig zur Bildung dieses Werts verwendet; ein Rückschluss auf die IP-Adresse oder eine Wiedererkennung über mehrere Tage oder Geräte hinweg ist damit nicht möglich. Die Daten liegen auf unserer eigenen Datenbank (Supabase, siehe Ziffer 4) und werden nicht an Dritte weitergegeben. Speicherdauer: maximal 400 Tage. Rechtsgrundlage: berechtigtes Interesse an einer datensparsamen Reichweitenmessung (Art. 6 Abs. 1 lit. f DSGVO).</p>
 
   <h3>4. Datenbank & Backend (Supabase)</h3>
@@ -84,6 +84,9 @@
   <h3>5b. Gespeichertes Portfolio (Sorare-Sammlung)</h3>
   <p>Wenn du dein Sorare-Konto mit deinem Sorion-Profil verbindest oder ein Portfolio aufrufst, speichern wir die betreffende Sorare-Sammlung in unserer Datenbank: Karten, Kaufpreise und -zeitpunkte sowie abgeschlossene Käufe und Verkäufe. Diese Angaben sind bei Sorare <strong>öffentlich abrufbar</strong>; wir spiegeln sie lediglich, um die Seite schnell auszuliefern und die Zahl der Abfragen an Sorare gering zu halten (Art. 6 Abs. 1 lit. f DSGVO — berechtigtes Interesse an einem funktionsfähigen, ressourcenschonenden Dienst; bei verbundenem Konto zusätzlich Art. 6 Abs. 1 lit. b DSGVO).</p>
   <p>Die Zuordnung deines Sorion-Kontos zu einem Sorare-Managernamen ist nur für dich sichtbar. Beim Löschen deines Kontos wird das gespiegelte Portfolio mit entfernt; im Datenexport ist es enthalten.</p>
+
+  <h3>5c. Unterstützung (Ko-fi)</h3>
+  <p>Wer die Seite freiwillig unterstützen möchte, kann das Unterstützungs-Panel öffnen. <strong>Erst mit diesem Klick</strong> wird ein Bezahlfenster des Anbieters <strong>Ko-fi</strong> (Ko-fi Labs Ltd., Vereinigtes Königreich) innerhalb unserer Seite geladen; ohne diesen Klick findet <strong>keine</strong> Verbindung zu Ko-fi statt. Beim Öffnen erhält Ko-fi technisch notwendige Verbindungsdaten (u. a. IP-Adresse, Browser-Kennung) und kann eigene Cookies setzen; die Zahlungsabwicklung erfolgt ausschließlich bei Ko-fi, wir erhalten keine Zahlungsdaten. Rechtsgrundlage: Einwilligung durch das aktive Öffnen (Art. 6 Abs. 1 lit. a DSGVO). Es gilt die <a href="https://more.ko-fi.com/privacy" target="_blank" rel="noopener noreferrer">Datenschutzerklärung von Ko-fi</a>.</p>
 
   <h3>6. Cookies</h3>
   <p>Diese Website setzt keine Cookies zu Analyse- oder Werbezwecken. Lokal gespeicherte Daten (localStorage) dienen ausschließlich der Funktion (z. B. Login-Token).</p>
@@ -101,5 +104,6 @@
 </div>
 <script src="discord.js" defer></script>
 <script src="a11y.js" defer></script>
+<script src="support.js" defer></script>
 </body>
 </html>
