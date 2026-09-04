@@ -19,8 +19,18 @@
 -- AUSFUEHREN: SQL-Editor, "ohne RLS".
 -- ═══════════════════════════════════════════════════════════════════════════
 
+-- Neuanlage: die erste Fassung hatte einen zu schwachen Schluessel (siehe
+-- Kommentar unten). Tabellen sind frisch/leer, deshalb einfach ersetzen.
+drop table if exists public.so5_card_earnings;
+drop table if exists public.so5_lineups;
+
 -- ── 1) Aufstellungen (Rohdaten, eine Zeile je Manager/GW/Wettbewerb) ───────
+-- lineup_id: Sorares eigene Aufstellungs-ID. NOETIG, weil ein Manager im
+-- SELBEN Wettbewerb mehrere Aufstellungen haben kann (jr3hr hatte in GW9 zwei
+-- "Bundesliga – Limited") — ohne sie kollidiert der Schluessel und der ganze
+-- Stapel-Insert scheitert.
 create table if not exists public.so5_lineups (
+  lineup_id      text        not null,
   manager_slug   text        not null,
   fixture_slug   text        not null,
   leaderboard    text        not null,
@@ -30,7 +40,7 @@ create table if not exists public.so5_lineups (
   rewards        jsonb       not null default '[]'::jsonb,
   players        jsonb       not null default '[]'::jsonb,
   fetched_at     timestamptz not null default now(),
-  primary key (manager_slug, fixture_slug, leaderboard)
+  primary key (lineup_id)
 );
 create index if not exists idx_so5_lineups_manager on public.so5_lineups (manager_slug, fixture_slug);
 
@@ -41,6 +51,7 @@ create index if not exists idx_so5_lineups_manager on public.so5_lineups (manage
 -- ertragreichste ueberhaupt?") eine simple Summe statt einer JSON-Wanderung.
 create table if not exists public.so5_card_earnings (
   card_slug      text        not null,
+  lineup_id      text        not null,
   manager_slug   text        not null,
   fixture_slug   text        not null,
   leaderboard    text        not null,
@@ -53,7 +64,7 @@ create table if not exists public.so5_card_earnings (
   essence        jsonb       not null default '{}'::jsonb,  -- {"limited":123.4,"rare":5.6}
   currency       jsonb       not null default '{}'::jsonb,  -- {"LIMITED_XP":2000}
   cash_eur       numeric     not null default 0,
-  primary key (card_slug, manager_slug, fixture_slug, leaderboard)
+  primary key (card_slug, lineup_id)
 );
 create index if not exists idx_so5_earn_card    on public.so5_card_earnings (card_slug);
 create index if not exists idx_so5_earn_manager on public.so5_card_earnings (manager_slug);
