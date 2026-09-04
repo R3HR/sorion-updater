@@ -713,9 +713,9 @@
     </a>
     <nav class="nav-links">
       <a class="nav-link" href="https://sorion.pro">Market</a>
-      <a class="nav-link active" href="#">Portfolio</a>
       <a class="nav-link" href="#" onclick="openManagerSearch();return false;">Manager Search</a>
       <a class="nav-link" href="https://craftlog.pro">Craft_LOG</a>
+      <button class="nav-support" type="button" onclick="openSupport()" title="Support SORION">☕ Support</button>
       <button class="nav-cta" id="btn-logout" onclick="logout()" style="display:none">Logout</button>
       <button class="nav-cta" id="btn-connect" onclick="loginWithSorare()">Connect Sorare</button>
     </nav>
@@ -1061,9 +1061,8 @@
         ? `portfolio.html?manager=${encodeURIComponent(ownSlug)}` : 'profile.html'; };
       btnL.title = ownSlug ? 'Deine Profiluebersicht' : 'Anmelden';
     }
-    // "Portfolio" fuehrt immer zum EIGENEN Portfolio
-    const navPf = document.querySelector('.nav-link.active');
-    if (navPf) navPf.setAttribute('href', ownSlug ? `portfolio.html?manager=${encodeURIComponent(ownSlug)}` : 'portfolio.html');
+    // Der fruehere "Portfolio"-Navipunkt ist entfallen: das eigene Portfolio
+    // erreicht man ueber den Namen rechts (Profiluebersicht).
   }
 
   // Profil-Unternavigation (nur auf der EIGENEN Uebersicht): Das Portfolio ist

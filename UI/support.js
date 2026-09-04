@@ -33,9 +33,37 @@
     .sup-note { font-family: 'Share Tech Mono', monospace; font-size: 10.5px;
       color: var(--text2, #9090c0); opacity: .8; margin-top: 8px; }
     .sup-note a { color: var(--purple, #b060ff); }
+    /* Navi-Knopf: auffaelliger als ein Textlink, aber leiser als die
+       Profil-Schaltflaeche daneben (die bleibt der Hauptweg). */
+    /* Hoehere Spezifitaet als die generischen Button-Regeln der Seiten,
+       sonst erbt der Knopf deren 10px und wirkt nicht prominent. */
+    .nav-links .nav-support, .nav-support {
+      font-family: 'Share Tech Mono', monospace; font-size: 12px;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      color: #ff7a7a; background: rgba(255,95,95,.10); border: 1px solid rgba(255,95,95,.55);
+      border-radius: 6px; padding: 10px 16px; margin: 0; transition: all .15s; white-space: nowrap; }
+    .nav-links .nav-support:hover, .nav-support:hover {
+      background: #ff5f5f; color: #fff; border-color: #ff5f5f;
+      box-shadow: 0 0 18px rgba(255,95,95,.35); transform: translateY(-1px); }
+    /* Modal: Ko-fi oeffnet sich UEBER der Seite, der Besucher bleibt hier */
+    .sup-back { position: fixed; inset: 0; background: rgba(5,5,12,.85);
+      backdrop-filter: blur(4px); z-index: 90; display: flex; align-items: center;
+      justify-content: center; padding: 20px; }
+    .sup-modal { background: var(--surface, #13131f); border: 1px solid var(--border2, #3a3a5a);
+      border-radius: 12px; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto;
+      box-shadow: 0 0 60px rgba(255,95,95,.18); }
+    .sup-mhead { display: flex; align-items: center; gap: 12px; padding: 16px 18px;
+      border-bottom: 1px solid var(--border, #2a2a45); }
+    .sup-mtitle { font-family: 'Orbitron', monospace; font-size: 14px; color: var(--text, #e8e8ff); }
+    .sup-close { margin-left: auto; background: none; border: none; cursor: pointer;
+      color: var(--text2, #9090c0); font-size: 22px; line-height: 1; padding: 4px 8px; }
+    .sup-close:hover { color: var(--text, #e8e8ff); }
+    .sup-mbody { padding: 14px 18px 18px; }
+    .sup-mbody .sup-sub { margin-bottom: 12px; }
     @media (max-width: 560px) {
       .sup-btn { width: 100%; justify-content: center; }
       .sup-embed iframe { height: 620px; }
+      .nav-links .nav-support, .nav-support { font-size: 11px; padding: 9px 12px; }
     }`;
 
   function open(box) {
@@ -55,13 +83,18 @@
     wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  function styles() {
+    if (document.getElementById('sup-css')) return;
+    const st = document.createElement('style');
+    st.id = 'sup-css';
+    st.textContent = css;
+    document.head.appendChild(st);
+  }
+
   function panel() {
     const host = document.getElementById('support-panel');
     if (!host || host.dataset.done) return;
     host.dataset.done = '1';
-    const st = document.createElement('style');
-    st.textContent = css;
-    document.head.appendChild(st);
 
     const box = document.createElement('div');
     box.className = 'sup-box';
@@ -96,7 +129,38 @@
     }
   }
 
-  const run = () => { panel(); footerLink(); };
+  // Vom Navi-Knopf aufgerufen: Ko-fi in einem Fenster UEBER der Seite. Der
+  // Iframe entsteht auch hier erst jetzt, nicht beim Laden der Seite.
+  window.openSupport = function () {
+    if (document.querySelector('.sup-back')) return;
+    try { if (window.track) window.track('support_click'); } catch (e) {}
+    const back = document.createElement('div');
+    back.className = 'sup-back';
+    back.innerHTML = `
+      <div class="sup-modal" role="dialog" aria-modal="true" aria-label="Support SORION">
+        <div class="sup-mhead">
+          <span class="sup-mtitle">☕ Support SORION</span>
+          <button class="sup-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="sup-mbody">
+          <div class="sup-sub">No ads, no paywall, no tracking. Servers and domains cost
+            about €38 a month. If SORION saves you time, you can chip in.</div>
+          <iframe src="${KOFI_EMBED}" title="Support SORION on Ko-fi" loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"
+            style="width:100%;height:640px;border:none;border-radius:8px;background:#f9f9f9;display:block"></iframe>
+          <div class="sup-note">Payment is handled by Ko-fi, we never see your payment details.
+            Trouble with the frame? <a href="${KOFI_PAGE}" target="_blank" rel="noopener noreferrer">Open Ko-fi directly →</a></div>
+        </div>
+      </div>`;
+    const close = () => { back.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    back.addEventListener('click', e => { if (e.target === back) close(); });
+    back.querySelector('.sup-close').addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(back);
+  };
+
+  const run = () => { styles(); panel(); footerLink(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
   else run();
 })();
