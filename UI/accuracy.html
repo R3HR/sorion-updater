@@ -79,8 +79,10 @@
 
   <p>Every FMV on SORION is an estimate, and we measure it against reality: whenever a card
      sells, we compare the price to the FMV we had published <strong>before</strong> that sale
-     (estimates older than 48&nbsp;hours are excluded). The table shows the median gap over the
-     last 30 days — half of all sales land closer than this, half further away.</p>
+     (estimates older than 48&nbsp;hours are excluded). The table shows the median gap over a
+     <strong>rolling 3-day window</strong> — half of all sales land closer than this, half
+     further away. The short window is deliberate: it always measures our <em>current</em>
+     model, not last month's.</p>
 
   <table aria-label="FMV accuracy by rarity and eligibility">
     <thead>
