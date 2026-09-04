@@ -196,6 +196,7 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 - **✅ Erster vollstaendiger Durchlauf (27.08., R25):** Ziel 1140 sicher erreicht, 🎯-Meldung mit Meme um 23:10 Berlin, Runde danach **automatisch** als R25 gewertet. Saisonstand jetzt 25 Runden: ParisBoemboem 176 P (Ø 360.24) vor Sorare_Jens 150 und andreihaha 148; MaisonPanda ▲1 auf 6, FFGAJ ▼1 auf 7. Squad Ø 1174.48, Stage Clears 6/5/5/4/1. **Kein manueller Eingriff noetig.**
 - **⚠️ Cowork-URLs haben ein Pfad-Suffix (27.08., BUG-032):** `.../squad-poll/v2?key=…&action=report`. Der Abrufweg des Cowork-Bots hatte die Antwort **14 Stunden** zwischengespeichert und Query-Parameter dabei ignoriert. Ein anderer PFAD ist fuer den Cache eine neue Ressource - dieselbe Function, kein zweiter Deploy. Faellt es erneut auf: Suffix hochzaehlen. Fertige URLs in `_squad_snapshots\Bot Data\cowork-urls.txt`. Neu: `report` liefert `generatedAt`, damit veraltete Antworten sofort auffallen.
 - **⚠️ INC-007 (29.08.):** Der Bot war ~12 h stumm - `appDone` wurde oberhalb seiner Definition benutzt, jeder Poll mit offener Runde brach mit HTTP 500 ab. Behoben; zusaetzlich liegt der **komplette Ticker-Block jetzt in try/catch**, damit ein Fehler im Beiwerk nie wieder die Cap-/Claim-Logik mitreisst. **Merke:** Deploys ausserhalb der Spielzeit testen den Pfad "offene Runde" nicht.
+- **✅ Sorare-Aussetzer abgefangen (31.08., BUG-035):** Sorare lieferte jr3hrs Aufstellung von 11:30 bis 15:40 nicht mehr aus. Der Bot deutete das als fuenf Auswechslungen und meldete zwei Tausche, die nie stattfanden. Jetzt gilt: Fehlt ein Manager **komplett** im Board, bleiben seine Zeilen unangetastet und es wird nichts gemeldet. Der Bot selbst lief die ganze Zeit fehlerfrei durch.
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
 
 ## 🔴 AKUT (25.08.): DB-Totalausfall Nr. 2 — siehe [INCIDENTS.md](INCIDENTS.md) INC-006
@@ -305,6 +306,18 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 | Mobile-Durchgang | ⬜ vor Launch |
 | Notifications (Stufe 3, braucht OAuth-App) | ⬜ nach Launch |
 | 30d-Marktbewegung ergänzen | ⬜ ab ~20.08. (History reicht dann) |
+
+## Live-Daten im Spieler-Modal (04.09.) — Edge Function `player-live`
+
+`C:\craft-log\supabase\functions\player-live\index.ts` (deployed, `verify_jwt=false`, CORS
+auf eigene Domains, 10-min-Cache je Slug): liefert je Spieler Startelf-Quote, Punkte-Prognose
+A–F (+ projizierte Punkte), Spielstatus und SO5-Form (L5/L10/L40 + Einsaetze). Quelle der
+Quote/Prognose ist **Sorare Inside via Sorare** (`providerRedirectUrl`) — im Modal
+attributiert. Bewusst LIVE statt in card_prices: die Werte erscheinen wenige Tage vor dem
+Spieltag und verschwinden danach (Jonas 04.09.). Felder: `nextClassicFixturePlayingStatusOdds`
+(nur auf Typ `Player`, Fragment noetig!), `nextClassicFixtureProjectedGrade` — "Classic"
+heisst hier WOCHEN-Spieltag, nicht unsere Classic-Eligibility. Ein Sorare-Call je
+Modal-Oeffnung (Cache daempft); SORARE_APIKEY als Supabase-Secret wuerde das Limit heben.
 
 ## Werkzeuge in tools/ (bei Bedarf per `railway run node tools/<name>.mjs` ausloesen)
 
