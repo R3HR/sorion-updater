@@ -56,7 +56,13 @@ Would love feedback, especially from people who track their portfolio seriously.
   Stimmung, in der ein Bewertungs-Tool interessant ist.
 - **Vermeiden:** Freitag/Samstag (Spieltage, Aufstellungs-Stress, niemand
   liest lange Posts) und Sonntagnachmittag (Spiele laufen).
-- **Naechster passender Termin: Dienstag, 09.09.2026, ca. 15:00 Uhr.**
+- **Naechster passender Termin: MONTAG, 08.09.2026, ca. 15:00 Uhr** (Einwand Jonas:
+  am Di 09.09. erscheint das neue Free-to-Play-Set; r/Sorare ist dann voll mit
+  F2P-Threads und die Leser sind nicht die Portfolio-Tracker). Montag liegt VOR
+  der Welle, GW-Ergebnisse vom Wochenende sind frisch.
+  Fallback: Donnerstag 11.09., 15:00 (Hype abgeklungen, noch Werktag).
+- Idee fuer spaeter: zweiter Post 2 bis 4 Wochen nach dem F2P-Set, wenn die
+  Neuen erste Karten kaufen ("is this price fair?"-Winkel).
 - Vor dem Posten: Zahlen in der Tabelle gegen accuracy.html aktualisieren
   (Datum im Text anpassen), Flair pruefen (meist "Tool" oder "Discussion"),
   Regeln des Subreddits lesen (Eigenwerbung ist dort erlaubt, wenn sie
