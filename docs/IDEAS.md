@@ -108,6 +108,14 @@ Function `so5-results` liegt. **Damit geht die Rendite-Rechnung fuer JEDEN Manag
 nicht nur fuer verknuepfte Konten** — die Einschraenkung von damals (und die daran
 geknuepfte Premium-Ueberlegung) faellt weg.
 
+**Belohnungen sind NICHT rarity-rein (verifiziert 04.09., Hinweis Jonas):**
+Sorare schuettet in einem Limited-Wettbewerb auch Rare-Essence aus (Tauschangebot
+"viel Limited gegen wenig Rare"). Beleg: jr3hr, GW 47, "Bundesliga – Limited",
+Lineup aus fuenf LIMITED-Karten -> Belohnung **1020 limited + 765 rare essence**.
+Konsequenz fuer die Ertragsrechnung: Die Essence-Art kommt IMMER aus dem Reward
+(`CardShardsReward.rarity`), niemals aus der Karten- oder Wettbewerbs-Rarity
+ableiten — sonst rechnet man mit dem falschen Kurs (Faktor ~5).
+
 **ZUORDNUNGS-EBENE ist die KARTE, nicht der Spieler (Ansage Jonas 04.09.):**
 Derselbe Spieler liegt oft mehrfach im Depot (andere Rarity/Saison/Serie) und
 laeuft in mehreren Aufstellungen — jede Karte ist ein eigenes Investment mit
