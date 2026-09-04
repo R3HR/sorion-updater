@@ -319,6 +319,19 @@ Spieltag und verschwinden danach (Jonas 04.09.). Felder: `nextClassicFixturePlay
 heisst hier WOCHEN-Spieltag, nicht unsere Classic-Eligibility. Ein Sorare-Call je
 Modal-Oeffnung (Cache daempft); SORARE_APIKEY als Supabase-Secret wuerde das Limit heben.
 
+## 📣 Patch Notes -> Discord (eingerichtet 01.09., Regeln BINDEND)
+
+Der Sorion-Discord bekommt oeffentliche Patch Notes ueber einen Webhook.
+**Regeln von Jonas: (1) KEINE Interna** — keine Formel-Zutaten, keine
+Sicherheits-/Incident-Details, keine Infrastruktur/Kosten/Dateipfade; nur was
+Nutzer sehen. **(2) Jonas muss VOR jeder Veroeffentlichung den Entwurf
+freigeben** — erst nach dem "Go" posten, nie automatisch.
+
+Ablauf: Entwurf nach docs/patchnotes/JJJJ-MM-TT_<titel>.md (erste Zeile =
+# Titel), Jonas im Chat zeigen, nach Freigabe:
+`node --env-file=.env tools/publish-patchnotes.mjs docs/patchnotes/<datei>.md`
+Webhook-URL liegt NUR in der lokalen .env (git-ignoriert), niemals ins Repo.
+
 ## Werkzeuge in tools/ (bei Bedarf per `railway run node tools/<name>.mjs` ausloesen)
 
 - `backfill-player-meta.mjs` — laedt gameplay_tier/player_age/player_nation fuer ALLE Spieler ueber die ~250 Club-Kader (Einmal-Befuellung; die laufende Pflege machen Updater + Kader-Abgleich von selbst — In-Season taeglich, Classic alle 3-4 Tage)
