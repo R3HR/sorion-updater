@@ -18,4 +18,4 @@ New filters: show only cards that **earned something**, or sort by **Top Earners
 
 Works for any manager, no login needed: `sorion.pro/gameweeks.html?manager=<slug>`
 
-Feedback right here. 🚀
+Bugs and ideas: drop them in #feedback. 🚀
