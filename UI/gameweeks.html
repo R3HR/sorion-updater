@@ -72,28 +72,129 @@
     <a href="profile.html">⚙ ACCOUNT</a>
   </div>
 
-  <div class="panel">
-    <div class="soon">coming soon</div>
-    <h2>// What this page will show</h2>
-    <p>Your complete competition history, one row per gameweek and lineup:</p>
-    <ul>
-      <li><strong>Every lineup you entered</strong> — competition, division, all players with their weighted scores and your captain</li>
-      <li><strong>Rank &amp; percentile</strong> — where you finished, out of how many managers</li>
-      <li><strong>Rewards</strong> — essence, XP, energy and cards you earned, correctly labeled per type</li>
-      <li><strong>Trends over time</strong> — is your squad getting better?</li>
-    </ul>
-    <p style="margin-top:14px">The data pipeline for this is already proven — we can reconstruct
-       any manager's past gameweeks from public Sorare data. We're building the view next.</p>
+  <div class="panel" id="no-slug" style="display:none">
+    <h2>// Whose history?</h2>
+    <p>Link your Sorare account in <a href="profile.html">Account</a> (or open this page as
+       <code>gameweeks.html?manager=&lt;slug&gt;</code>) and your gameweek results appear here —
+       every lineup with scores, rank, percentile and rewards.</p>
   </div>
+
+  <div id="gw-list"></div>
 </div>
 
+<style>
+  .gw { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        padding: 18px 20px; margin-bottom: 14px; }
+  .gw-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .gw-title { font-family: 'Orbitron', monospace; font-size: 14px; }
+  .gw-dates { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2); letter-spacing: .1em; }
+  .gw-empty, .gw-loading { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); padding: 6px 0; }
+  .lu { border-top: 1px solid var(--border); padding: 10px 0 4px; }
+  .lu summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .lu summary::-webkit-details-marker { display: none; }
+  .lu-name { font-size: 13px; color: var(--text); min-width: 180px; }
+  .lu-rank { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); }
+  .lu-rank b { color: var(--up); font-weight: 600; }
+  .lu-score { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--purple); margin-left: auto; }
+  .chip { font-family: 'Share Tech Mono', monospace; font-size: 10px; border-radius: 5px;
+          padding: 2px 8px; border: 1px solid var(--border); color: var(--text2); }
+  .chip.essence { color: var(--limited); border-color: var(--limited); }
+  .chip.cash { color: var(--up); border-color: var(--up); }
+  .chip.card { color: var(--purple); border-color: var(--purple); }
+  .lu-players { margin: 8px 0 6px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); }
+  .lu-players div { display: flex; justify-content: space-between; max-width: 340px; padding: 2px 0; }
+  .gw-more { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em;
+             background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text2);
+             padding: 8px 14px; cursor: pointer; }
+  .gw-more:hover { border-color: var(--purple); color: var(--purple); }
+</style>
+
 <script>
+  const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
+  const ANON_KEY = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+  const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+
   // Portfolio-Tab auf das EIGENE Portfolio zeigen lassen, falls verknuepft
-  (function () {
+  try {
+    const own = localStorage.getItem('sorion_own');
+    if (own) document.getElementById('pnav-pf').href = 'portfolio.html?manager=' + encodeURIComponent(own);
+  } catch (e) {}
+
+  const fn = body => fetch(`${SUPABASE_URL}/functions/v1/so5-results`, {
+    method: 'POST',
+    headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(r => r.ok ? r.json() : Promise.reject(r.status));
+
+  // Waehrungs-Enum lesbar machen (LIMITED_XP -> "Limited XP")
+  const currencyLabel = c => String(c ?? '').toLowerCase().split('_')
+    .map(w => w === 'xp' ? 'XP' : w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  const rewardChip = r => {
+    if (r.kind === 'essence') return `<span class="chip essence">${r.amount} Essence (${esc(r.rarity)})</span>`;
+    if (r.kind === 'currency') return `<span class="chip">${r.amount} ${esc(currencyLabel(r.currency))}</span>`;
+    if (r.kind === 'cash') return `<span class="chip cash">€${Number(r.eur).toFixed(2)}</span>`;
+    if (r.kind === 'card') return `<span class="chip card">Card: ${esc(r.player ?? '?')} (${esc(r.rarity)})</span>`;
+    return `<span class="chip">${esc(r.kind)}</span>`;
+  };
+
+  async function loadFixtureInto(el, slug, fixture) {
+    el.innerHTML = '<div class="gw-loading">// loading…</div>';
     try {
-      const own = localStorage.getItem('sorion_own');
-      if (own) document.getElementById('pnav-pf').href = 'portfolio.html?manager=' + encodeURIComponent(own);
-    } catch (e) {}
+      const d = await fn({ manager: slug, fixture });
+      if (!d.results?.length) { el.innerHTML = '<div class="gw-empty">// no lineups entered this gameweek</div>'; return; }
+      el.innerHTML = d.results
+        .sort((a, b) => (a.topPercent ?? 999) - (b.topPercent ?? 999))
+        .map(r => `<details class="lu">
+          <summary>
+            <span class="lu-name">${esc(r.leaderboard)}</span>
+            <span class="lu-rank">rank ${r.ranking?.toLocaleString('en-GB') ?? '—'}${r.topPercent != null ? ` · <b>top ${r.topPercent}%</b>` : ''}</span>
+            ${(r.rewards ?? []).map(rewardChip).join(' ')}
+            <span class="lu-score">${r.score != null ? Number(r.score).toFixed(1) + ' pts' : ''}</span>
+          </summary>
+          <div class="lu-players">${(r.players ?? [])
+            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+            .map(p => `<div><span>${p.captain ? '(C) ' : ''}${esc(p.name)}</span><span>${p.score != null ? Number(p.score).toFixed(1) : '—'}</span></div>`).join('')}
+          </div>
+        </details>`).join('');
+    } catch (e) {
+      el.innerHTML = `<div class="gw-empty">// temporarily unavailable${e === 503 ? ' (setup pending)' : ''} — try again later</div>`;
+    }
+  }
+
+  (async function init() {
+    const slug = (new URLSearchParams(location.search).get('manager')
+      || localStorage.getItem('sorion_own') || '').toLowerCase();
+    if (!slug) { document.getElementById('no-slug').style.display = ''; return; }
+    document.querySelector('.sub').textContent = `// SO5 results for ${slug.toUpperCase()}`;
+    const list = document.getElementById('gw-list');
+    list.innerHTML = '<div class="gw"><div class="gw-loading">// loading gameweeks…</div></div>';
+    let fixtures = [];
+    try { fixtures = (await fn({})).fixtures ?? []; }
+    catch (e) {
+      list.innerHTML = '<div class="gw"><div class="gw-empty">// gameweek service temporarily unavailable — try again later</div></div>';
+      return;
+    }
+    list.innerHTML = '';
+    const fmtD = s => new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    fixtures.slice(0, 8).forEach((f, i) => {
+      const gw = document.createElement('div');
+      gw.className = 'gw';
+      gw.innerHTML = `<div class="gw-head"><span class="gw-title">${esc(f.displayName)}</span>
+        <span class="gw-dates">${fmtD(f.startDate)} – ${fmtD(f.endDate)}</span></div>
+        <div class="gw-body"></div>`;
+      list.appendChild(gw);
+      const body = gw.querySelector('.gw-body');
+      if (i < 3) loadFixtureInto(body, slug, f.slug);   // juengste drei sofort
+      else {
+        const btn = document.createElement('button');
+        btn.className = 'gw-more';
+        btn.textContent = 'load results';
+        btn.onclick = () => { btn.remove(); loadFixtureInto(body, slug, f.slug); };
+        body.appendChild(btn);
+      }
+    });
+    if (window.track) track('portfolio_view');
   })();
 </script>
 <script src="discord.js" defer></script>
