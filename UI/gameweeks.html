@@ -123,6 +123,7 @@
   .lu-players .tag { font-size: 9px; letter-spacing: .08em; border: 1px solid var(--border);
                      border-radius: 4px; padding: 0 5px; margin-left: 6px; }
   .lu-players .tag.in { color: var(--up); border-color: var(--up); }
+  .lu-players .cid { font-size: 9px; color: var(--text2); opacity: .7; margin-left: 5px; }
   .lu-sum { max-width: 380px; display: flex; justify-content: space-between; gap: 12px;
             border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; color: var(--text); }
   /* Ertrag je Spieler */
@@ -141,6 +142,8 @@
   table.earn .cash { color: var(--up); }
   /* Schaetzwert: bewusst leiser als die harte Zahl davor */
   table.earn .est { color: var(--text2); opacity: .65; font-size: 10px; }
+  table.earn .card-id { font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text2); opacity: .75; margin-top: 1px; }
   table.earn .none { color: var(--text2); opacity: .4; }
   .earn-note { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2);
     opacity: .8; margin-top: 10px; line-height: 1.5; }
@@ -195,8 +198,12 @@
       const tag = p.state === 'SUBBED_IN' ? '<span class="tag in">SUB IN</span>'
                 : p.state === 'SUBBED_OUT' ? '<span class="tag">SUBBED OUT</span>'
                 : p.state === 'ON_BENCH' ? '<span class="tag">BENCH</span>' : '';
+      // Karten-Kennung, damit bei mehrfach besessenen Spielern klar ist,
+      // WELCHE Karte in dieser Aufstellung stand
+      const c = p.card
+        ? ` <span class="cid">${esc(p.card.rarity ?? '')}${p.card.serial ? ' #' + p.card.serial : ''}</span>` : '';
       return `<div class="pl${p.counted ? '' : ' bench'}">`
-        + `<span>${p.captain ? '(C) ' : ''}${esc(p.name)}${tag}</span>`
+        + `<span>${p.captain ? '(C) ' : ''}${esc(p.name)}${c}${tag}</span>`
         + `<span>${p.score != null ? Number(p.score).toFixed(1) : '—'}</span></div>`;
     };
     const byScore = (a, b) => (b.score ?? 0) - (a.score ?? 0);
@@ -213,7 +220,10 @@
   // sich nicht seriös in eine Zahl gießen. Der Euro-Betrag neben der Essence
   // ist eine SCHÄTZUNG (CraftLog-Kurs) und deshalb bewusst leiser gesetzt.
   // Verteilung nach Punkteanteil, nur über zählende Spieler (Regel IDEA-001).
-  const earn = new Map();          // Spieler -> {ess:{rarity:n}, xp:{currency:n}, cash}
+  // Schluessel ist die KARTE (slug), nicht der Spielername: derselbe Spieler
+  // kann mehrfach im Depot liegen und in mehreren Aufstellungen laufen — jede
+  // Karte ist ein eigenes Investment mit eigenem Ertrag (Hinweis Jonas 04.09.).
+  const earn = new Map();          // cardSlug -> {name, card, ess:{}, xp:{}, cash}
   const earnGws = new Set();
   let essRate = null;              // {limited:{eur_per_1k,samples}, ...}
 
@@ -229,11 +239,12 @@
       for (const rw of r.rewards ?? []) {
         for (const p of counting) {
           const share = (p.score ?? 0) / total;
-          const e = earn.get(p.name) ?? { ess: {}, xp: {}, cash: 0 };
+          const key = p.card?.slug ?? `name:${p.name}`;   // Fallback: alte Antwort ohne Karte
+          const e = earn.get(key) ?? { name: p.name, card: p.card ?? null, ess: {}, xp: {}, cash: 0 };
           if (rw.kind === 'essence') e.ess[rw.rarity] = (e.ess[rw.rarity] ?? 0) + share * rw.amount;
           else if (rw.kind === 'currency') e.xp[rw.currency] = (e.xp[rw.currency] ?? 0) + share * rw.amount;
           else if (rw.kind === 'cash') e.cash += share * rw.eur;
-          earn.set(p.name, e);
+          earn.set(key, e);
         }
       }
     }
@@ -249,11 +260,18 @@
     const rateOf = r => essRate?.find(x => x.scarcity === r);
     const eurOf = e => Object.entries(e.ess)
       .reduce((s, [r, n]) => s + (Number(rateOf(r)?.eur_per_1k ?? 0) / 1000) * n, 0);
-    const rows = [...earn.entries()]
-      .map(([name, e]) => ({ name, e, sort: eurOf(e) || Object.values(e.ess).reduce((a, b) => a + b, 0) / 1000 }))
+    const rows = [...earn.values()]
+      .map(e => ({ e, sort: eurOf(e) || Object.values(e.ess).reduce((a, b) => a + b, 0) / 1000 }))
       .sort((a, b) => b.sort - a.sort);
 
-    document.getElementById('earn-body').innerHTML = rows.map(({ name, e }) => {
+    document.getElementById('earn-body').innerHTML = rows.map(({ e }) => {
+      const name = e.name;
+      // Karten-Kennung: erst bei Mehrfachbesitz entscheidend, aber immer
+      // sichtbar — sonst raet der Nutzer, WELCHE seiner Karten gemeint ist.
+      const c = e.card;
+      const cardTag = c
+        ? `<div class="card-id">${esc(c.rarity ?? '')}${c.season ? ' ' + c.season : ''}${c.serial ? ' #' + c.serial : ''}</div>`
+        : '';
       // Spieler mit 0 Punkten bekommen 0 Anteil — als "—" zeigen statt "0 XP"
       const ess = Object.entries(e.ess).filter(([, n]) => n >= 0.5).sort((a, b) => b[1] - a[1]).map(([r, n]) => {
         const rate = rateOf(r);
@@ -262,7 +280,7 @@
       }).join('<br>');
       const xp = Object.entries(e.xp).filter(([, n]) => n >= 0.5).sort((a, b) => b[1] - a[1])
         .map(([c, n]) => `<span class="xp">${Math.round(n).toLocaleString('en-GB')}</span> ${esc(shortCur(c))}`).join('<br>');
-      return `<tr><td>${esc(name)}</td>
+      return `<tr><td>${esc(name)}${cardTag}</td>
         <td>${ess || '<span class="none">—</span>'}</td>
         <td>${xp || '<span class="none">—</span>'}</td>
         <td>${e.cash >= 0.005 ? `<span class="cash">€${e.cash.toFixed(2)}</span>` : '<span class="none">—</span>'}</td></tr>`;
