@@ -48,9 +48,10 @@ export function buildEmbed(ev, ctx = {}) {
   if (ctx.supportersTotal) footerBits.push(`${ctx.supportersTotal} supporters`);
   if (ctx.monthTotal)      footerBits.push(`${money(ctx.monthTotal, 'EUR')} this month`);
 
+  // Kein username/avatar_url: Name und Bild kommen aus der Webhook-Einstellung
+  // in Discord (Jonas hat den Bot dort "Penny" genannt). So bleibt die Pflege
+  // an einem Ort und der Code muss bei einer Umbenennung nicht angefasst werden.
   return {
-    username: 'SORION',
-    avatar_url: `${SITE}/og-image.png`,
     embeds: [{
       title,
       description: body,
