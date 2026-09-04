@@ -332,6 +332,25 @@ Ablauf: Entwurf nach docs/patchnotes/JJJJ-MM-TT_<titel>.md (erste Zeile =
 `node --env-file=.env tools/publish-patchnotes.mjs docs/patchnotes/<datei>.md`
 Webhook-URL liegt NUR in der lokalen .env (git-ignoriert), niemals ins Repo.
 
+## SO5-Historie: eigener Speicher (04.09.2026)
+
+`so5_lineups` + `so5_card_earnings` (Migration 2026-09-04_so5_history_store.sql)
+halten die Gameweek-Historie dauerhaft. Die Edge Function `so5-results` liest
+zuerst dort und holt nur FEHLENDE Gameweeks bei Sorare — jede (Manager, GW)
+kostet damit weltweit genau EINEN API-Aufruf, danach kommt alles aus der DB
+(gemessen: 1307 ms -> 235 ms). Gespeichert werden nur `aasmState = closed`
+Gameweeks; sie sind unveraenderlich, also wird jede Zeile genau einmal
+geschrieben (keine periodische Last, kein Cron — Lehre INC-005/006).
+
+**Schluessel ist Sorares `lineup_id`**, nicht (Manager, GW, Wettbewerb): Ein
+Manager kann im selben Wettbewerb MEHRERE Aufstellungen haben (jr3hr hatte in
+GW9 zwei "Bundesliga – Limited"); der erste Entwurf scheiterte daran still.
+
+Stand 04.09.: jr3hr komplett erfasst — 84 Gameweeks, 257 Karten, zurueck bis
+zum Sorare-Start im September 2025. Ausbaustufe (Ziel Jonas): ueber
+`so5_card_earnings` laesst sich kuenftig fuer JEDE Karte ausweisen, was sie
+JEMALS erspielt hat — ueber alle Manager hinweg.
+
 ## Werkzeuge in tools/ (bei Bedarf per `railway run node tools/<name>.mjs` ausloesen)
 
 - `backfill-player-meta.mjs` — laedt gameplay_tier/player_age/player_nation fuer ALLE Spieler ueber die ~250 Club-Kader (Einmal-Befuellung; die laufende Pflege machen Updater + Kader-Abgleich von selbst — In-Season taeglich, Classic alle 3-4 Tage)
