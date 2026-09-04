@@ -1,0 +1,18 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Discord-Service: nimmt Ko-fi-Webhooks an und postet Spenden/Mitgliedschaften
+# in den Kanal "💰・donations". Dauerhaft laufender Web-Service (kein Cron).
+#
+# Einrichtung in Railway (einmalig, 04.09.2026):
+#   1. New Service → GitHub Repo (dieses) → Config-Datei: railway-discord.toml
+#   2. Variablen: KOFI_VERIFICATION_TOKEN, DISCORD_DONATIONS_WEBHOOK,
+#      optional SUPABASE_URL + SUPABASE_SERVICE_KEY (Event-Log/Statistik)
+#   3. Networking → Public Domain erzeugen
+#   4. Bei Ko-fi (ko-fi.com/manage/webhooks) eintragen: https://<domain>/kofi
+#
+# Keine Sorare-API-Aufrufe — belastet das geteilte 200/min-Kontingent nicht.
+startCommand = "node services/discord/server.mjs"
+healthcheckPath = "/health"
+restartPolicyType = "always"

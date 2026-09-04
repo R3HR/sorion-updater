@@ -3,6 +3,7 @@
 > Zentrale Übergabedatei für alle Bots/Agents. **Vor jeder Arbeit lesen, nach jeder Arbeit aktualisieren — auch bei kleinen Sessions!**
 > **Squad-Bot - Wegweiser zu allen Dateien: `C:\craft-log\squad-bot\README.md`** (Function, Migrationen, Tabellen, Cron-Jobs, Actions, Secrets, Kanal-Aufteilung, offene Punkte). Erster Anlaufpunkt bei Bot-Arbeit.
 > **Squad-Leaderboard-Spezifikation (24.08., von Jonas): [SQUAD_LEADERBOARD.md](SQUAD_LEADERBOARD.md)** - vollstaendiges Regel- und Rechenwerk (Zyklen, Punkte, Strafen, Cap-Entscheidungsbaum, Ausgabeformate). **Maßgeblich bei Widerspruechen zu aelteren Notizen hier.**
+> **Lineup-Optimizer (Konzept 04.09., IDEA-006): [LINEUP_OPTIMIZER.md](LINEUP_OPTIMIZER.md)** — bestmögliche Aufstellungen je Gameweek aus Portfolio-Daten, Zielgröße erwartete Belohnung in EUR; nicht gebaut, Bauplan in 4 Stufen, Stufe 0 = Regelwerk je Wettbewerb (`so5-competitions`).
 > Bugs → [BUGS.md](BUGS.md) · Crashes/Sicherheit → [INCIDENTS.md](INCIDENTS.md) · Vorgemerkte Konzepte → [IDEAS.md](IDEAS.md)
 > **Monetarisierungsstrategie (20.08., externe Product-Lead-Analyse): [MONETARISIERUNG.md](MONETARISIERUNG.md)** — Freemium-Empfehlung (Pro 3,99 €/Monat um Rendite-Suite/Alerts/Historie), Validierung vor Bau (Fake-Door + Founding Supporter), 5 priorisierte nächste Schritte. Preise/Schwellen sind Hypothesen.
 > **Produktvision & Roadmap (20.08., Product-Lead-Analyse): [ROADMAP.md](ROADMAP.md)** — Vision, North Star (wöchentlich wiederkehrende Kern-Nutzer), 4 strategische Ziele, priorisierte Roadmap (P0: Launch + Tracking-Fixes vor JEDEM neuen Feature), Backlog inkl. DO-NOT-BUILD-Liste. Lebendes Dokument — bei größeren Sessions gegen den Ist-Stand prüfen und fortschreiben. Dabei gefunden: **Tracking-Whitelist-Lücke** — `trade_history`-Events werden von der `track`-Function still als `pageview` verbucht → Ökosystem-BUGS BUG-013 (`C:/craft-log/docs/BUGS.md`), 🔴 offen.
@@ -250,6 +251,17 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
+D. 🔴 **NEU (04.09.) — Discord-Service in Betrieb nehmen** (Code fertig, getestet):
+   1. Discord: Kanal „💰・donations" → Integrationen → Webhook → URL kopieren
+   2. Ko-fi: ko-fi.com/manage/webhooks → Verification Token kopieren
+   3. Supabase (optional, fuer Dedup-Dauerhaftigkeit + Statistik): `migrations/2026-09-04_kofi_events.sql` ausfuehren
+   4. Railway: New Service → Repo → Config `railway-discord.toml`; Variablen
+      `KOFI_VERIFICATION_TOKEN`, `DISCORD_DONATIONS_WEBHOOK`, optional `SUPABASE_URL`+`SUPABASE_SERVICE_KEY`;
+      Public Domain erzeugen
+   5. Ko-fi: Webhook-URL `https://<domain>/kofi` eintragen, „Send single test" → Nachricht muss im Kanal erscheinen
+   Secrets NUR in Railway-Variablen bzw. lokaler `.env` — nie ins Repo, nie in den Chat.
+
+
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)
 0c. ✅ **Deploy-Crash behoben (28.07.):** Index `card_prices(scarcity,updated_at)` eingespielt + verifiziert (limited-Query 3,28 s → <1 s), Code-Resilienz deployed. BUG-012 geschlossen.
 0d. ✅ **ERLEDIGT (30.07.) — Avg-FMV-Bewegung auf echten Vollmarkt umgestellt.** Eingespielt: `2026-07-30_market_daily_v3.sql` + Nachtrag `..._v3b_basket.sql`. **Live verifiziert:** `market_move` antwortet in 0,29 s; Snapshot-Werte deckungsgleich mit der UI (4,5181 € ↔ angezeigt „€4.52", Rare 14,7322 € ↔ „€14.73"); n über die Tage stabil (6.217 heute vs. 5.532 vor 7 Tagen); Werte plausibel: In-Season Limited +53,0 %, Rare +56,1 %, Classic Limited −0,4 %, Classic Rare −6,5 %. **Einordnung:** Der große In-Season-Anstieg ist überwiegend ein **Zusammensetzungs-Effekt** des Saisonflips (billige Karten ohne Sales verlieren ihren FMV und fallen aus der Bewertung; Median Limited nur 1,51 € bei Avg 4,52 €) — Classic ist das nüchterne Marktsignal. Optionaler Folgeschritt: Chip auf Median umstellen (ab 31.07. für alle neuen Tage verfügbar, in der Auffüllung nicht rekonstruierbar). Ab jetzt schreibt der Harvester täglich 05:30 den Snapshot; `market_daily` ist zugleich die Basis für die geplante 30-Tage-Marktbewegung.
@@ -331,6 +343,33 @@ Ablauf: Entwurf nach docs/patchnotes/JJJJ-MM-TT_<titel>.md (erste Zeile =
 # Titel), Jonas im Chat zeigen, nach Freigabe:
 `node --env-file=.env tools/publish-patchnotes.mjs docs/patchnotes/<datei>.md`
 Webhook-URL liegt NUR in der lokalen .env (git-ignoriert), niemals ins Repo.
+
+## 💰 Discord-Service: Ko-fi → „💰・donations" (gebaut 04.09.2026, Deploy offen)
+
+**Was:** `services/discord/` nimmt Ko-fi-Webhooks an und postet Spenden und
+Mitgliedschaften als gestaltete Nachricht (Sorion-Lila, VIP Magenta, keine
+„Donation-Bot"-Optik). Eigener Railway-Web-Service via `railway-discord.toml`
+(`node services/discord/server.mjs`, Healthcheck `/health`). Keine
+Sorare-API-Aufrufe. Details, Einrichtung, Erweiterungspfade: `services/discord/README.md`.
+
+**Tiers (Ko-fi, Stand 04.09.):** Supporter 0,50 €/M · Pro-Supporter 5 €/M · Sorion VIP 25 €/M
+(`lib/tiers.mjs`; Erkennung ueber Name, Rueckfall Betrag).
+
+**Aufbau (erweiterbar):** Pipeline `dedup → enrich → announce → persist` in
+`handlers/kofi.mjs`. Neue Faehigkeit = neue Funktion in `STEPS`. Optionales
+Event-Log `kofi_events` + RPC `kofi_stats()` (Migration
+`2026-09-04_kofi_events.sql`) ist die Basis fuer Milestones/Statistik/Footer-Zaehler.
+
+**Getestet (04.09., Mock-Discord, ohne Aussenwirkung):** 5 Ereignisarten,
+falsches Token abgelehnt, Duplikat uebersprungen, E-Mail nie im Ausgang.
+Zwei Fehler dabei gefunden und behoben: Tier-Teilstring („Pro-Supporter" →
+„Supporter") und Dedup-Zeitpunkt (ID erst am Pipeline-Ende gemerkt).
+
+**Noch nicht gebaut (bewusst, Community klein):** Rollenvergabe (braucht
+Bot-Token + Zuordnung Ko-fi-Spender ↔ Discord-Nutzer, die Ko-fi nicht
+liefert), Milestones, Monatsrueckblick. Alles in README skizziert.
+
+**Manuelle Schritte Jonas:** siehe „Offene Aktionen" Punkt D.
 
 ## SO5-Historie: eigener Speicher (04.09.2026)
 
