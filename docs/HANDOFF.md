@@ -251,15 +251,12 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
-D. 🔴 **NEU (04.09.) — Discord-Service in Betrieb nehmen** (Code fertig, getestet):
-   1. Discord: Kanal „💰・donations" → Integrationen → Webhook → URL kopieren
-   2. Ko-fi: ko-fi.com/manage/webhooks → Verification Token kopieren
-   3. Supabase (optional, fuer Dedup-Dauerhaftigkeit + Statistik): `migrations/2026-09-04_kofi_events.sql` ausfuehren
-   4. Railway: New Service → Repo → Config `railway-discord.toml`; Variablen
-      `KOFI_VERIFICATION_TOKEN`, `DISCORD_DONATIONS_WEBHOOK`, optional `SUPABASE_URL`+`SUPABASE_SERVICE_KEY`;
-      Public Domain erzeugen
-   5. Ko-fi: Webhook-URL `https://<domain>/kofi` eintragen, „Send single test" → Nachricht muss im Kanal erscheinen
-   Secrets NUR in Railway-Variablen bzw. lokaler `.env` — nie ins Repo, nie in den Chat.
+D. ✅ **Discord-Service LIVE (04.09., Ko-fi-Test erfolgreich):** Railway-Service
+   `sorion-discord`, Domain `sorion-discord-production.up.railway.app`, Webhook
+   `/kofi` bei Ko-fi eingetragen, Token + Discord-Webhook ("Penny") als Railway-Variablen.
+   Offen (optional): Migration `2026-09-04_kofi_events.sql` ausfuehren + `SUPABASE_URL`/
+   `SUPABASE_SERVICE_KEY` am Service setzen → Dedup ueberlebt Neustarts, Footer-Zaehler moeglich.
+   Empfohlen: Webhook-URL und Ko-fi-Token neu erzeugen (standen im Chat), dann Variablen aktualisieren.
 
 
 0. **price_history-Lockdown — ✅ ERLEDIGT (27.07.):** Bulk-Abgriff geschlossen. Nötig war die Korrektur-Migration `migrations/2026-07-27_price_history_lockdown_FIX.sql` (`revoke select from anon,authenticated` + alle Policies droppen — `enable RLS` allein hatte nicht gereicht). Live verifiziert: direkter `price_history`-Zugriff per publishable Key → 401 „permission denied"; RPC `player_history` liefert weiter spielergenau; `card_prices` bleibt öffentlich lesbar. (Ökosystem-BUGS BUG-012.)
@@ -344,7 +341,7 @@ Ablauf: Entwurf nach docs/patchnotes/JJJJ-MM-TT_<titel>.md (erste Zeile =
 `node --env-file=.env tools/publish-patchnotes.mjs docs/patchnotes/<datei>.md`
 Webhook-URL liegt NUR in der lokalen .env (git-ignoriert), niemals ins Repo.
 
-## 💰 Discord-Service: Ko-fi → „💰・donations" (gebaut 04.09.2026, Deploy offen)
+## 💰 Discord-Service: Ko-fi → „💰・donations" (LIVE seit 04.09.2026)
 
 **Was:** `services/discord/` nimmt Ko-fi-Webhooks an und postet Spenden und
 Mitgliedschaften als gestaltete Nachricht (Sorion-Lila, VIP Magenta, keine
