@@ -1347,6 +1347,7 @@
 
   const SORT_IDS = { '': 'ps-none', earn_desc: 'ps-earn', pnlp_desc: 'ps-gain', pnlp_asc: 'ps-loss', pnla_desc: 'ps-pnla', val_desc: 'ps-val', buy_desc: 'ps-buy', date_desc: 'ps-date', d7_desc: 'ps-d7', name_asc: 'ps-name' };
   function setSort(v) {
+    if (v === 'earn_desc') track('earn_sort');
     fSort = v;
     for (const [key, id] of Object.entries(SORT_IDS)) {
       document.getElementById(id)?.classList.toggle('active', key === v);
@@ -1362,12 +1363,13 @@
   function setElig2(v)  { fElig = v;   setPill('e', { all: 'pfe-all', in_season: 'pfe-is', classic: 'pfe-cl' }, v); filterCards(); }
   function setOrigin(v) { fOrigin = v; setPill('o', { all: 'pfo-all', bought: 'pfo-buy', crafted: 'pfo-craft', reward: 'pfo-rew' }, v); filterCards(); }
   function setPnl(v)    { fPnl = v;    setPill('p', { all: 'pfp-all', win: 'pfp-win', los: 'pfp-los' }, v); filterCards(); }
-  function setEarn(v)   { fEarn = v;   setPill('r', { all: 'pfr-all', yes: 'pfr-yes', no: 'pfr-no' }, v); filterCards(); }
+  function setEarn(v)   { fEarn = v;   setPill('r', { all: 'pfr-all', yes: 'pfr-yes', no: 'pfr-no' }, v); filterCards(); if (v !== 'all') track('earn_filter'); }
 
   // Mobil: Sidebar auf Knopfdruck ein-/ausklappen (unter 900 px ist sie zu)
   function toggleSidebar() {
     const el = document.getElementById('p-side');
     const open = el.classList.toggle('open');
+    if (open) track('filter_sidebar');
     const b = document.getElementById('btn-filters');
     if (b) { b.classList.toggle('active', open); b.textContent = open ? '✕ Filters' : '☰ Filters'; }
   }

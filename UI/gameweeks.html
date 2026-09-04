@@ -152,6 +152,11 @@
   const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
   const ANON_KEY = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
   const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  // Nutzung messen: erstes Aufklappen einer Aufstellung je Seitenaufruf
+  let gwOpenTracked = false;
+  document.addEventListener('toggle', e => {
+    if (!gwOpenTracked && e.target?.matches?.('details.lu') && e.target.open) { gwOpenTracked = true; try { track('gw_lineup_open'); } catch {} }
+  }, true);
 
   // Portfolio-Tab auf das EIGENE Portfolio zeigen lassen, falls verknuepft
   try {
