@@ -102,7 +102,16 @@
   .chip.cash { color: var(--up); border-color: var(--up); }
   .chip.card { color: var(--purple); border-color: var(--purple); }
   .lu-players { margin: 8px 0 6px; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); }
-  .lu-players div { display: flex; justify-content: space-between; max-width: 340px; padding: 2px 0; }
+  .lu-players .pl { display: flex; justify-content: space-between; gap: 12px; max-width: 380px; padding: 2px 0; }
+  .lu-players .pl.bench { opacity: .55; }
+  .lu-players .pl.bench .tag { color: var(--text2); }
+  .lu-players .sep { max-width: 380px; border-top: 1px dashed var(--border); margin: 7px 0 5px;
+                     padding-top: 5px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+  .lu-players .tag { font-size: 9px; letter-spacing: .08em; border: 1px solid var(--border);
+                     border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+  .lu-players .tag.in { color: var(--up); border-color: var(--up); }
+  .lu-sum { max-width: 380px; display: flex; justify-content: space-between; gap: 12px;
+            border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; color: var(--text); }
   .gw-more { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em;
              background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text2);
              padding: 8px 14px; cursor: pointer; }
@@ -138,6 +147,35 @@
     return `<span class="chip">${esc(r.kind)}</span>`;
   };
 
+  // Nur STARTER und SUBBED_IN zaehlen zum Lineup-Score. Bank (ON_BENCH) und
+  // ersetzte Startelf-Spieler (SUBBED_OUT) traegt Sorare NICHT ein — sie hier
+  // stillschweigend mitzulisten liesse ein 7er-Lineup wie 9 Punktelieferanten
+  // aussehen (Hinweis Jonas 04.09.).
+  function renderPlayers(r) {
+    const all = r.players ?? [];
+    // Aeltere Antworten ohne substitutionState: einfach alle auflisten
+    if (!all.some(p => p.state)) {
+      return all.slice().sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .map(p => `<div class="pl"><span>${p.captain ? '(C) ' : ''}${esc(p.name)}</span>`
+          + `<span>${p.score != null ? Number(p.score).toFixed(1) : '—'}</span></div>`).join('');
+    }
+    const line = p => {
+      const tag = p.state === 'SUBBED_IN' ? '<span class="tag in">SUB IN</span>'
+                : p.state === 'SUBBED_OUT' ? '<span class="tag">SUBBED OUT</span>'
+                : p.state === 'ON_BENCH' ? '<span class="tag">BENCH</span>' : '';
+      return `<div class="pl${p.counted ? '' : ' bench'}">`
+        + `<span>${p.captain ? '(C) ' : ''}${esc(p.name)}${tag}</span>`
+        + `<span>${p.score != null ? Number(p.score).toFixed(1) : '—'}</span></div>`;
+    };
+    const byScore = (a, b) => (b.score ?? 0) - (a.score ?? 0);
+    const counted = all.filter(p => p.counted).sort(byScore);
+    const bench   = all.filter(p => !p.counted).sort(byScore);
+    const total   = counted.reduce((s, p) => s + (p.score ?? 0), 0);
+    return counted.map(line).join('')
+      + `<div class="lu-sum"><span>${counted.length} scoring players</span><span>${total.toFixed(1)}</span></div>`
+      + (bench.length ? `<div class="sep">did not count</div>` + bench.map(line).join('') : '');
+  }
+
   async function loadFixtureInto(el, slug, fixture) {
     el.innerHTML = '<div class="gw-loading">// loading…</div>';
     try {
@@ -152,10 +190,7 @@
             ${(r.rewards ?? []).map(rewardChip).join(' ')}
             <span class="lu-score">${r.score != null ? Number(r.score).toFixed(1) + ' pts' : ''}</span>
           </summary>
-          <div class="lu-players">${(r.players ?? [])
-            .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-            .map(p => `<div><span>${p.captain ? '(C) ' : ''}${esc(p.name)}</span><span>${p.score != null ? Number(p.score).toFixed(1) : '—'}</span></div>`).join('')}
-          </div>
+          <div class="lu-players">${renderPlayers(r)}</div>
         </details>`).join('');
     } catch (e) {
       el.innerHTML = `<div class="gw-empty">// temporarily unavailable${e === 503 ? ' (setup pending)' : ''} — try again later</div>`;
