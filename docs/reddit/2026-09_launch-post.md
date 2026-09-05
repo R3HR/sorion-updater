@@ -1,4 +1,4 @@
-# Reddit-Post r/Sorare (Entwurf 04.09.2026, Zahlen vom 04.09., 3-Tage-Fenster)
+# Reddit-Post r/Sorare (GEPOSTET Sa 05.09.2026 ~11:20, Zahlen vom 05.09. 09:19 UTC, 3-Tage-Fenster)
 
 Regeln fuer diesen Post (wie Discord): nichts ueber die Formel, keine
 Infrastruktur, keine Kosten ausser dem, was auf der Seite steht. Jonas postet
@@ -14,19 +14,19 @@ I built a free Sorare value tracker and publish how wrong it is, every day, agai
 
 Hi r/Sorare. Solo project, six months in, free, no ads, no login. Sharing it because I think the accuracy part is genuinely useful, and I want to hear where it falls short.
 
-**The problem it tries to solve:** the floor price is an asking price, not a traded one. Right now it sits about 19% above where in-season Limited cards actually sell. So I built an estimate (I call it FMV) from live market data and, more importantly, I measure it against every real sale, then publish the result.
+**The problem it tries to solve:** the floor price is an asking price, not a traded one. Right now it sits about 20% above where in-season Limited cards actually sell. So I built an estimate (I call it FMV) from live market data and, more importantly, I measure it against every real sale, then publish the result.
 
 **How the measurement works:** whenever a card sells, I compare the sale price to the estimate I had published *before* that sale. No hindsight. The table shows the median gap over a rolling 3-day window, so it always reflects the current model, not last month's. Same sales, same window, for the floor price.
 
-Today's numbers (median deviation from real sale price, lower is better, ~81k sales in the last 3 days):
+Today's numbers (median deviation from real sale price, lower is better, ~77k sales in the last 3 days):
 
 | Segment | Sales | FMV | Floor price |
 |---|---|---|---|
-| In-Season Limited | 64,460 | **23.8%** | 28.3% |
-| In-Season Rare | 10,074 | **29.9%** | 33.6% |
-| Classic Limited | 4,249 | **28.1%** | 35.2% |
-| Classic Rare | 1,648 | 27.3% | **24.6%** |
-| Classic Super Rare | 247 | 23.9% | **20.0%** |
+| In-Season Limited | 59,611 | **22.6%** | 28.6% |
+| In-Season Rare | 9,606 | **28.9%** | 33.3% |
+| Classic Limited | 5,216 | **28.1%** | 38.3% |
+| Classic Rare | 2,096 | 27.3% | **25.9%** |
+| Classic Super Rare | 219 | 21.4% | **16.8%** |
 
 So: clearly better than the floor where most of the volume is, and honestly worse in the two small Classic segments. I'm not going to pretend otherwise. A plain average of recent sales is about on par with FMV overall right now, which tells you how hard this actually is. The live table is here: sorion.pro/accuracy.html
 
