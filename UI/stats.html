@@ -113,12 +113,17 @@
   <div id="gate" style="display:none;max-width:340px;margin:60px auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:26px">
     <div style="font-family:'Orbitron',monospace;font-size:15px;margin-bottom:6px">Admin-Login</div>
     <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);margin-bottom:18px">Diese Auswertung ist privat.</div>
-    <input id="g-mail" type="email" placeholder="E-Mail" autocomplete="username"
-      style="width:100%;margin-bottom:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px 12px;outline:none">
-    <input id="g-pass" type="password" placeholder="Passwort" autocomplete="current-password"
-      onkeydown="if(event.key==='Enter')doGate()"
-      style="width:100%;margin-bottom:14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px 12px;outline:none">
-    <button class="btn active" style="width:100%" onclick="doGate()">Anmelden</button>
+    <!-- Echtes <form> mit name-Attributen und Submit: nur so erkennen und speichern
+         Passwort-Manager die Zugangsdaten (Wunsch Jonas 05.09.). Enter loest submit aus. -->
+    <form id="g-form" method="post" action="#" onsubmit="doGate();return false;" autocomplete="on">
+      <label for="g-mail" style="position:absolute;left:-9999px">E-Mail</label>
+      <input id="g-mail" name="email" type="email" placeholder="E-Mail" autocomplete="username" required
+        style="width:100%;margin-bottom:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px 12px;outline:none">
+      <label for="g-pass" style="position:absolute;left:-9999px">Passwort</label>
+      <input id="g-pass" name="password" type="password" placeholder="Passwort" autocomplete="current-password" required
+        style="width:100%;margin-bottom:14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px 12px;outline:none">
+      <button type="submit" class="btn active" style="width:100%">Anmelden</button>
+    </form>
     <div id="g-msg" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--down);margin-top:12px"></div>
   </div>
 
@@ -200,8 +205,34 @@
   const ANON_KEY     = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
   let site = null, days = 30;
 
-  // Session teilen wir mit profile.html (localStorage 'sorion_session').
+  // Session teilen wir mit profile.html (localStorage 'sorion_session'), gleiches
+  // Format (expires_at). Das Zugangstoken laeuft nach 1 h ab; bisher wurde es nie
+  // erneuert, deshalb musste Jonas sich staendig neu anmelden. ensureSession()
+  // holt mit dem langlebigen refresh_token still ein neues, bevor es abläuft.
   const sess = () => { try { return JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch { return null; } };
+  function setSession(d) {
+    if (!d?.access_token) return;
+    localStorage.setItem('sorion_session', JSON.stringify({
+      access_token: d.access_token, refresh_token: d.refresh_token,
+      expires_at: Math.floor(Date.now() / 1000) + (d.expires_in ?? 3600) - 60,
+    }));
+  }
+  async function ensureSession() {
+    const s = sess();
+    if (!s?.access_token) return null;
+    if (s.expires_at && s.expires_at > Math.floor(Date.now() / 1000)) return s;
+    if (!s.refresh_token) return s;                 // alte Sitzung ohne Refresh: einmal versuchen
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token }),
+      });
+      const d = await r.json();
+      if (d.access_token) { setSession(d); return sess(); }
+    } catch {}
+    localStorage.removeItem('sorion_session');
+    return null;
+  }
   const token = () => sess()?.access_token || null;
 
   function showGate(msg) {
@@ -230,14 +261,14 @@
       });
       const d = await r.json();
       if (!r.ok || !d.access_token) { document.getElementById('g-msg').textContent = '// Login fehlgeschlagen'; return; }
-      localStorage.setItem('sorion_session', JSON.stringify(d));
+      setSession(d);
       document.getElementById('g-pass').value = '';
       boot();
     } catch { document.getElementById('g-msg').textContent = '// Verbindungsfehler'; }
   }
 
   async function rpc(name, body) {
-    const t = token();
+    const t = (await ensureSession())?.access_token;
     if (!t) return null;
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
@@ -253,7 +284,7 @@
   // Der eigentliche Schutz sitzt serverseitig: is_analytics_admin() im SQL.
   // Hier wird nur die UI passend geschaltet.
   async function boot() {
-    if (!token()) { showGate(''); return; }
+    if (!(await ensureSession())) { showGate(''); return; }
     const probe = await rpc('analytics_daily', { p_site: null, p_days: 1 });
     if (probe === 'denied' || probe === null) { showGate('// kein Zugriff mit diesem Konto'); return; }
     showDash();
