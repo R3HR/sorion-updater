@@ -33,7 +33,9 @@ console.log('\nBackend:');
 const H = { 'Content-Type': 'application/json', apikey: ANON, Authorization: 'Bearer ' + ANON };
 const timed = async (label, f) => { const t = Date.now(); try { const v = await f(); console.log(`   ${label}: ${Date.now() - t} ms ${v ?? ''}`); } catch (e) { console.log(`   ${label}: FEHLER ${e.message.slice(0, 60)}`); } };
 await timed('sync-portfolio (gecacht)', async () => { const r = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/sync-portfolio', { method: 'POST', headers: H, body: JSON.stringify({ slug: 'jr3hr' }) }); const d = await r.json(); return `${r.status} ${d.skipped ?? d.error ?? 'synced'}`; });
-await timed('accuracy_benchmark(3)', async () => { const r = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1/rpc/accuracy_benchmark', { method: 'POST', headers: H, body: JSON.stringify({ p_days: 3 }) }); return r.status === 200 ? 'ok' : `HTTP ${r.status}`; });
+// Seit 05.09. 13:05 UTC nutzt accuracy.html die Cache-Function, nicht die RPC direkt.
+// Gemessen wird deshalb, was Besucher wirklich treffen (X-Cache zeigt hit/stale/miss).
+await timed('accuracy-benchmark (Function)', async () => { const r = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/accuracy-benchmark?days=3', { headers: H }); return r.status === 200 ? `ok cache=${r.headers.get('x-cache')}` : `HTTP ${r.status}`; });
 await timed('card_prices (Markt)', async () => { const r = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1/card_prices?select=player_slug&limit=1', { headers: H }); return `HTTP ${r.status}`; });
 const since = new Date(Date.now() - 3600e3).toISOString();
 const { count: synced } = await sb.from('manager_sync').select('*', { count: 'exact', head: true }).gte('synced_at', since);
