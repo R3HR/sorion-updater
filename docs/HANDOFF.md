@@ -379,6 +379,33 @@ D. ✅ **Discord-Service LIVE (04.09., Ko-fi-Test erfolgreich):** Railway-Servic
    **Nachtrag 25.08. abends:** Alle drei Migrationen ausgefuehrt, beide Repos deployt, Erstbefuellung per `tools/backfill-player-meta.mjs` erledigt (7.847 Spieler). Liga-Menue auf **Sorares Marktplatz-Struktur** umgebaut (Quelle `so5.so5Competitions`): benannte Top-Wettbewerbe, Gruppen Champion/Contender (Kopf-Klick filtert die ganze Gruppe per or-Baum aus (Name,Land)-Paaren), Under 23 (setzt den Alters-Slider), Rest of the World nach Kartenzahl absteigend. Liga-Klicks filtern alle NAMENS-ALIASSE zugleich (Sorare-Umbenennungen: MLS/Major League Soccer, HNL/SuperSport HNL ...) — Aliastabelle im UI-Code (SORARE_TOP/SORARE_GROUPS), bei kuenftigen Umbenennungen dort ergaenzen. Noch offen: einmal `refresh_market_aggregates` NACH dem Backfill, damit das Nation-Dropdown erscheint.
 5. ✅ **Dubletten `limited/rare/sr/` entfernt (28.07.):** Per Railway Settings→Build bestätigt, dass alle 3 Services (Update Limited/Rare/SR) aus dem Repo-Root via `/railway-<s>.toml` bauen (keine Root Directory gesetzt). Ordner per `git rm -r` gelöscht → `update-scarcity.mjs`/`lib/fmv.mjs` existieren nur noch einmal (Root). Keine 4-fach-Sync mehr.
 
+## 📣 Soft Launch r/Sorare, Sa 05.09.2026 (Fazit, 22:11 UTC)
+
+**Post:** "I built a free Sorare value tracker", 11:20 lokal (Entscheidung Jonas: Samstag statt
+Montag, F2P-Set am Di). Nach 12 h: 796 Ansichten, 9 Upvotes (100 %), 1 Kommentar, Platz 2 des
+Tages (zeitweise Platz 1). Laender: GB 19 %, DE 11 %, US 9 %.
+
+**Unsere Seite (Tag):** 111 Pageviews, **47 Besucher** (Vortag 35 / 6, also 8x Besucher).
+Klickrate Reddit -> Seite ~6 % (Werbeblocker untertreiben). Seiten: Start 53, **Profil 26**,
+Accuracy 16, Portfolio 16. Ereignisse: 19 Manager-Suchen, 15 Portfolio-Ansichten, 12 Karten-
+Details, **7x Top Earners**, 3 Support-Klicks, 2 Discord-Beitritte. **2 neue Konten**, beide mit
+Sorare-Portfolio verknuepft (cmarshhh, tomneg). Ko-fi: 0 Spenden.
+
+**Technik:** null Fehler, null Sync-Fehler, alle Antworten unter 1 s, Sorare-Kontingent nie
+kritisch. Zwei Fixes am Tag selbst: morgens BUG-036 (Erstaufruf-Wettlauf/429, vor dem Post),
+mittags Cache-Function fuer accuracy_benchmark (edge_cache), nachdem die RPC zweimal ins
+3-s-Limit lief. Monitor: tools/monitor-launch.mjs.
+
+**Bewertung:** Soft Launch hat genau das geliefert, was er sollte: echter Traffic ohne Flut,
+Technik bewiesen, erste Konversionen. Schwach: Engagement (1 Kommentar in 12 h; der Post
+beantwortet alles selbst, laesst nichts zu fragen) und Reichweite (Samstag = Spieltage;
+~800 Ansichten fuer Platz 1-2 zeigen die Wochenendgroesse des Subreddits).
+
+**Konsequenzen:** Kein Montag-Post (waere Repost). Naechster Post = Fehler-/Lern-Artikel in
+1-2 Wochen, werktags 15:00, mit offener Frage am Ende. Discord-Communities mit Tools-Kanal
+als kostenlose Reichweite. Beobachten: kommen die 2 neuen Konten wieder (analytics_retention)?
+Tracking-Bug BUG-037 (Ereignisse bei Klick statt Erfolg) behoben; Zahlen bis 05.09. leicht zu hoch.
+
 ## Roadmap → Launch (Plan: Saisonstart + ~3 Tage stabil)
 
 **Lasttest 05.09. (vor Reddit):** Erstaufruf-Wettlauf und fehlende 429-Behandlung in
