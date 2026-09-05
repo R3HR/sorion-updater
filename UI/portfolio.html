@@ -1240,16 +1240,49 @@
         body: JSON.stringify({ slug: currentSlug, force: !!force }),
       });
       const d = await res.json();
+      if (res.status === 503 || d.error === 'busy') throw new Error('Sorare is busy right now — please try again in a minute.');
+      if (res.status === 404) throw new Error('Manager not found on Sorare.');
       if (d.error) throw new Error(d.error);
       if (d.skipped === 'fresh' && force) {
         alert('Already up to date — next sync possible in ' + d.next_in_minutes + ' min.');
       }
+      if (d.skipped === 'in_progress') await new Promise(r => setTimeout(r, (Number(d.retry_after_s) || 4) * 1000));
       await loadCards(currentSlug);
     } catch (e) {
       alert('Sync failed: ' + e.message);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = '⟳ Sync'; }
     }
+  }
+
+  // Erst-Sync mit Rueckmeldung an die Nutzerin. Antworten der Function:
+  //   skipped:'in_progress' → jemand holt gerade fuer uns; kurz warten, dann DB lesen
+  //   503 busy              → Sorare drosselt; einmal nach retry_after_s wiederholen
+  //   404                   → Manager gibt es nicht
+  async function firstSync(slug, grid, attempt = 0) {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-portfolio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+      body: JSON.stringify({ slug }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (res.status === 404) return 'not_found';
+    if (res.status === 503 || d.error === 'busy') {
+      if (attempt >= 1) return 'busy';
+      const wait = Math.min(30, Number(d.retry_after_s) || 8);
+      if (grid) grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
+        <div class="spinner"></div><div class="loading-text">Sorare is busy — retrying in ${wait}s…</div></div>`;
+      await new Promise(r => setTimeout(r, wait * 1000));
+      return firstSync(slug, grid, attempt + 1);
+    }
+    if (d.error) return 'error';
+    if (d.skipped === 'in_progress') {
+      if (grid) grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
+        <div class="spinner"></div><div class="loading-text">Fetching ${esc(slug)} from Sorare…</div></div>`;
+      await new Promise(r => setTimeout(r, (Number(d.retry_after_s) || 4) * 1000));
+      return 'in_progress';
+    }
+    return 'ok';
   }
 
   async function loadCards(slug) {
@@ -1274,14 +1307,17 @@
     grid.innerHTML = `<div class="loading-wrap" style="grid-column:1/-1">
       <div class="spinner"></div><div class="loading-text">First visit — fetching ${esc(slug)} from Sorare…</div></div>`;
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-portfolio`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-        body: JSON.stringify({ slug }),
-      });
-      const d = await res.json();
-      if (d.error) { showManagerError(`Manager "${esc(slug)}" not found`); return; }
+      const r = await firstSync(slug, grid);
+      if (r === 'not_found') { showManagerError(`Manager "${esc(slug)}" not found`); return; }
+      if (r === 'busy')      { showManagerError('Sorare is busy right now. Please try again in a minute.'); return; }
+      if (r === 'error')     { showManagerError('Could not load this portfolio. Please try again later.'); return; }
       allCards = await loadFromDb(slug);
+      // Ein anderer Aufruf hat gerade fuer uns geholt: kurz nachlesen, falls die
+      // Zeilen noch geschrieben werden.
+      for (let i = 0; i < 3 && !allCards.length && r === 'in_progress'; i++) {
+        await new Promise(res => setTimeout(res, 2500));
+        allCards = await loadFromDb(slug);
+      }
     } catch {
       showManagerError('Could not reach Sorare — please try again later');
       return;
