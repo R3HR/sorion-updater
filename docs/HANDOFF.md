@@ -383,7 +383,8 @@ D. ✅ **Discord-Service LIVE (04.09., Ko-fi-Test erfolgreich):** Railway-Servic
 
 **Post:** "I built a free Sorare value tracker", 11:20 lokal (Entscheidung Jonas: Samstag statt
 Montag, F2P-Set am Di). Nach 12 h: 796 Ansichten, 9 Upvotes (100 %), 1 Kommentar, Platz 2 des
-Tages (zeitweise Platz 1). Laender: GB 19 %, DE 11 %, US 9 %.
+Tages (zeitweise Platz 1). **0 fremde Kommentare** (der eine gezaehlte war Jonas' eigener CTA).
+Laender: GB 19 %, DE 11 %, US 9 %.
 
 **Unsere Seite (Tag):** 111 Pageviews, **47 Besucher** (Vortag 35 / 6, also 8x Besucher).
 Klickrate Reddit -> Seite ~6 % (Werbeblocker untertreiben). Seiten: Start 53, **Profil 26**,
@@ -397,8 +398,9 @@ mittags Cache-Function fuer accuracy_benchmark (edge_cache), nachdem die RPC zwe
 3-s-Limit lief. Monitor: tools/monitor-launch.mjs.
 
 **Bewertung:** Soft Launch hat genau das geliefert, was er sollte: echter Traffic ohne Flut,
-Technik bewiesen, erste Konversionen. Schwach: Engagement (1 Kommentar in 12 h; der Post
-beantwortet alles selbst, laesst nichts zu fragen) und Reichweite (Samstag = Spieltage;
+Technik bewiesen, erste Konversionen. Schwach: Engagement (0 fremde Kommentare in 12 h, auch
+nicht auf den CTA; eine Tool-Vorstellung wird zur Kenntnis genommen, nicht diskutiert. Kommentare
+entstehen bei Meinung, Geschichte, Fehlern -> Lern-Artikel ist die Korrektur, nicht nur die naechste Idee) und Reichweite (Samstag = Spieltage;
 ~800 Ansichten fuer Platz 1-2 zeigen die Wochenendgroesse des Subreddits).
 
 **Konsequenzen:** Kein Montag-Post (waere Repost). Naechster Post = Fehler-/Lern-Artikel in
