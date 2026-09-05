@@ -255,11 +255,23 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
-E. **Optional (05.09.): zweiter Sorare-API-Key.** `sync-portfolio` rotiert bei Drosselung ueber
-   `SORARE_APIKEY` und `SORARE_APIKEY_2`. Wenn Jonas den zweiten Key nutzen will:
-   `npx supabase secrets set SORARE_APIKEY_2=<key>` im Ordner C:\craft-log\supabase, dann
-   `npx supabase functions deploy sync-portfolio`. Abwaegung (zwei Keys = zwei Sorare-Konten)
-   liegt bei Jonas. Ohne den zweiten Key laeuft alles wie bisher mit 200/min.
+E. **Zweiter Sorare-API-Key: NICHT nutzen (Pruefung der Sorare-Bedingungen 05.09.).**
+   `sync-portfolio` kann technisch ueber `SORARE_APIKEY_2` rotieren, aber:
+   - API Terms 2.1: Lizenz ist "non-transferable"; 3.2: Keys "must not share or disclose
+     them to third parties". Ein Key aus einem FREMDEN Konto ist damit fuer beide Seiten
+     ein Verstoss.
+   - T&C 5.1 "Multiple Accounts": "You may not create more than one User account and/or
+     manage the User account(s) of other Users (even if given explicit permission)".
+     Ein EIGENES Zweitkonto ist selbst schon der Verstoss; 5.2 verbietet zudem das
+     Zusammenwirken mehrerer Konten, um die Terms zu umgehen (hier: das Rate Limit aus 3.1).
+   - Sanktion (API 5.1): Sperre des API-Zugangs, also aller Updater. T&C-Verstoss kann das
+     Hauptkonto treffen. Nutzen (60 statt 30 neue Portfolios/min) steht in keinem Verhaeltnis.
+   Einzig denkbarer sauberer Weg: pruefen, ob das EIGENE Konto unter sorare.com/settings/developer
+   mehrere Keys ausgeben darf (README: "generate an extra API Key") und ob das Limit je Key gilt.
+   Selbst dann Grauzone zu 3.1. Empfehlung: bei einem Key bleiben; bei Bedarf Sorare um ein
+   hoeheres Limit bitten. Der Code bleibt drin, ist ohne gesetzte Variable wirkungslos.
+   Nebenbefund API 2.3: kommerzielle Nutzung erlaubt, Vorabgenehmigung nur fuer Sublizenz/
+   Weiterverkauf/Verteilung der API-Inhalte. Sorion (kostenlos, Spenden) faellt nicht darunter.
 
 
 D. ✅ **Discord-Service LIVE (04.09., Ko-fi-Test erfolgreich):** Railway-Service
