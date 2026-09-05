@@ -370,3 +370,38 @@
 - **Ursache im Bot:** Die Umstellungs-Erkennung vergleicht die gespeicherten Zeilen mit dem, was das Board gerade liefert. Fehlt eine Zeile, gilt der Spieler als herausgenommen. Verschwindet eine **ganze Aufstellung**, sieht das aus wie fuenf gleichzeitige Auswechslungen. Der Bot meldete daraufhin "JR3HR swapped out Pedri" und "JR3HR swapped out Eric García" - beides ist nie passiert - und schickte andreihaha eine Entwarnung, die auf derselben Fehlannahme beruhte.
 - **Fix (deployed 31.08.):** Fehlt ein Manager **komplett** im Board, obwohl er gespeicherte Zeilen hat, werden seine Zeilen unangetastet gelassen und keine Auswechslung gemeldet. Begruendung: Niemand nimmt sein halbes Team binnen zehn Minuten heraus, und selbst dann bliebe die Aufstellung im Board. Der Fall wird als Warnung geloggt.
 - **Lektion:** Aus "Daten fehlen" folgt nicht "der Nutzer hat gehandelt". Wo ein Bot aus **Abwesenheit** auf eine Handlung schliesst, muss er unterscheiden, ob eine Einzelheit fehlt (echte Aenderung) oder ein ganzer Block (Aussetzer der Quelle). Dieselbe Wurzel wie BUG-031: dort wurde aus einem Schluesselbestandteil, hier aus einer Luecke etwas geschlossen, das die Quelle nie behauptet hat.
+
+---
+
+## BUG-036 - Jubel blieb aus: Ziel-Pruefung nur bei aktiver Runde (31.08.) - BEHOBEN
+
+- **Symptom (Jonas):** "wieso hat der bot nicht gejubelt?" - Stage 4 (Ziel 1060) stand auf CLAIMABLE, aber keine 🎯-Meldung.
+- **Ursache:** Die Pruefung "garantierte Summe >= Ziel" sass ausschliesslich im Ticker-Block, der nur bei `isActive` laeuft. Sorare setzt die Stage aber auf CLAIMABLE, **sobald das Ziel erreicht ist** - oft bevor alle Partien als `played` gelten. Der Step verliess den aktiven Zustand, ehe die Untergrenze das Ziel ueberschritt; die Frueherkennung bekam nie ein Zeitfenster. Ausgerechnet die Vorsicht ("erst melden, wenn es nicht mehr kippen kann") verhinderte den Jubel - spiegelbildlich zur Missed-Meldung vom 28.08.
+- **Fix (deployed 31.08.):** Zweiter Ausloeser: Sorare setzt CLAIMED/CLAIMABLE -> `postHit(..., confirmed=true)` ("Stage cleared"). Beide Ausloeser teilen sich `postHit()` und den Schluessel `target-hit:<step>`, also genau eine Meldung. Nachgeholt fuer R29: 1247.27 / 1060 um 00:27.
+- **Lektion:** Ein Zustandsuebergang der Quelle (hier: Sorare schliesst den Step) kann die eigene Fruehregel ueberholen. Jede Meldung braucht neben dem fruehen auch einen **formalen** Ausloeser am Endzustand.
+
+---
+
+## BUG-037 - Verpasste Aufstellung schoente den Durchschnitt (05.09.) - BEHOBEN
+
+- **Symptom (gemeldet vom Cowork-Leaderboard-Bot ueber Jonas):** Sorare | MA stand bei 156 P / Ø 347.88, richtig sind 151 / 335.89 - "weil die R29-Strafe und die 0-Runde dort fehlen".
+- **Ursache:** (1) Die -5 fuer die verpasste Aufstellung in R29 (31.08., nur 9 Aufstellungen) war nie in `squad_penalties` eingetragen - Captain-Entscheidung, die nicht nachgezogen wurde. (2) `computeStandings()` zaehlte nur Runden mit vorhandener Score-Zeile. Wer nicht aufgestellt hatte, hatte keine Zeile - die Runde fehlte im Nenner. Regel 8 verlangt aber "Ø inkl. 0-Runden". Gegenrechnung: 347.88 x 28 = 9740.6, / 29 = 335.9 ✓; 156 - 5 = 151 ✓.
+- **Fix (deployed 05.09.):** Strafe R29 eingetragen (`penalty`). In `computeStandings()` bekommt jedes Squad-Mitglied ohne Zeile in einer live erfassten Runde einen 0-Eintrag - die Runde zaehlt als gespielt, 0 Platzierungspunkte, Schnitt sinkt. Historie (R1-R23) ist davon unberuehrt, dort sind 0-Runden bereits geseedet. Verifiziert: 151 / 335.89 / 29 Runden, exakt der Sollwert.
+- **Zusaetzlich:** Neue lesende Action **`rounds`** (Einzelscores je Runde, `?round=29` filtert) und `steps` lesend freigegeben - der Cowork-Bot bekam auf `action=rounds` 403, weil es die Action nicht gab, und musste Einzelwerte aus Durchschnitten rueckrechnen.
+- **Lektion:** "Keine Zeile" ist ein Datum, kein Nichts. Wo eine Regel Abwesenheit bewertet (0-Runde, verpasste Frist), muss die Berechnung Abwesenheit explizit erzeugen, statt sie stillschweigend wegzulassen. Dieselbe Familie wie BUG-035 (Abwesenheit falsch gedeutet) - nur andersherum.
+
+---
+
+## BUG-036 - Erstaufruf eines Portfolios: Wettlauf und Drosselung endeten als "Manager not found" (05.09.) - BEHOBEN
+
+- **Symptom:** Lasttest vor dem Reddit-Launch (Frage Jonas: "koennte unsere Seite crashen?"). Sechs gleichzeitige Erstaufrufe desselben Portfolios: einer lieferte 322 Karten, fuenf antworteten `500 card insert failed`. Die Seite zeigte dafuer "Manager not found".
+- **Ursache 1 (Wettlauf):** `sync-portfolio` prueft die Frische, holt bei Sorare und schreibt dann `DELETE` + `INSERT`. Bei parallelen Aufrufen desselben Slugs kollidierten die Inserts am Primaerschluessel. Kein Claim, kein Upsert.
+- **Ursache 2 (Drosselung):** Der Sorare-Aufruf kannte keinen Umgang mit 429/5xx. Jede Drosselung wurde zu einem generischen Fehler, den die Seite ebenfalls als "not found" anzeigte. Bei ~30 neuen Besuchern pro Minute (5 bis 10 Sorare-Anfragen je neuem Slug, Kontingent 200/min) waere das im Launch passiert.
+- **Fix (deployed 05.09., Function `sync-portfolio`):**
+  1. **Atomarer Claim:** Vor dem Sorare-Abruf setzt der Aufrufer `last_error='in_progress'` per bedingtem PATCH (bzw. INSERT mit ignore-duplicates). Nur wer die Zeile bekommt, holt; alle anderen erhalten `skipped:'in_progress'` und die Seite liest nach 4 s aus der DB. Claim aelter als 2 Minuten gilt als haengen geblieben und wird uebernommen. Bei Fehler wird der alte Stand zurueckgeschrieben.
+  2. **Upsert statt Insert** (`on_conflict` + `merge-duplicates`) als zweiter Boden.
+  3. **Retry mit Key-Wechsel:** 429/5xx -> bis 3 Versuche mit Backoff, dabei rotierend ueber `SORARE_APIKEY` und optional `SORARE_APIKEY_2` (verdoppelt das Kontingent, Angebot Jonas).
+  4. **Fehlerklassen:** 404 `not found` (Manager gibt es nicht), 503 `busy` + `retry_after_s` (Sorare drosselt), sonst 500. Die Seite (`portfolio.html`, `firstSync`) zeigt jetzt passende Texte, wiederholt bei busy einmal sichtbar und wartet bei in_progress.
+- **Verifikation (railway run, jr3hr kuenstlich 2 Tage alt):** 6 parallel -> 1x synced, 5x in_progress, 0 Fehler. Danach 4 parallel -> alle `fresh` in ~170 ms, `last_error` null. Unbekannter Slug -> 404.
+- **Erster Fix-Versuch reichte nicht:** Ein Lesen-dann-Schreiben-Claim liess im Millisekunden-Burst trotzdem alle sechs durch (alle lasen den alten Stand, bevor der erste schrieb). Erst der bedingte Schreibzugriff, bei dem die DB entscheidet, machte es dicht.
+- **Lektion:** Ein "einmal pro TTL"-Schutz, der aus Lesen und spaeterem Schreiben besteht, ist unter Gleichzeitigkeit kein Schutz. Der Claim muss in EINEM Schreibbefehl mit Bedingung erfolgen. Und: die Seite darf nicht jeden Backend-Fehler auf dieselbe Nutzer-Meldung abbilden, sonst versteckt "not found" Drosselung und Wettlaeufe.

@@ -198,6 +198,10 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 - **⚠️ Cowork-URLs haben ein Pfad-Suffix (27.08., BUG-032):** `.../squad-poll/v2?key=…&action=report`. Der Abrufweg des Cowork-Bots hatte die Antwort **14 Stunden** zwischengespeichert und Query-Parameter dabei ignoriert. Ein anderer PFAD ist fuer den Cache eine neue Ressource - dieselbe Function, kein zweiter Deploy. Faellt es erneut auf: Suffix hochzaehlen. Fertige URLs in `_squad_snapshots\Bot Data\cowork-urls.txt`. Neu: `report` liefert `generatedAt`, damit veraltete Antworten sofort auffallen.
 - **⚠️ INC-007 (29.08.):** Der Bot war ~12 h stumm - `appDone` wurde oberhalb seiner Definition benutzt, jeder Poll mit offener Runde brach mit HTTP 500 ab. Behoben; zusaetzlich liegt der **komplette Ticker-Block jetzt in try/catch**, damit ein Fehler im Beiwerk nie wieder die Cap-/Claim-Logik mitreisst. **Merke:** Deploys ausserhalb der Spielzeit testen den Pfad "offene Runde" nicht.
 - **✅ Sorare-Aussetzer abgefangen (31.08., BUG-035):** Sorare lieferte jr3hrs Aufstellung von 11:30 bis 15:40 nicht mehr aus. Der Bot deutete das als fuenf Auswechslungen und meldete zwei Tausche, die nie stattfanden. Jetzt gilt: Fehlt ein Manager **komplett** im Board, bleiben seine Zeilen unangetastet und es wird nichts gemeldet. Der Bot selbst lief die ganze Zeit fehlerfrei durch.
+- **✅ Startelf-Warnung VOR Anpfiff (04.09., IDEA-006):** `Game.homeFormation/awayFormation { startingLineupAvailable startingLineup bench }` liefert die veroeffentlichte Elf, sobald der Anbieter sie hat (~1 h vor Anpfiff). Der Poller pingt im Lineup-Kanal, wenn ein Spieler des Squads auf der Bank oder nicht im Kader steht - **nur Manager, deren Aufstellung noch nicht gesperrt ist** (Sorare sperrt die ganze Aufstellung mit der ersten angepfiffenen Partie, Karte `locked`). Kann niemand mehr tauschen, gibt es keine Meldung. Einmal je Spieler und Runde (`s11:<step>:<player>`). Gegenprobe 04.09.: Dembele (jr3hr) Bank, aber jr3hrs Sulc spielte bereits -> korrekt keine Meldung. Action `availability` (auch lesend) zeigt starter/bench/not_in_squad/pending + `canSwap`. **Fundweg fuer kuenftige Feldfragen:** Introspection ist abgeschaltet, aber das komplette Schema liegt unter `https://api.sorare.com/graphql/schema` (39.180 Zeilen) - ZUERST dort suchen statt Feldnamen zu raten. Ebenfalls dort: `Player.playingStatus` (genereller Status, nicht fixture-bezogen), `PlayerGameStats.footballPlayingStatusOdds`, `projectedScore(so5LeaderboardSlug)` (die "35 Punkte" der App).
+- **✅ 0-Runden im Durchschnitt (05.09., BUG-037):** Wer in einer live erfassten Runde nicht aufgestellt hat, zaehlt jetzt mit 0 Punkten (Regel 8). Strafe -5 dafuer bleibt Captain-Entscheidung ueber `penalty`; fuer R29 (Sorare | MA) eingetragen. Neue lesende Action `rounds` (Einzelscores je Runde, `?round=N`), `steps` lesend freigegeben. Cowork-Bot nutzt inzwischen Pfad-Suffix /v4 - jedes Suffix ist erlaubt.
+- **Befund 05.09. "Der Bot stand" - war Sorares API:** Cron und Function liefen luckenlos (pg_cron `succeeded`, HTTP 200 `ok:true` um 07:00, 07:10, 07:20, 07:30 UTC). Die Antworten enthielten aber **nur das alte Board** (R27-R30); das neue Board (Ziel 700) tauchte in `currentUser.boards(mode: SQUAD, ...)` erst um **07:40 UTC = 09:40 Berlin** auf - mit da schon 3 Aufstellungen. Die App zeigt ein neues Wochen-Board also frueher als die API. **Gemessene Wechselzeiten** (erstes Sehen des neuen Boards durch den 10-min-Cron, Berlin): 24.08. **09:10**, 29.08. **10:20**, 05.09. **09:40** - unregelmaessig, immer nach 09:00. `endDate` ist an allen Boards null, ein Cutover-Zeitpunkt ist nicht ablesbar. `nextMatchdayAt` (= 09:00 Berlin) gilt nur fuer Stages INNERHALB eines Boards; die sind als LOCKED-Steps schon vorher sichtbar und werden puenktlich erfasst. Betroffen ist ausschliesslich der Board-Wechsel nach einer verlorenen Stage. Folge: In diesem Fenster ist `first_seen` fuer alle bis dahin gesetzten Aufstellungen identisch - die Reihenfolge fuer den Cap-Streit ist dann nicht bestimmbar, es entscheidet faktisch der Bonus. Naechste Beobachtung 12.09. Beleg abrufbar ueber die neue Action **`cron_runs`** (pg_cron-Laeufe + pg_net-Antworten inkl. Body, ~6 h Vorhalt; RPCs `squad_cron_runs`, `squad_http_responses`, `squad_cron_jobs`).
+- **pg_net-Timeout 5 s -> 30 s (05.09.):** Die Function braucht 4-7 s; am 05.09. 07:40 UTC lief der Cron-Aufruf in den 5-s-Timeout (Function lief trotzdem zu Ende, darauf ist aber kein Verlass). Beide Jobs per `cron.alter_job` auf `timeout_milliseconds := 30000`, verifiziert.
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
 
 ## 🔴 AKUT (25.08.): DB-Totalausfall Nr. 2 — siehe [INCIDENTS.md](INCIDENTS.md) INC-006
@@ -250,6 +254,13 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 - **Bewusst NICHT umgesetzt:** Liga-/Club-/Score-Terme (kein Effekt), Momentum-Term (auf J1-Einzelereignis gefittet), Form-Faktor L5/L40 (p=0,059, nur ein Datensatz — bei mehr Live-Aera-Daten erneut pruefbar).
 
 ## ⚠️ Offene Aktionen für Jonas
+
+E. **Optional (05.09.): zweiter Sorare-API-Key.** `sync-portfolio` rotiert bei Drosselung ueber
+   `SORARE_APIKEY` und `SORARE_APIKEY_2`. Wenn Jonas den zweiten Key nutzen will:
+   `npx supabase secrets set SORARE_APIKEY_2=<key>` im Ordner C:\craft-log\supabase, dann
+   `npx supabase functions deploy sync-portfolio`. Abwaegung (zwei Keys = zwei Sorare-Konten)
+   liegt bei Jonas. Ohne den zweiten Key laeuft alles wie bisher mit 200/min.
+
 
 D. ✅ **Discord-Service LIVE (04.09., Ko-fi-Test erfolgreich):** Railway-Service
    `sorion-discord`, Domain `sorion-discord-production.up.railway.app`, Webhook
@@ -304,6 +315,13 @@ D. ✅ **Discord-Service LIVE (04.09., Ko-fi-Test erfolgreich):** Railway-Servic
 5. ✅ **Dubletten `limited/rare/sr/` entfernt (28.07.):** Per Railway Settings→Build bestätigt, dass alle 3 Services (Update Limited/Rare/SR) aus dem Repo-Root via `/railway-<s>.toml` bauen (keine Root Directory gesetzt). Ordner per `git rm -r` gelöscht → `update-scarcity.mjs`/`lib/fmv.mjs` existieren nur noch einmal (Root). Keine 4-fach-Sync mehr.
 
 ## Roadmap → Launch (Plan: Saisonstart + ~3 Tage stabil)
+
+**Lasttest 05.09. (vor Reddit):** Erstaufruf-Wettlauf und fehlende 429-Behandlung in
+`sync-portfolio` gefunden und behoben (BUG-036). Danach: 6 parallele Erstaufrufe ->
+1 Sorare-Fetch, 0 Fehler; Cache-Pfad ~170 ms. Statische Seite kann nicht crashen; der
+einzige Engpass ist das Sorare-Kontingent bei vielen NEUEN Slugs pro Minute (~30/min
+mit einem Key, ~60/min mit zwei). Reddit-Post geplant Mo 08.09. 15:00 (docs/reddit/).
+
 
 | Schritt | Status |
 |---|---|
