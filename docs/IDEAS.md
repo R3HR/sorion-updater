@@ -505,3 +505,74 @@ dieselbe Regel: zufaellige Auswahl, aber nie zweimal hintereinander dasselbe.
 Poller die Runde automatisch als **R25** in `squad_step_rounds` eingetragen, und der
 Saisonstand rechnet sie seitdem mit - ohne einen einzigen Handgriff. Damit ist die
 gesamte Kette einmal komplett unter echten Bedingungen gelaufen.
+
+## IDEA-006 — Lineup-Optimizer: bestmögliche Aufstellungen je Gameweek (Konzept 04.09.2026, offen)
+
+**Frage Jonas:** Aus den vorhandenen Portfolio-Daten (Preispools, Punkte-Historie,
+Startelf-Quote, Prognose, Erträge) 2× pro Woche die bestmöglichen Aufstellungen für
+300+ Karten errechnen. **Antwort: machbar** — Vollkonzept in
+[LINEUP_OPTIMIZER.md](LINEUP_OPTIMIZER.md). Kern: Zielgröße ist die **erwartete
+Belohnung in Euro** (Reward-Stufen × Wahrscheinlichkeit), nicht die erwarteten Punkte;
+Lösung als Zuordnungsproblem (Greedy+Tausch, später MILP/Monte Carlo). Fehlt vor allem:
+Regelwerk je Wettbewerb (`so5_competitions`), Score→Rang-Kurve aus `so5_lineups`,
+Reward-Bewertung (Essence-Kurs, Tier-FMV). Bauplan in 4 Stufen, **Backtest vor
+Automatikbetrieb**. Offene Entscheidungen (XP-Bewertung, Risikoneigung, Squad-Wettbewerb
+ausklammern) in §12 des Konzepts.
+
+---
+
+## IDEA-006 — Startelf-Warnung vor Anpfiff (GEBAUT 04.09.2026)
+
+**Anforderung Jonas:** "Bei Anstoss bringen mir die Ergebnisse nichts mehr. Wir wollen
+eine Warnung fuer den Squad wenn Spieler nicht in der Startelf stehen. Diese soll
+kommen sobald Sorare die S11 ausspuckt." Und: "Keine Warnung wenn der Manager keine
+Chance mehr hat umzustellen (also einer seiner Spieler schon gelockt ist)."
+
+**Sackgassen zuerst:** `gameStats(last:N)` (onGameSheet/gameStarted/formationPlace)
+enthaelt nur bereits ANGEPFIFFENE Partien - exakt fuer Bank/DNP, aber zu spaet.
+Introspection (`__type`) ist auf dem Endpoint abgeschaltet; rund 35 geratene
+Feldnamen auf TaskAppearance, Player, Game und TeamFormation trafen nicht.
+
+**Loesung:** Schema-Download `https://api.sorare.com/graphql/schema` ->
+`type TeamFormation { bench, startingLineup: [[Player!]!]!, startingLineupAvailable }`
+an `Game.homeFormation/awayFormation`. Live verifiziert 04.09. 20:40 Berlin: Betis-Real
+und PSG-Monaco noch `scheduled`, Elf bereits verfuegbar; Mbappe, Bellingham, Gueler
+Startelf, Dembele Bank - deckungsgleich mit App und Kicker. MLS (01:30) `pending`.
+
+**Bau:** `s11Snapshot(stepId)` - zwei schlanke Abfragen (Spieler->Partie inkl. Karte
+`locked`, dann `nodes(ids)` fuer die Formationen), weil die Board-Query keinen Platz
+mehr unter der 30.000er Komplexitaetsgrenze hat. Im Poll je Spieler mit Bank / nicht
+im Kader eine Warnung in #lineups mit Ping - nur an Manager ohne gesperrte Karte
+(`canSwap`); ist die Liste leer, keine Meldung. Dedup `s11:<step>:<player>`,
+try/catch wie der Ticker. Action `availability` (lesend).
+
+**Gegenprobe der Sperr-Regel (04.09. 20:55):** Dembele Bank -> betroffen jr3hr ->
+dessen Sulc spielt seit 19:00 -> `canSwap = []` -> keine Meldung. Acht von zehn
+Aufstellungen waren zu dem Zeitpunkt bereits gesperrt (Stuttgart-Koeln 20:30).
+
+**Lektion:** Wenn die Oberflaeche etwas zeigt, existiert das Feld. Statt zu raten,
+zuerst die Quelle der Wahrheit holen - hier das veroeffentlichte Schema. Und: Eine
+Warnung, auf die niemand mehr reagieren kann, ist keine Information, sondern Laerm.
+
+## PRO-001 - Ertragsrendite je Karte als erstes Pro-Feature (Entscheidung Jonas, 05.09.2026)
+
+**Entscheidung:** Die Rendite je Karte (erspielte Ertraege im Verhaeltnis zum Kaufpreis bzw.
+zum aktuellen Wert) wird ein **bezahltes Pro-Feature**, sobald genug Nutzer da sind.
+Freie Basis bleibt: Ertraege je Karte anzeigen (heute schon live). Pro: Rendite-Ranking,
+Rendite je Segment/Liga/Position, "welche Karte sollte ich behalten/verkaufen" auf Ertragsbasis.
+
+**Warum das der richtige erste Pro-Kandidat ist:**
+- Einzigartige Datenbasis: so5_card_earnings ueber alle Manager und Gameweeks. Rechnet
+  niemand sonst (Stand 05.09.).
+- Rendite ist eine Ertragsfrage, keine Kursspekulation: haengt nicht von steigenden
+  Preisen ab, passt zur Verbuendeten-Haltung (hilft Managern, bessere Karten zu waehlen ->
+  mehr Handel -> Sorare verdient) und rueckt Sorion weg vom Flip-Image.
+- Zahlungsbereitschaft plausibel: wer 20 EUR/Monat durch bessere Kartenwahl spart, zahlt 5.
+
+**Voraussetzungen vor dem Bau:** (1) genug verknuepfte Portfolios, dass Segment-Renditen
+statistisch tragen (Richtwert: einige hundert), (2) Ko-fi-Daten zeigen, was Leute zahlen
+(siehe HANDOFF "Monetarisierung"), (3) IDEA-001 letzter Schritt (Ertrag vs. Kaufpreis je
+Karte) ist die Grundlage und kann vorher als freie Vorstufe leben.
+
+**Abgrenzung (Jonas, 05.09.):** KEIN Eigenhandel des Betreibers auf Basis der Daten
+(Vertrauen, Sorare T&C 5.2, Lebenslauf). Die Schaufel verkaufen, nicht selbst graben.
