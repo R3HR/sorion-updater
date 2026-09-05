@@ -1323,6 +1323,7 @@
     color: #b060ff; background: rgba(176,96,255,.10); border: 1px solid rgba(176,96,255,.55);
     border-radius: 6px; padding: 10px 16px; margin: 0; white-space: nowrap;
     transition: all .15s; }
+  .mover-row:hover { background: rgba(176,96,255,.07); }
   .nav-support:hover { background: #b060ff; color: #0d0d1a; border-color: #b060ff;
     box-shadow: 0 0 18px rgba(176,96,255,.4); transform: translateY(-1px); }
   @media (max-width: 560px) { .nav-support { font-size: 11px; padding: 9px 12px; } }
@@ -1606,6 +1607,7 @@
   let sortKey = 'fmv', sortDir = -1, currentPage = 1;
   let clubExact = new Map();   // kleingeschrieben -> exakter Vereinsname (eq-Filter)
   const facetsCache = {}, leaguesCache = {}, moversCache = {};
+  let moverRows = [];   // aktuell angezeigte Top/Flop-Zeilen, fuer openModal per Index
   const H_API = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
 
   const COLS = 'id,player_slug,player_name,team_name,league_name,league_country,picture_url,scarcity,eligibility,tier,fmv,floor_price,sale_1,sale_2,sale_3,sale_4,sale_5,avg_sales,sales_count,change_24h,change_7d,available_supply,position,last_sale_at,updated_at';
@@ -2702,7 +2704,9 @@
     const elig = eligFilter, sc = scarcityFilter;
     const key = elig + '|' + sc;
     if (!moversCache[key]) {
-      const base = `card_prices?select=player_name,team_name,picture_url,fmv,change_7d`
+      // select=* statt 5 Spalten: die Zeilen sollen das Spieler-Modal oeffnen (Wunsch
+      // Jonas 05.09.), und openModal() braucht den vollen card_prices-Datensatz.
+      const base = `card_prices?select=*`
         + `&eligibility=eq.${elig}` + (sc !== 'all' ? `&scarcity=eq.${sc}` : '')
         + `&change_7d=not.is.null`;
       const [top, flop] = await Promise.all([
@@ -2714,9 +2718,10 @@
     }
     if (eligFilter !== elig || scarcityFilter !== sc) return;   // inzwischen umgeschaltet
     const { top, flop } = moversCache[key];
+    moverRows = [...top, ...flop];
 
-    const moverRow = (r, color) => `
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(42,42,69,0.5)">
+    const moverRow = (r, color, idx) => `
+      <div class="mover-row" onclick="openModal(moverRows[${idx}])" title="Open ${esc(r.player_name)}" style="display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid rgba(42,42,69,0.5);cursor:pointer">
         <img src="${r.picture_url||PH_IMG}" onerror="this.onerror=null;this.src=PH_IMG"
           style="width:28px;height:40px;border-radius:3px;object-fit:cover;flex-shrink:0;background:var(--surface2)">
         <div style="flex:1;min-width:0">
@@ -2729,8 +2734,8 @@
         </div>
       </div>`;
 
-    document.getElementById('top-movers').innerHTML  = top.map(r => moverRow(r, '#00ff88')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
-    document.getElementById('flop-movers').innerHTML = flop.map(r => moverRow(r, '#ff2d78')).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
+    document.getElementById('top-movers').innerHTML  = top.map((r, i) => moverRow(r, '#00ff88', i)).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
+    document.getElementById('flop-movers').innerHTML = flop.map((r, i) => moverRow(r, '#ff2d78', top.length + i)).join('') || '<div style="padding:20px;color:var(--text2);font-family:\'Share Tech Mono\',monospace;font-size:11px;text-align:center">No data</div>';
   }
 
   // Zeitbasierte Prozent-Änderung aus der DB (change_24h/change_7d, berechnet aus price_history)
