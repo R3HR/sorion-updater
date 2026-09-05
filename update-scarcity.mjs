@@ -65,6 +65,7 @@ async function fetchData(playerSlug, eligibility) {
       tokenPrices(rarity: ${SCARCITY} seasonEligibility: ${seasonElig} playerSlug: "${playerSlug}" first: 20) {
         date
         amounts { eurCents }
+        deal { __typename }
       }
     }
   }`;
@@ -84,7 +85,12 @@ async function fetchData(playerSlug, eligibility) {
       if (!res.ok) { console.warn(`  HTTP ${res.status} for ${playerSlug}`); return null; }
       const data = await res.json();
       if (data.errors) { console.warn(`  GraphQL error for ${playerSlug}: ${data.errors[0]?.message}`); return null; }
-      const sales = (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100 }));
+      // deal.__typename: TokenPrimaryOffer (Sofortkauf von Sorare) | TokenAuction
+      // (Sorare-Auktion) | TokenOffer (Manager zu Manager). Messung 05.09.: bei
+      // In-Season Limited sind 79 % der "Sales" Sorare selbst, der Zweitmarkt liegt
+      // ~12 % unter dem Sofortkauf. Wird ab jetzt in fmv_accuracy.deal_type geloggt;
+      // die FMV-Formel bleibt bis zur Entscheidung (Jonas) unveraendert.
+      const sales = (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100, deal: p.deal?.__typename ?? null }));
       const floorCents = data?.data?.player?.lowestPriceAnyCard?.liveSingleSaleOffer?.receiverSide?.amounts?.eurCents;
       // Kartenbild der RICHTIGEN Rarity/Eligibility (Backfill hatte Bilder quer kopiert, z. B. Yamal rare mit SR-Bild)
       const cardPic = data?.data?.player?.lowestPriceAnyCard?.pictureUrl ?? null;
@@ -170,6 +176,10 @@ async function main() {
 
   // Spalte last_sale_at vorhanden? (migrations/2026-08-02_last_sale_date.sql)
   // Vergleichs-Spalten vorhanden? (migrations/2026-08-22_accuracy_benchmarks.sql)
+  // Verkaufsart-Spalte vorhanden? (migrations/2026-09-05_accuracy_deal_type.sql)
+  const dtProbe = await supabase.from('fmv_accuracy').select('deal_type').limit(1);
+  const hasDealType = !dtProbe.error;
+  if (!hasDealType) console.warn('fmv_accuracy.deal_type fehlt — Verkaufsart wird nicht geloggt');
   const bmProbe = await supabase.from('fmv_accuracy').select('floor_est').limit(1);
   const hasBenchmarks = !bmProbe.error;
   if (!hasBenchmarks) console.warn('fmv_accuracy.floor_est fehlt — Gegenprobe (Floor/Avg) wird uebersprungen');
@@ -282,6 +292,7 @@ async function main() {
           ...(hasBenchmarks ? { floor_est: player.floor_price ?? null,
                                 avg_sales_est: player.avg_sales ?? null } : {}),
           sale_price:  s.eur,
+          ...(hasDealType ? { deal_type: s.deal } : {}),
           delta_pct:   parseFloat((((s.eur - player.fmv) / player.fmv) * 100).toFixed(2)),
           est_at:      player.updated_at,
           sale_at:     s.date,

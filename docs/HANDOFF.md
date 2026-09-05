@@ -220,6 +220,37 @@ Programmierfehler — Details INC-006 in INCIDENTS.md), **Supabase Pro + Micro-C
 Cron-Kernjobs wiederhergestellt (accuracy 05:45, refresh 09:20, rollup Mo 06:30); Squad-Poller
 bewusst noch aus. Erste Nacht auf Micro = Belastungsprobe, Cron-Historie am 26.08. pruefen.
 
+## 🔍 Verkaufsarten in Sorares Preishistorie (Befund 05.09.2026)
+
+**Sorares `tokenPrices` mischen drei Dinge**, erkennbar an `deal.__typename`:
+`TokenPrimaryOffer` (Sofortkauf VON Sorare), `TokenAuction` (Sorare-Auktion),
+`TokenOffer` (Manager zu Manager = der eigentliche Zweitmarkt). Wir warfen den Typ
+bisher weg und bewerteten alles gleich.
+
+**Messung (180 liquideste Spieler, 3.598 Sales, tools/2026-09-05_deal-type-share.mjs):**
+
+| Segment | Sorare selbst | Manager→Manager | Zweitmarkt vs Sofortkauf | vs Auktion |
+|---|---|---|---|---|
+| In-Season Limited | 79 % | 21 % | −12 % | −3 % |
+| In-Season Rare | 51 % | 49 % | −34 % | −10 % |
+| Classic Limited | 0 % | 100 % | (kein Sorare-Verkauf) | |
+
+**Bedeutung:** Classic ist ein reiner Zweitmarkt, dort ist FMV am staerksten gegen den
+Floor. In-Season Limited besteht zu 4/5 aus Sorares Listenpreisen; unser FMV (und jeder
+Verkaufsschnitt, auch Sorares Anzeige) schaetzt dort ueberwiegend Sorares Preis, nicht
+den Zweitmarkt. Vermutlich der Grund, warum avg5 und FMV dort gleichauf liegen: gleicher
+Topf, gleicher Fehler.
+
+**Stand:** Updater holt und loggt `deal_type` (Commit 05.09.), Migration offen (Punkt F).
+FMV-Formel UNVERAENDERT bis Entscheidung Jonas. RPC `accuracy_by_deal(p_days)` liefert
+Median-Abweichung je Segment x Verkaufsart x Schaetzer.
+
+**Haltung (Jonas, 05.09., bindend fuer Texte und Features):** Sorion ist **Verbuendeter
+von Sorare, nicht Gegner**. Sorare verdient an Handel; Sorion soll Handel interessanter
+und sicherer machen. Befunde wie dieser werden als Marktkunde formuliert ("zwei Maerkte,
+so unterscheidet man sie"), nie als Vorwurf ("Sorare verschleiert"). Gilt fuer den
+geplanten Knowledge-Artikel ebenso wie fuer Discord und Reddit.
+
 ## 🎯 LANGFRISTZIEL FMV (festgelegt von Jonas, 26.08.): den Last-5-Schnitt schlagen
 
 Sorare Inside nutzt den ungewichteten Durchschnitt der letzten 5 Verkaeufe. Vergleich
@@ -254,6 +285,14 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 - **Bewusst NICHT umgesetzt:** Liga-/Club-/Score-Terme (kein Effekt), Momentum-Term (auf J1-Einzelereignis gefittet), Form-Faktor L5/L40 (p=0,059, nur ein Datensatz — bei mehr Live-Aera-Daten erneut pruefbar).
 
 ## ⚠️ Offene Aktionen für Jonas
+
+F. 🔴 **NEU (05.09.) — Migration `2026-09-05_accuracy_deal_type.sql` ausfuehren** (Spalte
+   `fmv_accuracy.deal_type` + RPC `accuracy_by_deal`). Der Updater ist bereits so deployed,
+   dass er die Verkaufsart loggt, SOBALD die Spalte da ist (Probe, kein Crash ohne). Danach
+   **Formel-Entscheidung** auf Basis von `select * from accuracy_by_deal(3)` nach 2 bis 3 Tagen
+   Daten: FMV nur aus Manager-Verkaeufen (TokenOffer), gewichtet, oder zwei Werte anzeigen?
+   Siehe Abschnitt "Verkaufsarten" unten und `docs/2026-09-05_VERKAUFSARTEN_MESSUNG.md`.
+
 
 E. **Zweiter Sorare-API-Key: NICHT nutzen (Pruefung der Sorare-Bedingungen 05.09.).**
    `sync-portfolio` kann technisch ueber `SORARE_APIKEY_2` rotieren, aber:
