@@ -405,3 +405,13 @@
 - **Verifikation (railway run, jr3hr kuenstlich 2 Tage alt):** 6 parallel -> 1x synced, 5x in_progress, 0 Fehler. Danach 4 parallel -> alle `fresh` in ~170 ms, `last_error` null. Unbekannter Slug -> 404.
 - **Erster Fix-Versuch reichte nicht:** Ein Lesen-dann-Schreiben-Claim liess im Millisekunden-Burst trotzdem alle sechs durch (alle lasen den alten Stand, bevor der erste schrieb). Erst der bedingte Schreibzugriff, bei dem die DB entscheidet, machte es dicht.
 - **Lektion:** Ein "einmal pro TTL"-Schutz, der aus Lesen und spaeterem Schreiben besteht, ist unter Gleichzeitigkeit kein Schutz. Der Claim muss in EINEM Schreibbefehl mit Bedingung erfolgen. Und: die Seite darf nicht jeden Backend-Fehler auf dieselbe Nutzer-Meldung abbilden, sonst versteckt "not found" Drosselung und Wettlaeufe.
+
+---
+
+## BUG-037 - signup_done / login_done zaehlten Versuche statt Erfolge (05.09.) - BEHOBEN
+
+- **Symptom (Jonas, Launch-Tag):** Monitor meldete 4 `signup_done`, die Konten-Kachel zeigte scheinbar keine neuen Konten. Tatsaechlich: 2 neue Konten (auth.users 13:15 und 14:08 UTC, beide bestaetigt, beide mit Sorare-Slug), aber 4 Ereignisse (eines doppelt binnen 2 s, eines um 12:05 ohne angelegtes Konto). `login_done` feuerte 4x in 16 Sekunden.
+- **Ursache:** In `profile.html` standen `track('signup_done')` und `track('login_done')` in der ERSTEN Zeile von doSignup/doLogin, vor Pflichtfeld-Pruefung und vor der Supabase-Anfrage. Jeder Klick zaehlte, auch Fehlversuche und Doppelklicks.
+- **Fix:** Beide Ereignisse feuern erst nach erfolgreicher Antwort (Signup: Konto angelegt, egal ob Token oder Bestaetigungsmail; Login: Token erhalten). Historische Zahlen bis 05.09. sind entsprechend zu hoch.
+- **Nebenbefund Panel:** Die Konten-Kachel zeigte nur "+N in 30d"; zwei neue Konten an einem Tag gehen darin unter. Jetzt zusaetzlich "+N today" (zweiter Aufruf von analytics_accounts mit p_days=1).
+- **Lektion:** Konversions-Ereignisse gehoeren hinter die Erfolgsantwort, nie an den Anfang des Handlers. Und ein Launch-Dashboard braucht die Tageszahl, nicht nur das Monatsfenster.

@@ -437,16 +437,19 @@
   // "generelle Nutzer reicht"). Die Aufschluesselung nach Seite liefert die
   // RPC weiterhin mit; die Herkunft wird bei der Registrierung mitgeschrieben,
   // damit eine spaetere Trennung moeglich BLEIBT statt verloren zu gehen.
-  function renderAccounts(rows, days) {
+  // "heute" eigens ausweisen (Wunsch Jonas, Launch-Tag 05.09.): im 30-Tage-Wert
+  // gehen zwei neue Konten an einem Tag unter, und genau die will man am Launch-Tag sehen.
+  function renderAccounts(rows, days, rowsToday) {
     const card = document.getElementById('acc-card');
     if (!card) return;
     const t = Array.isArray(rows) ? rows.find(r => r.scope === 'total') : null;
     if (!t) { card.style.display = 'none'; return; }   // RPC fehlt -> Kachel aus
+    const today = Array.isArray(rowsToday) ? rowsToday.find(r => r.scope === 'total') : null;
     const n = v => Number(v || 0).toLocaleString('en-GB');
     card.style.display = '';
     document.getElementById('a-total').textContent = n(t.accounts);
     document.getElementById('a-total-sub').textContent =
-      `${n(t.confirmed)} confirmed · +${n(t.new_in_period)} in ${days}d`;
+      `${n(t.confirmed)} confirmed · +${n(today?.new_in_period)} today · +${n(t.new_in_period)} in ${days}d`;
   }
 
   // Wiederkehrer & Aktivitaet: Zeile je Scope, "came back" mit Quote.
@@ -470,13 +473,14 @@
 
   async function load() {
     const args = { p_site: site, p_days: days };
-    const [daily, pages, events, sources, accounts, retention] = await Promise.all([
+    const [daily, pages, events, sources, accounts, retention, accountsToday] = await Promise.all([
       rpc('analytics_daily', args), rpc('analytics_pages', args),
       rpc('analytics_events_top', args), rpc('analytics_sources', args),
       rpc('analytics_accounts', { p_days: days }),
-      rpc('analytics_retention', {})
+      rpc('analytics_retention', {}),
+      rpc('analytics_accounts', { p_days: 1 })      // "heute" = letzte 24 h
     ]);
-    renderAccounts(accounts, days);
+    renderAccounts(accounts, days, accountsToday);
     renderRetention(retention);
 
     // Kennzahlen. Hinweis: Besucher werden pro Tag pseudonym gezaehlt (Tages-Hash),
