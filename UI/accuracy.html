@@ -203,13 +203,16 @@
     try {
       const BASE = 'https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1';
       const KEY = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+      // Gecachte Function zuerst (kein 3-s-Limit, 10-min-Cache, buendelt Gleichzeitige);
+      // letzter Versuch direkt gegen die RPC, falls die Function nicht erreichbar ist.
+      const FN = BASE.replace('/rest/v1', '/functions/v1');
       // Live-Perzentile koennen unter Updater-Schreiblast vereinzelt in den
       // Timeout laufen (Preflight 27.08.: ein 500er, danach stabil ~0,9 s) —
       // ein zweiter Versuch nach kurzer Pause reicht als Absicherung.
       let res = null;
       for (let attempt = 0; attempt < 3 && !(res && res.ok); attempt++) {
         if (attempt) await new Promise(r => setTimeout(r, 2500 * attempt));
-        res = await fetch(`${BASE}/rpc/accuracy_benchmark`, {
+        res = await fetch(attempt < 2 ? `${FN}/accuracy-benchmark?days=3` : `${BASE}/rpc/accuracy_benchmark`, {
           method: 'POST',
           headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
           body: JSON.stringify({ p_days: 3 })
