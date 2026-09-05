@@ -286,12 +286,9 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
-G. 🔴 **NEU (05.09., Launch-Tag) — Migration `2026-09-05_edge_cache.sql` ausfuehren** (30 s).
-   Tabelle `edge_cache` fuer die Edge Function `accuracy-benchmark`. Ohne sie rechnet die
-   Function bei jedem Aufruf (funktioniert, ~1,3 s, kein Timeout mehr); mit ihr antwortet
-   sie aus dem Cache (<300 ms) und rechnet nur alle 10 Minuten einmal neu. Wichtig, weil
-   accuracy.html der Hauptlink des Reddit-Posts ist. Pruefung danach: zweiter Aufruf von
-   `/functions/v1/accuracy-benchmark?days=3` muss Header `X-Cache: hit` liefern.
+G. ✅ **edge_cache-Migration ausgefuehrt (05.09. ~13:05 UTC).** Verifiziert: 1. Aufruf miss 1,75 s,
+   danach hit ~0,3 s; 5 parallele Aufrufe alle hit 0,24 bis 0,32 s. accuracy.html haengt damit nicht
+   mehr an der Live-RPC. Eine RPC je 10 Minuten statt einer je Besucher.
 
 
 F. 🔴 **NEU (05.09.) — Migration `2026-09-05_accuracy_deal_type.sql` ausfuehren** (Spalte
