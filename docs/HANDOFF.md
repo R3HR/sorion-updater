@@ -286,6 +286,14 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
+G. 🔴 **NEU (05.09., Launch-Tag) — Migration `2026-09-05_edge_cache.sql` ausfuehren** (30 s).
+   Tabelle `edge_cache` fuer die Edge Function `accuracy-benchmark`. Ohne sie rechnet die
+   Function bei jedem Aufruf (funktioniert, ~1,3 s, kein Timeout mehr); mit ihr antwortet
+   sie aus dem Cache (<300 ms) und rechnet nur alle 10 Minuten einmal neu. Wichtig, weil
+   accuracy.html der Hauptlink des Reddit-Posts ist. Pruefung danach: zweiter Aufruf von
+   `/functions/v1/accuracy-benchmark?days=3` muss Header `X-Cache: hit` liefern.
+
+
 F. 🔴 **NEU (05.09.) — Migration `2026-09-05_accuracy_deal_type.sql` ausfuehren** (Spalte
    `fmv_accuracy.deal_type` + RPC `accuracy_by_deal`). Der Updater ist bereits so deployed,
    dass er die Verkaufsart loggt, SOBALD die Spalte da ist (Probe, kein Crash ohne). Danach
@@ -475,6 +483,17 @@ JEMALS erspielt hat — ueber alle Manager hinweg.
 - Vorbereiteter Analyse-Auftrag: `C:\Users\Jonas\Documents\Bot2B\07_Wissen\Prompts_Bibliothek\Sorion_FMV_Faktoren_Analyst.json` — prueft, ob Score/Einsatzquote/Liga/Club die VERKAUFSPREISE ueber v3.2 hinaus erklaeren (Ziel: Formel-Faktoren fuer v3.3+). Kernregeln stehen im Prompt: gegen Verkaeufe messen (nie gegen den eigenen FMV — zirkulaer), Walk-Forward-Backtest vor jedem Formel-Vorschlag, DB nur lesend.
 
 ## Architektur-Wissen (Kern)
+
+**Edge Functions haben KEINEN wirksamen Speicher-Cache (gemessen 05.09.):** Supabase gibt
+jeder Anfrage praktisch eine frische Instanz; 7 von 7 Aufrufen einer Function mit
+modul-globaler Map waren Cache-Misses, auch bei 5 gleichzeitigen. Was zwischen Anfragen
+ueberleben soll, gehoert in die DB (`edge_cache` generisch, oder eine fachliche Tabelle
+wie `so5_lineups`). Der "Memory-Cache" in `so5-results` ist damit wirkungslos, aber
+harmlos, weil der eigentliche Cache dort die DB-Tabellen sind.
+**Statement-Timeout:** Mit dem oeffentlichen Schluessel brechen RPCs nach ~3 s ab (HTTP 500);
+mit dem Service-Schluessel nicht. Schwere Aggregate (Perzentile ueber 80k Zeilen) deshalb
+hinter eine Function mit Service-Key + DB-Cache legen, nicht direkt aus der Seite rufen.
+
 
 - **SO5-Ergebnisse je Manager sind OEFFENTLICH abrufbar (entdeckt 01.09.):** `so5.so5Fixture(slug:"football-<tag>-<monat>-<jahr>").userFixtureResults(userSlug:"<slug>")` -> `so5LeaderboardContenders` -> je Lineup `so5Appearances` (Spieler, Kapitaen, gewichtete Scores) + `so5Rankings` (Rang, rankingRatio, Score) + `so5Rewards.rewards`; **Wertung: nur `substitutionState` STARTER und SUBBED_IN zaehlen zum Lineup-Score — ON_BENCH und SUBBED_OUT (Startelf, aber nicht gespielt -> ersetzt) NICHT** (Hinweis Jonas 04.09., live verifiziert: Summe der zaehlenden Scores trifft den Ranking-Score auf 0,01) (`... on CardShardsReward{quantity rarity}`, `... on InGameCurrencyReward{coinAmount config{currency}}` — ACHTUNG (Korrektur Jonas 01.09.): `coinAmount` ist nur die MENGE; die Waehrungsart steht in `config.currency` (Enum: LIMITED_XP, RARE_XP, LIMITED_ENERGY, Craft-Clues, Wheel-Tickets, ...). Ohne dieses Feld wird XP faelschlich als 'Coins' angezeigt). Fixture-Slugs nach Muster `football-28-aug-1-sep-2026`; Leaderboard-Slugs enthalten `all_seasons` = Klassisch. ACHTUNG: anonym gilt Query-Tiefe max 7 / Komplexitaet 500 — fuer die volle Abfrage den SORARE_APIKEY nutzen (liegt in den Railway-Updater-Services; lokal: `railway run --service "Updater Limited" node ...`). Feature-Idee: SO5-Ergebnis-Ansicht im Portfolio (Raenge, Scores, Gewinne je GW).
 
