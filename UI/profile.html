@@ -269,7 +269,8 @@
 
   // ── Auth-Aktionen ───────────────────────────────────────────
   async function doSignup() {
-    if (window.track) track('signup_done');
+    // Ereignis NICHT hier: es feuerte beim Klick, vor Pruefung und Anfrage, und
+    // zaehlte damit Fehlversuche und Doppelklicks (05.09.: 4 Ereignisse, 2 Konten).
     if (!document.getElementById('su-privacy').checked) { msg('su-msg', 'Bitte Datenschutzerklärung bestätigen'); return; }
     const email = document.getElementById('su-email').value.trim();
     const pass  = document.getElementById('su-pass').value;
@@ -283,12 +284,12 @@
     });
     const data = await res.json();
     if (!res.ok) { msg('su-msg', data.msg || data.error_description || 'Registrierung fehlgeschlagen'); return; }
+    if (window.track) track('signup_done');          // Konto existiert ab hier
     if (data.access_token) { setSession(data); await enterProfile(); }
     else msg('su-msg', 'Fast geschafft — bitte bestätige den Link in deiner E-Mail.', true);
   }
 
   async function doLogin() {
-    if (window.track) track('login_done');
     const email = document.getElementById('login-email').value.trim();
     const pass  = document.getElementById('login-pass').value;
     const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
@@ -297,6 +298,7 @@
     });
     const data = await res.json();
     if (!data.access_token) { msg('login-msg', data.error_description || data.msg || 'Login fehlgeschlagen'); return; }
+    if (window.track) track('login_done');           // erst nach erfolgreichem Login
     setSession(data);
     await enterProfile();
   }
