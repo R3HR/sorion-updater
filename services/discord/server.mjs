@@ -23,6 +23,7 @@
 //   PORT                       setzt Railway selbst
 // ═══════════════════════════════════════════════════════════════════════════
 import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
 import { parseKofiRequest } from './lib/kofi.mjs';
 import { handleKofiEvent } from './handlers/kofi.mjs';
 
@@ -53,6 +54,20 @@ const send = (res, status, body) => {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+
+  // Interne Seite: Traffic-Statistik (Admin-Dashboard, UI/stats.html via
+  // tools/build-stats-page.mjs). Hier ausgeliefert, weil Supabase-Functions HTML
+  // erzwungen als text/plain senden und file:// keine Passwort-Manager erlaubt
+  // (05.09.). Der Datenzugriff bleibt serverseitig geschuetzt (is_analytics_admin);
+  // die Seite selbst enthaelt nur den oeffentlichen anon-Key.
+  if (req.method === 'GET' && (url.pathname === '/stats' || url.pathname === '/stats.html')) {
+    try {
+      const html = await readFile(new URL('./static/stats.html', import.meta.url), 'utf8');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+                           'X-Robots-Tag': 'noindex, nofollow', 'Referrer-Policy': 'no-referrer' });
+      return res.end(html);
+    } catch { return send(res, 404, { ok: false }); }
+  }
 
   // Healthcheck fuer Railway / Uptime-Monitor
   if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {

@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORION — Traffic Stats</title>
+<link href="https://sorion.pro/fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0d1a; --surface:#13131f; --surface2:#1a1a2e; --border:#2a2a45; --border2:#3a3a60;
+    --purple:#b060ff; --text:#e8e8ff; --text2:#9090c0; --up:#00f5a0; --down:#ff2d78;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Exo 2',sans-serif; }
+  .wrap { max-width:1200px; margin:0 auto; padding:0 24px 60px; }
+  header { display:flex; align-items:center; justify-content:space-between; padding:22px 0;
+           border-bottom:1px solid var(--border); margin-bottom:28px; flex-wrap:wrap; gap:12px; }
+  .logo { font-family:'Orbitron',monospace; font-size:22px; font-weight:900; color:var(--text);
+          letter-spacing:.06em; text-decoration:none; }
+  .logo span { color:var(--purple); }
+  .nav a { font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--text2); text-decoration:none; margin-left:22px; }
+  .nav a:hover { color:var(--purple); }
+  .controls { display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap; }
+  .btn { background:var(--surface); border:1px solid var(--border); border-radius:6px;
+         color:var(--text2); font-family:'Share Tech Mono',monospace; font-size:11px;
+         letter-spacing:.08em; padding:9px 14px; cursor:pointer; transition:all .15s; }
+  .btn:hover { border-color:var(--border2); color:var(--text); }
+  .btn.active { border-color:var(--purple); color:var(--purple); box-shadow:0 0 12px rgba(176,96,255,.15); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:26px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:16px 18px; position:relative; overflow:hidden; }
+  .card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%;
+                  background:linear-gradient(180deg,var(--purple),#8040cc); }
+  .card-label { font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:.2em;
+                text-transform:uppercase; color:var(--purple); margin-bottom:6px; }
+  .card-value { font-family:'Orbitron',monospace; font-size:24px; font-weight:700; }
+  .card-sub { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text2); margin-top:4px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:820px) { .grid2 { grid-template-columns:1fr; } }
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:18px; }
+  .panel-head { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:.2em;
+                text-transform:uppercase; color:var(--purple); padding:13px 16px;
+                border-bottom:1px solid var(--border); background:var(--surface2); }
+  table { width:100%; border-collapse:collapse; }
+  th { font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:.16em;
+       text-transform:uppercase; color:#c99aff; text-align:left; padding:11px 16px;
+       border-bottom:1px solid var(--border); }
+  td { font-family:'Share Tech Mono',monospace; font-size:12px; padding:10px 16px;
+       border-bottom:1px solid rgba(42,42,69,.5); color:var(--text); }
+  tr:last-child td { border-bottom:none; }
+  td.num { text-align:right; font-family:'Orbitron',monospace; font-size:12px; }
+  .bar { height:4px; background:linear-gradient(90deg,var(--purple),#8040cc); border-radius:2px; margin-top:5px; }
+  .empty { padding:22px 16px; font-family:'Share Tech Mono',monospace; font-size:12px; color:#505080; }
+  footer { margin-top:34px; padding-top:18px; border-top:1px solid var(--border);
+           font-family:'Share Tech Mono',monospace; font-size:10px; color:#505080; letter-spacing:.08em; }
+
+  /* ── Scrollbalken an das dunkle Design angleichen ─────────────── */
+  html, .lr-body, .lg-panel, .table-wrap, .m-cards, .pm, .lr-body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(176,96,255,.35) transparent;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(176,96,255,.28);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(176,96,255,.55); background-clip: content-box; }
+  ::-webkit-scrollbar-corner { background: transparent; }
+
+
+  /* ── Verlaufsdiagramm ─────────────────────────────────────────── */
+  /* Serienfarben gegen die dunkle Flaeche geprueft (Helligkeitsband,
+     Chroma, Rotgruen-/Blaugelbschwaeche, Kontrast). Lila+Blau fiel durch
+     (ΔE 3,0 bei Deuteranopie) — daher Lila + Teal. */
+  .ch-wrap { background:var(--surface); border:1px solid var(--border); border-radius:8px;
+             padding:16px 18px 10px; margin-bottom:18px; position:relative; }
+  .ch-head { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+  .ch-title { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:.2em;
+              text-transform:uppercase; color:var(--purple); }
+  .ch-legend { display:flex; gap:14px; margin-left:auto; }
+  .ch-key { display:flex; align-items:center; gap:6px; font-family:'Share Tech Mono',monospace;
+            font-size:11px; color:var(--text2); }
+  .ch-key i { width:14px; height:2px; border-radius:1px; display:inline-block; }
+  .ch-svg { display:block; width:100%; height:auto; }
+  .ch-empty { padding:34px 0 30px; text-align:center; font-family:'Share Tech Mono',monospace;
+              font-size:12px; color:#505080; }
+  .ch-tip { position:absolute; pointer-events:none; opacity:0; transition:opacity .1s;
+            background:var(--surface2); border:1px solid var(--border2); border-radius:6px;
+            padding:8px 11px; font-family:'Share Tech Mono',monospace; font-size:11px;
+            color:var(--text); white-space:nowrap; box-shadow:0 6px 22px rgba(0,0,0,.5); z-index:5; }
+  .ch-tip b { color:var(--text); font-weight:400; }
+  .ch-tip .d { color:var(--text2); font-size:10px; display:block; margin-bottom:4px; }
+  .ch-tip .r { display:flex; align-items:center; gap:6px; }
+  .ch-tip .r i { width:8px; height:8px; border-radius:2px; display:inline-block; }
+  .ch-tip .r span { margin-left:auto; padding-left:14px; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="https://sorion.pro/index.html">SORION<span>_</span></a>
+    <nav class="nav">
+      <a href="https://sorion.pro/index.html">Market</a>
+      <a href="https://sorion.pro/portfolio.html">Portfolio</a>
+      <a href="#" onclick="load();return false;">↻ Reload</a>
+    </nav>
+  </header>
+
+
+  <div id="gate" style="display:none;max-width:340px;margin:60px auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:26px">
+    <div style="font-family:'Orbitron',monospace;font-size:15px;margin-bottom:6px">Admin-Login</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);margin-bottom:18px">Diese Auswertung ist privat.</div>
+    <!-- Echtes <form> mit name-Attributen und Submit: nur so erkennen und speichern
+         Passwort-Manager die Zugangsdaten (Wunsch Jonas 05.09.). Enter loest submit aus. -->
+    <form id="g-form" method="post" action="#" onsubmit="doGate();return false;" autocomplete="on">
+      <label for="g-mail" style="position:absolute;left:-9999px">E-Mail</label>
+      <input id="g-mail" name="email" type="email" placeholder="E-Mail" autocomplete="username" required
+        style="width:100%;margin-bottom:9px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px 12px;outline:none">
+      <label for="g-pass" style="position:absolute;left:-9999px">Passwort</label>
+      <input id="g-pass" name="password" type="password" placeholder="Passwort" autocomplete="current-password" required
+        style="width:100%;margin-bottom:14px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:10px 12px;outline:none">
+      <button type="submit" class="btn active" style="width:100%">Anmelden</button>
+    </form>
+    <div id="g-msg" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--down);margin-top:12px"></div>
+  </div>
+
+  <div class="controls" id="ui-controls" style="display:none">
+    <button class="btn active" id="s-all"      onclick="setSite(null)">All sites</button>
+    <button class="btn"        id="s-sorion"   onclick="setSite('sorion')">sorion.pro</button>
+    <button class="btn"        id="s-craftlog" onclick="setSite('craftlog')">craftlog.pro</button>
+    <span style="width:14px"></span>
+    <button class="btn"        id="d-7"  onclick="setDays(7)">7 days</button>
+    <button class="btn active" id="d-30" onclick="setDays(30)">30 days</button>
+    <button class="btn"        id="d-90" onclick="setDays(90)">90 days</button>
+  </div>
+
+  <div class="cards" id="ui-cards" style="display:none">
+    <div class="card"><div class="card-label">// Visitors</div><div class="card-value" id="k-vis">—</div><div class="card-sub" id="k-vis-sub">unique, period</div></div>
+    <div class="card"><div class="card-label">// Pageviews</div><div class="card-value" id="k-pv">—</div><div class="card-sub">total</div></div>
+    <div class="card"><div class="card-label">// Views / Visitor</div><div class="card-value" id="k-ratio">—</div><div class="card-sub">engagement</div></div>
+    <div class="card"><div class="card-label">// Feature Uses</div><div class="card-value" id="k-ev">—</div><div class="card-sub">searches, portfolios…</div></div>
+    <div class="card" id="acc-card" style="display:none"><div class="card-label">// Accounts</div>
+      <div class="card-value" id="a-total">—</div><div class="card-sub" id="a-total-sub">registered</div></div>
+  </div>
+
+  <div class="ch-wrap ui-hide" style="display:none">
+    <div class="ch-head">
+      <span class="ch-title" id="ch-title">Visitors &amp; pageviews</span>
+      <span class="ch-legend">
+        <span class="ch-key"><i style="background:#b060ff"></i>Visitors</span>
+        <span class="ch-key"><i style="background:#12a89c"></i>Pageviews</span>
+      </span>
+    </div>
+    <div id="ch-body"><div class="ch-empty">// loading…</div></div>
+    <div class="ch-tip" id="ch-tip"></div>
+  </div>
+
+  <div class="panel ui-hide" style="display:none">
+    <div class="panel-head">// Where people are — pages</div>
+    <table><thead><tr><th>Page</th><th style="text-align:right">Views</th><th style="text-align:right">Visitors</th></tr></thead>
+    <tbody id="t-pages"><tr><td class="empty" colspan="3">// loading…</td></tr></tbody></table>
+  </div>
+
+  <div class="grid2 ui-hide" style="display:none">
+    <div class="panel">
+      <div class="panel-head">// Feature usage (monetization signal)</div>
+      <table><thead><tr><th>Event</th><th style="text-align:right">Hits</th><th style="text-align:right">Visitors</th></tr></thead>
+      <tbody id="t-events"><tr><td class="empty" colspan="3">// loading…</td></tr></tbody></table>
+    </div>
+    <div class="panel">
+      <div class="panel-head">// Traffic sources</div>
+      <table><thead><tr><th>Referrer</th><th>Country</th><th style="text-align:right">Hits</th></tr></thead>
+      <tbody id="t-src"><tr><td class="empty" colspan="3">// loading…</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- Wiederkehrer & Aktivitaet der Konten (Wunsch Jonas 25.08.). Quelle:
+       auth-Logins + Session-Refreshes ("zuletzt gesehen"), KEIN neues
+       Tracking. Panel bleibt verborgen, bis die retention-RPC existiert. -->
+  <div class="panel ui-hide" id="ret-panel" style="display:none">
+    <div class="panel-head">// Accounts — retention &amp; activity</div>
+    <table><thead><tr><th>Scope</th><th style="text-align:right">Accounts</th>
+      <th style="text-align:right">Came back</th><th style="text-align:right">Today</th>
+      <th style="text-align:right">7d</th><th style="text-align:right">30d</th>
+      <th style="text-align:right">Dormant &gt;90d</th></tr></thead>
+    <tbody id="t-ret"><tr><td class="empty" colspan="7">// loading…</td></tr></tbody></table>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text2);margin-top:8px">
+      // "came back" = seen on a later day than signup · activity = last login or session refresh</div>
+  </div>
+
+  <div class="panel ui-hide" style="display:none">
+    <div class="panel-head">// Daily</div>
+    <table><thead><tr><th>Day</th><th>Site</th><th style="text-align:right">Visitors</th><th style="text-align:right">Views</th></tr></thead>
+    <tbody id="t-daily"><tr><td class="empty" colspan="4">// loading…</td></tr></tbody></table>
+  </div>
+
+  <footer>Own analytics · cookie-free, no IP stored, no third party · data lives in your own database</footer>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://jxhdlcpdupmkpsoytzes.supabase.co';
+  const ANON_KEY     = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+  let site = null, days = 30;
+
+  // Session teilen wir mit profile.html (localStorage 'sorion_session'), gleiches
+  // Format (expires_at). Das Zugangstoken laeuft nach 1 h ab; bisher wurde es nie
+  // erneuert, deshalb musste Jonas sich staendig neu anmelden. ensureSession()
+  // holt mit dem langlebigen refresh_token still ein neues, bevor es abläuft.
+  const sess = () => { try { return JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch { return null; } };
+  function setSession(d) {
+    if (!d?.access_token) return;
+    localStorage.setItem('sorion_session', JSON.stringify({
+      access_token: d.access_token, refresh_token: d.refresh_token,
+      expires_at: Math.floor(Date.now() / 1000) + (d.expires_in ?? 3600) - 60,
+    }));
+  }
+  async function ensureSession() {
+    const s = sess();
+    if (!s?.access_token) return null;
+    if (s.expires_at && s.expires_at > Math.floor(Date.now() / 1000)) return s;
+    if (!s.refresh_token) return s;                 // alte Sitzung ohne Refresh: einmal versuchen
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token }),
+      });
+      const d = await r.json();
+      if (d.access_token) { setSession(d); return sess(); }
+    } catch {}
+    localStorage.removeItem('sorion_session');
+    return null;
+  }
+  const token = () => sess()?.access_token || null;
+
+  function showGate(msg) {
+    document.getElementById('gate').style.display = 'block';
+    document.getElementById('ui-controls').style.display = 'none';
+    document.getElementById('ui-cards').style.display = 'none';
+    document.querySelectorAll('.ui-hide').forEach(e => e.style.display = 'none');
+    if (msg) document.getElementById('g-msg').textContent = msg;
+  }
+  function showDash() {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('ui-controls').style.display = 'flex';
+    document.getElementById('ui-cards').style.display = 'grid';
+    document.querySelectorAll('.ui-hide').forEach(e => e.style.display = '');
+  }
+
+  async function doGate() {
+    const email = document.getElementById('g-mail').value.trim();
+    const password = document.getElementById('g-pass').value;
+    document.getElementById('g-msg').textContent = '// prüfe…';
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const d = await r.json();
+      if (!r.ok || !d.access_token) { document.getElementById('g-msg').textContent = '// Login fehlgeschlagen'; return; }
+      setSession(d);
+      document.getElementById('g-pass').value = '';
+      boot();
+    } catch { document.getElementById('g-msg').textContent = '// Verbindungsfehler'; }
+  }
+
+  async function rpc(name, body) {
+    const t = (await ensureSession())?.access_token;
+    if (!t) return null;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+        method: 'POST',
+        headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (r.status === 401 || r.status === 403) return 'denied';
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  }
+
+  // Der eigentliche Schutz sitzt serverseitig: is_analytics_admin() im SQL.
+  // Hier wird nur die UI passend geschaltet.
+  async function boot() {
+    if (!(await ensureSession())) { showGate(''); return; }
+    const probe = await rpc('analytics_daily', { p_site: null, p_days: 1 });
+    if (probe === 'denied' || probe === null) { showGate('// kein Zugriff mit diesem Konto'); return; }
+    showDash();
+    load();
+  }
+
+  function setSite(s) {
+    site = s;
+    for (const [id, val] of [['s-all', null], ['s-sorion', 'sorion'], ['s-craftlog', 'craftlog']])
+      document.getElementById(id).classList.toggle('active', val === s);
+    load();
+  }
+  function setDays(d) {
+    days = d;
+    for (const n of [7, 30, 90]) document.getElementById('d-' + n).classList.toggle('active', n === d);
+    load();
+  }
+
+  const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const rowsOrEmpty = (tbody, rows, cols, render) => {
+    const el = document.getElementById(tbody);
+    if (!rows || !rows.length) {
+      el.innerHTML = `<tr><td class="empty" colspan="${cols}">// no data yet — numbers appear as soon as visitors arrive</td></tr>`;
+      return;
+    }
+    el.innerHTML = rows.map(render).join('');
+  };
+
+  // ── Verlauf: Besucher und Aufrufe je Tag ────────────────────────────────
+  // Bewusst EINE y-Achse: beides sind Zaehlungen derselben Art. Zwei Achsen
+  // wuerden ein Groessenverhaeltnis suggerieren, das es nicht gibt.
+  const SER = [
+    { key: 'visitors',  label: 'Visitors',  color: '#b060ff' },
+    { key: 'pageviews', label: 'Pageviews', color: '#12a89c' },
+  ];
+
+  function renderChart(daily) {
+    const box = document.getElementById('ch-body');
+    const tip = document.getElementById('ch-tip');
+    if (!box) return;
+
+    // Tage zusammenfassen (bei "All sites" liefert die RPC je Tag eine Zeile pro Site)
+    const byDay = new Map();
+    for (const r of daily || []) {
+      const e = byDay.get(r.day) || { day: r.day, visitors: 0, pageviews: 0 };
+      e.visitors += r.visitors || 0;
+      e.pageviews += r.pageviews || 0;
+      byDay.set(r.day, e);
+    }
+    const rows = [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+    if (!rows.length) {
+      box.innerHTML = '<div class="ch-empty">// no visits recorded yet — the chart fills as people arrive</div>';
+      return;
+    }
+
+    const W = 860, H = 240, PL = 46, PR = 16, PT = 14, PB = 26;
+    const iw = W - PL - PR, ih = H - PT - PB;
+    const maxV = Math.max(1, ...rows.map(r => Math.max(r.visitors, r.pageviews)));
+    // Achse auf eine runde Zahl aufrunden, damit die Beschriftung lesbar bleibt
+    const step = Math.pow(10, Math.floor(Math.log10(maxV))) * (maxV / Math.pow(10, Math.floor(Math.log10(maxV))) > 5 ? 2 : 1);
+    const top = Math.max(step, Math.ceil(maxV / (step / 2)) * (step / 2));
+    const x = i => rows.length === 1 ? PL + iw / 2 : PL + (i / (rows.length - 1)) * iw;
+    const y = v => PT + ih - (v / top) * ih;
+
+    const ticks = [0, top / 2, top];
+    const grid = ticks.map(t => `<line x1="${PL}" x2="${W - PR}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"
+        stroke="#2a2a45" stroke-width="1" shape-rendering="crispEdges"/>
+      <text x="${PL - 9}" y="${(y(t) + 3.5).toFixed(1)}" text-anchor="end"
+        font-family="'Share Tech Mono',monospace" font-size="10" fill="#6a6a95">${Math.round(t)}</text>`).join('');
+
+    // Datumsbeschriftung ausdünnen, damit nichts überlappt
+    const every = Math.max(1, Math.ceil(rows.length / 7));
+    const xlabels = rows.map((r, i) => (i % every === 0 || i === rows.length - 1)
+      ? `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle"
+           font-family="'Share Tech Mono',monospace" font-size="10" fill="#6a6a95">${r.day.slice(8)}.${r.day.slice(5, 7)}</text>`
+      : '').join('');
+
+    const paths = SER.map(sr => {
+      const pts = rows.map((r, i) => `${x(i).toFixed(1)},${y(r[sr.key]).toFixed(1)}`);
+      const line = `M${pts.join(' L')}`;
+      const area = sr.key === 'visitors'
+        ? `<path d="${line} L${x(rows.length - 1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z"
+             fill="url(#chFill)" stroke="none"/>`
+        : '';
+      const dots = rows.length === 1
+        ? `<circle cx="${x(0)}" cy="${y(rows[0][sr.key])}" r="4" fill="${sr.color}"/>`
+        : '';
+      // Endpunkt hervorheben — dort steht der aktuelle Wert
+      const last = rows.length - 1;
+      const end = `<circle cx="${x(last).toFixed(1)}" cy="${y(rows[last][sr.key]).toFixed(1)}" r="3.5"
+                     fill="${sr.color}" stroke="var(--surface)" stroke-width="2"/>`;
+      return `${area}<path d="${line}" fill="none" stroke="${sr.color}" stroke-width="2"
+                stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}${end}`;
+    }).join('');
+
+    // Trefferflächen je Tag — größer als die Marken selbst
+    const halo = SER.map(sr => `<circle class="ch-dot" data-s="${sr.key}" r="4.5" fill="${sr.color}"
+                    stroke="var(--surface)" stroke-width="2" opacity="0"/>`).join('');
+    const hits = rows.map((r, i) => {
+      const w = rows.length === 1 ? iw : iw / (rows.length - 1);
+      return `<rect x="${(x(i) - w / 2).toFixed(1)}" y="${PT}" width="${w.toFixed(1)}" height="${ih}"
+               fill="transparent" data-i="${i}" class="ch-hit"/>`;
+    }).join('');
+
+    box.innerHTML = `<svg class="ch-svg" viewBox="0 0 ${W} ${H}" role="img"
+        aria-label="Besucher und Seitenaufrufe je Tag">
+      <defs>
+        <linearGradient id="chFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#b060ff" stop-opacity=".22"/>
+          <stop offset="100%" stop-color="#b060ff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${grid}${xlabels}
+      <line id="ch-cross" x1="0" x2="0" y1="${PT}" y2="${PT + ih}" stroke="#3a3a60" stroke-width="1"
+            shape-rendering="crispEdges" opacity="0"/>
+      ${paths}${halo}${hits}
+    </svg>`;
+
+    const svg = box.querySelector('svg');
+    const cross = svg.querySelector('#ch-cross');
+    const dots = [...svg.querySelectorAll('.ch-dot')];
+    const show = i => {
+      const r = rows[i];
+      cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', '1');
+      dots.forEach(d => {
+        const k = d.dataset.s;
+        d.setAttribute('cx', x(i)); d.setAttribute('cy', y(r[k])); d.setAttribute('opacity', '1');
+      });
+      tip.innerHTML = `<span class="d">${new Date(r.day).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</span>`
+        + SER.map(sr => `<span class="r"><i style="background:${sr.color}"></i>${sr.label}<span>${r[sr.key].toLocaleString('en-GB')}</span></span>`).join('');
+      const rect = svg.getBoundingClientRect();
+      const px = rect.left + (x(i) / W) * rect.width - svg.parentElement.getBoundingClientRect().left;
+      tip.style.opacity = '1';
+      tip.style.left = Math.max(4, Math.min(px - tip.offsetWidth / 2, box.clientWidth - tip.offsetWidth - 4)) + 'px';
+      tip.style.top = '34px';
+    };
+    const hide = () => {
+      cross.setAttribute('opacity', '0');
+      dots.forEach(d => d.setAttribute('opacity', '0'));
+      tip.style.opacity = '0';
+    };
+    svg.querySelectorAll('.ch-hit').forEach(h => {
+      h.addEventListener('mouseenter', () => show(+h.dataset.i));
+      h.addEventListener('touchstart', () => show(+h.dataset.i), { passive: true });
+    });
+    svg.addEventListener('mouseleave', hide);
+  }
+
+  // Konto-Zahlen: bewusst nur die Gesamtzahl (Entscheidung Jonas 22.08. —
+  // "generelle Nutzer reicht"). Die Aufschluesselung nach Seite liefert die
+  // RPC weiterhin mit; die Herkunft wird bei der Registrierung mitgeschrieben,
+  // damit eine spaetere Trennung moeglich BLEIBT statt verloren zu gehen.
+  function renderAccounts(rows, days) {
+    const card = document.getElementById('acc-card');
+    if (!card) return;
+    const t = Array.isArray(rows) ? rows.find(r => r.scope === 'total') : null;
+    if (!t) { card.style.display = 'none'; return; }   // RPC fehlt -> Kachel aus
+    const n = v => Number(v || 0).toLocaleString('en-GB');
+    card.style.display = '';
+    document.getElementById('a-total').textContent = n(t.accounts);
+    document.getElementById('a-total-sub').textContent =
+      `${n(t.confirmed)} confirmed · +${n(t.new_in_period)} in ${days}d`;
+  }
+
+  // Wiederkehrer & Aktivitaet: Zeile je Scope, "came back" mit Quote.
+  // Fehlt die RPC noch (Migration nicht eingespielt), bleibt das Panel zu.
+  function renderRetention(rows) {
+    const panel = document.getElementById('ret-panel');
+    if (!panel) return;
+    if (!Array.isArray(rows) || !rows.length) { panel.style.display = 'none'; return; }
+    panel.style.display = '';
+    const n = v => Number(v || 0).toLocaleString('en-GB');
+    const pct = (a, b) => b ? ` <span style="color:var(--text2)">(${Math.round(100 * a / b)}%)</span>` : '';
+    document.getElementById('t-ret').innerHTML = rows.map(r => `<tr>
+      <td style="${r.scope === 'total' ? 'color:var(--up)' : ''}">${esc(r.scope)}</td>
+      <td class="num">${n(r.accounts)}</td>
+      <td class="num">${n(r.returning_n)}${pct(r.returning_n, r.accounts)}</td>
+      <td class="num">${n(r.active_1d)}</td>
+      <td class="num">${n(r.active_7d)}</td>
+      <td class="num">${n(r.active_30d)}${pct(r.active_30d, r.accounts)}</td>
+      <td class="num" style="color:var(--text2)">${n(r.dormant_90d)}</td></tr>`).join('');
+  }
+
+  async function load() {
+    const args = { p_site: site, p_days: days };
+    const [daily, pages, events, sources, accounts, retention] = await Promise.all([
+      rpc('analytics_daily', args), rpc('analytics_pages', args),
+      rpc('analytics_events_top', args), rpc('analytics_sources', args),
+      rpc('analytics_accounts', { p_days: days }),
+      rpc('analytics_retention', {})
+    ]);
+    renderAccounts(accounts, days);
+    renderRetention(retention);
+
+    // Kennzahlen. Hinweis: Besucher werden pro Tag pseudonym gezaehlt (Tages-Hash),
+    // die Periodensumme ist daher eine Summe der Tagesbesucher, kein Unique-over-30d.
+    const vis = (daily || []).reduce((s, r) => s + (r.visitors || 0), 0);
+    const pv  = (daily || []).reduce((s, r) => s + (r.pageviews || 0), 0);
+    const ev  = (events || []).reduce((s, r) => s + (r.hits || 0), 0);
+    document.getElementById('k-vis').textContent   = vis.toLocaleString('en-GB');
+    document.getElementById('k-vis-sub').textContent = `daily uniques, summed over ${days}d`;
+    document.getElementById('k-pv').textContent    = pv.toLocaleString('en-GB');
+    document.getElementById('k-ratio').textContent = vis ? (pv / vis).toFixed(1) : '—';
+    document.getElementById('k-ev').textContent    = ev.toLocaleString('en-GB');
+
+    const chTitle = document.getElementById('ch-title');
+    if (chTitle) chTitle.textContent = `Visitors & pageviews · last ${days} days` + (site ? ` · ${site}` : '');
+    renderChart(daily);
+
+    const maxPv = Math.max(...((pages || []).map(p => p.pageviews) || [0]), 1);
+    rowsOrEmpty('t-pages', pages, 3, p => `<tr>
+      <td>${esc(p.site)}<span style="color:#505080"> · </span>${esc(p.path)}
+        <div class="bar" style="width:${Math.max(2, (p.pageviews / maxPv) * 100)}%"></div></td>
+      <td class="num">${p.pageviews.toLocaleString('en-GB')}</td>
+      <td class="num" style="color:var(--text2)">${p.visitors.toLocaleString('en-GB')}</td></tr>`);
+
+    rowsOrEmpty('t-events', events, 3, e => `<tr>
+      <td style="color:var(--up)">${esc(e.event)}</td>
+      <td class="num">${e.hits.toLocaleString('en-GB')}</td>
+      <td class="num" style="color:var(--text2)">${e.visitors.toLocaleString('en-GB')}</td></tr>`);
+
+    rowsOrEmpty('t-src', sources, 3, s => `<tr>
+      <td>${esc(s.referrer_host)}</td>
+      <td style="color:var(--text2)">${esc(s.country || '—')} · ${esc(s.device || '—')}</td>
+      <td class="num">${s.hits.toLocaleString('en-GB')}</td></tr>`);
+
+    rowsOrEmpty('t-daily', daily, 4, d => `<tr>
+      <td>${esc(d.day)}</td><td style="color:var(--text2)">${esc(d.site)}</td>
+      <td class="num">${d.visitors.toLocaleString('en-GB')}</td>
+      <td class="num" style="color:var(--text2)">${d.pageviews.toLocaleString('en-GB')}</td></tr>`);
+  }
+
+  boot();
+</script>
+</body>
+</html>
