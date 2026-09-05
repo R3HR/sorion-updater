@@ -16,6 +16,13 @@ Web-Service auf Railway (`railway-discord.toml`).
 Farbleiste Sorion-Lila, Sorion VIP in Magenta. Absender „SORION" mit
 og-image als Avatar. Keine Ausrufezeichen-Kaskaden, kein „Donation Bot"-Look.
 
+## Nebenroute: /stats (Admin-Statistik)
+
+Der Service liefert zusätzlich `UI/stats.html` unter `/stats` aus (seit 05.09.). Grund: Als
+lokale Datei speichert Chrome keine Passwörter, und Supabase-Functions erzwingen für HTML
+`text/plain`. Der Datenzugriff der Seite ist serverseitig geschützt (`is_analytics_admin`).
+Nach Änderungen an `UI/stats.html`: `node tools/build-stats-page.mjs`, dann deployen.
+
 ## Sicherheit und Datenschutz
 
 - Jede Anfrage muss das **Ko-fi Verification Token** tragen (zeitkonstanter Vergleich).
