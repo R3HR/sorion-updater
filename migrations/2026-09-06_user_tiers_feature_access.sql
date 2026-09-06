@@ -273,6 +273,105 @@ end $fn$;
 revoke execute on function public.lock_creator() from public, anon;
 grant execute on function public.lock_creator() to authenticated;
 
+-- ── 8) Gutschein-Codes (Wunsch Jonas 06.09.) ──────────────────────────────
+-- EIN Eingabefeld im Profil fuer zwei Zwecke:
+--   * echte Unterstuetzer-Codes (spaeter in der Ko-fi-Dankesnachricht) —
+--     damit ist die offene Bruecke Ko-fi -> Konto geschlossen, ohne dass wir
+--     eine E-Mail speichern muessen (Datenschutz-Entscheidung 04.09. bleibt).
+--   * der Creator-Schluessel, der wie ein normaler Code eingegeben wird.
+-- Gespeichert wird nur der SHA-256-Hash, nie der Code im Klartext.
+create table if not exists public.redeem_codes (
+  code_hash  text primary key,
+  tier       text        not null,               -- supporter | pro | vip
+  months     int,                                -- Laufzeit ab Einloesung; null = unbefristet
+  max_uses   int         not null default 1,
+  used_count int         not null default 0,
+  expires_at date,                               -- der Code selbst laeuft ab
+  note       text,
+  created_at timestamptz not null default now()
+);
+alter table public.redeem_codes enable row level security;
+revoke all on public.redeem_codes from anon, authenticated;   -- nur Service-Rolle
+
+-- Code anlegen (nur im SQL-Editor):
+--   select create_redeem_code('SORION-PRO-7QX2', 'pro', 1);        -- 1 Monat, 1x
+--   select create_redeem_code('LAUNCH25', 'supporter', 3, 25);      -- 3 Monate, 25x
+create or replace function public.create_redeem_code(
+  p_code text, p_tier text, p_months int default 1,
+  p_max_uses int default 1, p_expires date default null, p_note text default null
+) returns text language plpgsql security definer
+set search_path = public, extensions as $fn$
+begin
+  if current_setting('request.jwt.claims', true) is not null then
+    raise exception 'nur im SQL-Editor';
+  end if;
+  if lower(p_tier) not in ('supporter', 'pro', 'vip') then
+    raise exception 'unbekannte Stufe: %', p_tier;
+  end if;
+  insert into public.redeem_codes (code_hash, tier, months, max_uses, expires_at, note)
+  values (encode(digest(upper(trim(p_code)), 'sha256'), 'hex'), lower(p_tier),
+          p_months, greatest(coalesce(p_max_uses, 1), 1), p_expires, p_note)
+  on conflict (code_hash) do update
+    set tier = excluded.tier, months = excluded.months, max_uses = excluded.max_uses,
+        expires_at = excluded.expires_at, note = excluded.note;
+  return 'Code angelegt: ' || upper(trim(p_code)) || ' -> ' || lower(p_tier);
+end $fn$;
+revoke execute on function public.create_redeem_code(text, text, int, int, date, text)
+  from public, anon, authenticated;
+
+-- Einloesen aus dem Profil. Ein Aufruf, zwei moegliche Treffer:
+-- Creator-Schluessel oder Gutschein-Code. Unbekannt = neutrale Absage.
+create or replace function public.redeem_code(p_code text)
+returns jsonb language plpgsql security definer
+set search_path = public, extensions, auth as $fn$
+declare
+  uid  uuid := auth.uid();
+  h    text;
+  c    public.redeem_codes%rowtype;
+  alt  date;      -- bereits vorhandene Laufzeit
+  bis  date;      -- neue Laufzeit
+begin
+  if uid is null then raise exception 'nicht eingeloggt'; end if;
+  h := encode(digest(upper(trim(coalesce(p_code, ''))), 'sha256'), 'hex');
+
+  -- (a) Creator-Schluessel: getarnt als gewoehnlicher Code
+  if exists (select 1 from public.app_secrets s
+             where s.name = 'creator_key' and s.secret_hash = h) then
+    insert into public.user_tiers (user_id, source, creator) values (uid, 'key', true)
+      on conflict (user_id) do update set creator = true, updated_at = now();
+    return jsonb_build_object('ok', true, 'kind', 'creator');
+  end if;
+
+  -- (b) echter Gutschein-Code
+  select * into c from public.redeem_codes
+   where code_hash = h
+     and (expires_at is null or expires_at >= current_date)
+     and used_count < max_uses;
+  if not found then
+    return jsonb_build_object('ok', false);
+  end if;
+
+  -- Laufzeit ab heute, oder an eine noch laufende Laufzeit angehaengt
+  select valid_until into alt from public.user_tiers where user_id = uid;
+  if c.months is null then
+    bis := null;                                   -- unbefristeter Code
+  else
+    bis := (greatest(current_date, coalesce(alt, current_date))
+            + (c.months || ' months')::interval)::date;
+  end if;
+
+  insert into public.user_tiers (user_id, source) values (uid, 'code')
+    on conflict (user_id) do nothing;
+  execute format('update public.user_tiers set %I = true, valid_until = $1, source = ''code'','
+              || ' updated_at = now() where user_id = $2', c.tier)
+    using bis, uid;
+  update public.redeem_codes set used_count = used_count + 1 where code_hash = h;
+
+  return jsonb_build_object('ok', true, 'kind', 'tier', 'tier', c.tier, 'valid_until', bis);
+end $fn$;
+revoke execute on function public.redeem_code(text) from public, anon;
+grant execute on function public.redeem_code(text) to authenticated;
+
 -- ── Verifikation ───────────────────────────────────────────────────────────
 -- 1) Anonym darf die Tabelle NICHT mehr lesen (muss leer/401 geben):
 --    curl ".../rest/v1/reward_thresholds?select=cash_score&limit=1" -H "apikey: <anon>"

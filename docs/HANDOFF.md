@@ -466,19 +466,26 @@ Die Funktion erlaubt sich selbst nur bei direktem SQL-Zugriff oder fuer `is_anal
 **Creator-Zugang (Wunsch Jonas 06.09.):** Zum Testen der Bezahl-Features schaltet sich Jonas
 im Profil selbst frei. Zwei Wege, beide serverseitig geprueft:
 - fest hinterlegter Betreiber (`is_analytics_admin()`, E-Mail jonas.rehr@outlook.de), oder
-- **Schluessel** aus dem Passwort-Manager: `unlock_creator(key)` setzt `user_tiers.creator`
-  auf dem AUFRUFENDEN Konto. Damit laesst sich auch ein Testkonto freischalten.
+- **Schluessel** aus dem Passwort-Manager, eingegeben im **Gutschein-Feld** des Profils
+  (Wunsch Jonas: getarnt als Gutschein-Fenster, das spaeter auch wirklich eines ist).
+  `redeem_code(code)` prueft zuerst den Creator-Schluessel, dann die Gutschein-Codes.
   Schluessel einmalig setzen: `select set_creator_key('...>=24 Zeichen...');` (nur im
-  SQL-Editor moeglich). In der DB liegt nur der SHA-256-Hash, nie der Schluessel.
-  Eingabe im Profil unter `profile.html?creator`; `lock_creator()` gibt den Zugang zurueck.
+  SQL-Editor). In der DB liegt nur der SHA-256-Hash, nie der Schluessel.
+  `lock_creator()` gibt den Zugang zurueck.
+- **Gutschein-Codes (echtes Feature, schliesst die Ko-fi-Luecke):** Tabelle `redeem_codes`
+  (nur Hash, Stufe, Laufzeit in Monaten, max_uses, Ablauf). Anlegen im SQL-Editor:
+  `select create_redeem_code('SORION-PRO-7QX2', 'pro', 1);` bzw. mit Mehrfachnutzung
+  `select create_redeem_code('LAUNCH25', 'supporter', 3, 25);`. Eingeloest wird im Profil;
+  eine laufende Stufe wird verlaengert statt ueberschrieben. **Damit braucht die Ko-fi-
+  Anbindung keine E-Mail** — der Code kommt in die Ko-fi-Dankesnachricht, die
+  Datenschutz-Entscheidung vom 04.09. (keine Mail speichern) bleibt unangetastet.
 - `set_my_tier(tier, on)` schaltet dann die Stufen; erlaubt fuer Betreiber ODER Creator-Konto,
   und fasst ausschliesslich die eigene Zeile an.
 - **Einordnung:** Der Schluessel ist ein zweites Passwort, nicht sicherer als der Login. Sein
   Nutzen ist Beweglichkeit (jedes Konto, kein SQL-Editor), nicht zusaetzliche Haerte.
 
-**Offen:** (a) Ko-fi-Automatik — `kofi_events` speichert bewusst KEINE Mail, es fehlt also die
-Bruecke zum Konto. Wege: Einloese-Code in der Ko-fi-Dankesnachricht (sauber) oder Mail-Abgleich
-(kippt die Datenschutz-Entscheidung vom 04.09.). (b) Produktfrage: einen Wettbewerb als
+**Offen:** (a) Ko-fi-Automatik — der Weg steht (Codes), es fehlt nur die Ausgabe der Codes in
+der Ko-fi-Dankesnachricht bzw. ein Vorrat generierter Codes. (b) Produktfrage: einen Wettbewerb als
 Kostprobe offen lassen, damit die Seite auf Reddit ihren Aufhaenger behaelt.
 
 ## Reward-Schwellen (06.09.) — rewards.html, Tabelle reward_thresholds

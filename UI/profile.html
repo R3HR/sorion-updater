@@ -199,17 +199,22 @@
       <div class="msg" id="data-msg"></div>
     </div>
 
+    <div class="card" id="voucher-card">
+      <h2>Gutschein einlösen</h2>
+      <div class="hint">Unterstützer-Code eingeben, um deine Stufe freizuschalten.
+        Codes bekommst du als Ko-fi-Unterstützer.</div>
+      <label>Code</label>
+      <input type="text" id="voucher-code" autocomplete="off" spellcheck="false"
+             placeholder="z. B. SORION-PRO-XXXX" onkeydown="if(event.key==='Enter')redeemCode()">
+      <button onclick="redeemCode()">Einlösen</button>
+      <div class="msg" id="voucher-msg"></div>
+    </div>
+
     <div class="card" id="creator-card" style="display:none;border-color:#b060ff">
       <h2>Creator-Schalter</h2>
       <div class="hint">Nur fuer dein eigenes Konto, zum Testen der Unterstuetzer-Features.
         Die Freischaltung wird serverseitig auf den Betreiber begrenzt und wirkt ausschliesslich
         auf dieses Profil.</div>
-      <div id="tier-unlock" style="display:none">
-        <label>Creator-Schluessel</label>
-        <input type="password" id="tier-key" autocomplete="off" spellcheck="false"
-               placeholder="aus dem Passwort-Manager einfuegen">
-        <button onclick="unlockCreator()">Freischalten</button>
-      </div>
       <div id="tier-switches" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px"></div>
       <div class="hint" id="tier-hint" style="margin-top:4px"></div>
       <div class="msg" id="tier-msg"></div>
@@ -418,9 +423,8 @@
   const TIER_LABELS = { supporter: 'Supporter', pro: 'Pro-Supporter', vip: 'Sorion VIP' };
   let myTiers = { supporter: false, pro: false, vip: false };
 
-  // Zwei Wege zur Karte: fest hinterlegter Betreiber ODER ein Konto, das per
-  // Schluessel freigeschaltet wurde. Die Eingabe erscheint zusaetzlich ueber
-  // profile.html?creator — der eigentliche Schutz ist der Schluessel selbst.
+  // Zwei Wege zur Karte: fest hinterlegter Betreiber ODER ein Konto, das ueber
+  // das Gutschein-Feld mit dem Creator-Schluessel freigeschaltet wurde.
   let isCreator = false;
   async function loadCreatorSwitches() {
     try {
@@ -435,28 +439,37 @@
         const a = await authFetch('/rest/v1/rpc/is_analytics_admin', { method: 'POST', body: '{}' });
         admin = a.ok && (await a.json()) === true;
       } catch (e) {}
-      const wantsKey = new URLSearchParams(location.search).has('creator');
-      if (!isCreator && !admin && !wantsKey) return;          // Karte bleibt aus
+      if (!isCreator && !admin) return;                      // Karte bleibt aus
       document.getElementById('creator-card').style.display = 'block';
-      document.getElementById('tier-unlock').style.display = (isCreator || admin) ? 'none' : 'block';
-      renderTierSwitches(isCreator || admin);
+      renderTierSwitches(true);
     } catch (e) {}
   }
 
-  async function unlockCreator() {
-    const key = document.getElementById('tier-key').value.trim();
-    if (!key) { msg('tier-msg', 'Schluessel eingeben'); return; }
+  // Ein Feld, zwei Ergebnisse: echter Unterstuetzer-Code oder Creator-Schluessel.
+  // Welcher es war, entscheidet der Server (redeem_code).
+  const TIER_NAMES = { supporter: 'Supporter', pro: 'Pro-Supporter', vip: 'Sorion VIP' };
+  async function redeemCode() {
+    const code = document.getElementById('voucher-code').value.trim();
+    if (!code) { msg('voucher-msg', 'Bitte Code eingeben'); return; }
     try {
-      const r = await authFetch('/rest/v1/rpc/unlock_creator', {
-        method: 'POST', body: JSON.stringify({ p_key: key }) });
-      const ok = r.ok && (await r.json()) === true;
-      document.getElementById('tier-key').value = '';
-      if (!ok) { msg('tier-msg', 'Schluessel ungueltig'); return; }
-      isCreator = true;
-      document.getElementById('tier-unlock').style.display = 'none';
-      renderTierSwitches(true);
-      msg('tier-msg', 'Creator-Zugang aktiv \u2713', true);
-    } catch (e) { msg('tier-msg', 'Freischalten fehlgeschlagen'); }
+      const r = await authFetch('/rest/v1/rpc/redeem_code', {
+        method: 'POST', body: JSON.stringify({ p_code: code }) });
+      if (!r.ok) { msg('voucher-msg', 'Einlösen fehlgeschlagen'); return; }
+      const res = await r.json();
+      document.getElementById('voucher-code').value = '';
+      if (!res || !res.ok) { msg('voucher-msg', 'Code ungültig oder bereits eingelöst'); return; }
+      if (res.kind === 'creator') {
+        isCreator = true;
+        document.getElementById('creator-card').style.display = 'block';
+        renderTierSwitches(true);
+        msg('voucher-msg', 'Code eingelöst \u2713', true);
+        return;
+      }
+      myTiers[res.tier] = true;
+      msg('voucher-msg', TIER_NAMES[res.tier] + ' freigeschaltet \u2713'
+          + (res.valid_until ? ' (bis ' + res.valid_until + ')' : ''), true);
+      renderTierSwitches(isCreator);
+    } catch (e) { msg('voucher-msg', 'Einlösen fehlgeschlagen'); }
   }
 
   async function lockCreator() {
