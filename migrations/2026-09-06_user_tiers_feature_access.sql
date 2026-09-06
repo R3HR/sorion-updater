@@ -168,6 +168,29 @@ end $fn$;
 revoke execute on function public.set_user_tier(text, text, boolean, date) from public, anon;
 grant execute on function public.set_user_tier(text, text, boolean, date) to authenticated;
 
+-- ── 6) Selbst-Schalter fuer den Betreiber (Wunsch Jonas 06.09.) ───────────
+-- Zum Testen der Bezahl-Features im eigenen Profil: an/aus, ohne SQL-Editor.
+-- ZWEI Sperren: (a) nur ein Analytics-Admin darf die Funktion ueberhaupt
+-- ausfuehren, (b) sie fasst ausschliesslich die Zeile von auth.uid() an —
+-- selbst bei einem Fehler in (a) koennte niemand fremde Konten freischalten.
+create or replace function public.set_my_tier(p_tier text, p_on boolean default true)
+returns text language plpgsql security definer set search_path = public, auth as $fn$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then raise exception 'nicht eingeloggt'; end if;
+  if not public.is_analytics_admin() then raise exception 'not allowed'; end if;
+  if lower(p_tier) not in ('supporter', 'pro', 'vip') then
+    raise exception 'unbekannte Stufe: % (supporter|pro|vip)', p_tier;
+  end if;
+  insert into public.user_tiers (user_id, source) values (uid, 'self-test')
+    on conflict (user_id) do nothing;
+  execute format('update public.user_tiers set %I = $1, updated_at = now() where user_id = $2',
+                 lower(p_tier)) using p_on, uid;
+  return lower(p_tier) || ' = ' || p_on;
+end $fn$;
+revoke execute on function public.set_my_tier(text, boolean) from public, anon;
+grant execute on function public.set_my_tier(text, boolean) to authenticated;
+
 -- ── Verifikation ───────────────────────────────────────────────────────────
 -- 1) Anonym darf die Tabelle NICHT mehr lesen (muss leer/401 geben):
 --    curl ".../rest/v1/reward_thresholds?select=cash_score&limit=1" -H "apikey: <anon>"

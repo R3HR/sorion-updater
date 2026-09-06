@@ -199,6 +199,16 @@
       <div class="msg" id="data-msg"></div>
     </div>
 
+    <div class="card" id="creator-card" style="display:none;border-color:#b060ff">
+      <h2>Creator-Schalter</h2>
+      <div class="hint">Nur fuer dein eigenes Konto, zum Testen der Unterstuetzer-Features.
+        Die Freischaltung wird serverseitig auf den Betreiber begrenzt und wirkt ausschliesslich
+        auf dieses Profil.</div>
+      <div id="tier-switches" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px"></div>
+      <div class="hint" id="tier-hint" style="margin-top:4px"></div>
+      <div class="msg" id="tier-msg"></div>
+    </div>
+
     <button class="ghost" onclick="doLogout()">Ausloggen</button>
   </div>
 
@@ -393,6 +403,48 @@
       renderSorareLink(null);
     }
     show('profile-view');
+    loadCreatorSwitches();
+  }
+
+  // ── Creator-Schalter (nur Betreiber) ────────────────────────
+  // Die Karte erscheint nur, wenn is_analytics_admin() serverseitig true sagt;
+  // die eigentliche Sperre sitzt in set_my_tier(), nicht hier im Frontend.
+  const TIER_LABELS = { supporter: 'Supporter', pro: 'Pro-Supporter', vip: 'Sorion VIP' };
+  let myTiers = { supporter: false, pro: false, vip: false };
+
+  async function loadCreatorSwitches() {
+    try {
+      const a = await authFetch('/rest/v1/rpc/is_analytics_admin', { method: 'POST', body: '{}' });
+      if (!a.ok || (await a.json()) !== true) return;         // kein Betreiber: Karte bleibt aus
+      const t = await authFetch(`/rest/v1/user_tiers?user_id=eq.${currentUser.id}&select=*`);
+      const rows = t.ok ? await t.json() : [];
+      if (Array.isArray(rows) && rows.length) {
+        myTiers = { supporter: !!rows[0].supporter, pro: !!rows[0].pro, vip: !!rows[0].vip };
+      }
+      document.getElementById('creator-card').style.display = 'block';
+      renderTierSwitches();
+    } catch (e) {}
+  }
+
+  function renderTierSwitches() {
+    const rank = myTiers.vip ? 'Sorion VIP' : myTiers.pro ? 'Pro-Supporter'
+               : myTiers.supporter ? 'Supporter' : 'keine';
+    document.getElementById('tier-switches').innerHTML = Object.keys(TIER_LABELS).map(k =>
+      `<button class="${myTiers[k] ? '' : 'ghost'}" onclick="toggleTier('${k}')">${myTiers[k] ? '\u25CF' : '\u25CB'} ${TIER_LABELS[k]}</button>`).join('');
+    document.getElementById('tier-hint').textContent =
+      'Aktive Stufe: ' + rank + ' \u00b7 VIP schliesst Pro und Supporter mit ein.';
+  }
+
+  async function toggleTier(k) {
+    const on = !myTiers[k];
+    try {
+      const r = await authFetch('/rest/v1/rpc/set_my_tier', {
+        method: 'POST', body: JSON.stringify({ p_tier: k, p_on: on }) });
+      if (!r.ok) { msg('tier-msg', 'Nicht erlaubt (' + r.status + ')'); return; }
+      myTiers[k] = on;
+      renderTierSwitches();
+      msg('tier-msg', TIER_LABELS[k] + (on ? ': an \u2713' : ': aus \u2713'), true);
+    } catch (e) { msg('tier-msg', 'Fehlgeschlagen'); }
   }
 
   async function saveProfile() {
