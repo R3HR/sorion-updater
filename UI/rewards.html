@@ -197,9 +197,9 @@
     tb.innerHTML = agg.map(a => `<tr>
       <td class="comp">${esc(a.comp)}</td>
       <td class="num">${a.gws}</td>
-      <td class="num cash">${n0(a.cash)}${a.cash != null ? `<span class="rng">${n0(a.cashMin)}–${n0(a.cashMax)}</span>` : ''}</td>
+      <td class="num cash">${n0(a.cash)}${a.cash != null && a.gws > 1 ? ` <span class="rng">(${n0(a.cashMin)}–${n0(a.cashMax)})</span>` : ''}</td>
       <td class="num">${a.cashRank != null ? 'top ' + n0(a.cashRank) : '—'}</td>
-      <td class="num ess">${n0(a.ess)}${a.ess != null ? `<span class="rng">${n0(a.essMin)}–${n0(a.essMax)}</span>` : ''}</td>
+      <td class="num ess">${n0(a.ess)}${a.ess != null && a.gws > 1 ? ` <span class="rng">(${n0(a.essMin)}–${n0(a.essMax)})</span>` : ''}</td>
       <td class="num">${a.essRank != null ? 'top ' + n0(a.essRank) : '—'}</td>
       <td class="num">${n0(a.top)}</td>
       <td class="num">${n0(a.lineups)}</td>
