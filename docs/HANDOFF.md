@@ -286,6 +286,13 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
+H. 🔴 **NEU (06.09.) — Migration `2026-09-06_analytics_berlin_time.sql` ausfuehren.** Stellt alle
+   Statistik-Funktionen auf Berliner Kalendertage um und korrigiert die Alt-Tage (BUG-038).
+   Die track-Function ist bereits umgestellt; bis zur Migration weichen Kacheln und Kurve
+   um Mitternacht noch voneinander ab. Pruefung: stats.html, Konten-Kachel "+N today" muss
+   ab 00:00 Berlin auf 0 springen, nicht um 02:00.
+
+
 G. ✅ **edge_cache-Migration ausgefuehrt (05.09. ~13:05 UTC).** Verifiziert: 1. Aufruf miss 1,75 s,
    danach hit ~0,3 s; 5 parallele Aufrufe alle hit 0,24 bis 0,32 s. accuracy.html haengt damit nicht
    mehr an der Live-RPC. Eine RPC je 10 Minuten statt einer je Besucher.
@@ -546,6 +553,11 @@ hinter eine Function mit Service-Key + DB-Cache legen, nicht direkt aus der Seit
 - **FMV-Historie**: v1 Index-Gewichte → v2 steiler → v3 Zeit-Decay+Cap → v3.1 (Ask≠Preis, Floor nur abwärts) → v3.2 (Cap 1,50, Blend 0) → **v3.3 vorgeschlagen 25.08.** (Cap nur bei duenner/alter Basis, siehe FMV_FAKTOREN_ANALYSE.md). Formel lebt an genau EINER Stelle: `lib/fmv.mjs` (Root)
 
 ## Regeln
+
+- **Zeitbasis der Statistik: Europe/Berlin, Tag beginnt 00:00 Berlin** (Jonas 05.09.). Alle
+  Auswertungs-Funktionen laufen mit `set timezone = 'Europe/Berlin'`; Fenster sind Kalendertage
+  inklusive heute, nie rollierende 24 h. Neue Auswertungen halten sich daran. (Preis-Snapshots
+  market_daily / fmv_accuracy_daily bleiben bei 05:30 UTC = 07:30 Berlin, gleiches Datum.)
 
 - FMV-Logik nur in `lib/fmv.mjs` (Repo-Root — es gibt keine Ordner-Kopien mehr)
 - UI-Änderung = kanonische Datei + `sorion-ui`/`Craft_log` + `Sorion_pro/UI` synchron pushen

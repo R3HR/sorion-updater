@@ -1,7 +1,7 @@
 // Abgleich: signup_done-Ereignisse vs. tatsaechlich angelegte Profile (heute).
 import { createClient } from '@supabase/supabase-js';
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
-const today = new Date().toISOString().slice(0, 10);
+const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 const { data: ev } = await sb.from('analytics_events').select('event,created_at,path').eq('site', 'sorion').eq('day', today).in('event', ['signup_done', 'login_done']).order('created_at');
 console.log('Ereignisse heute:'); for (const e of ev ?? []) console.log(`   ${e.created_at.slice(11, 19)}  ${e.event}  ${e.path}`);
 const { data: prof, error } = await sb.from('profiles').select('user_id,created_at,sorare_slug,display_name').gte('created_at', today).order('created_at');

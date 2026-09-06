@@ -415,3 +415,13 @@
 - **Fix:** Beide Ereignisse feuern erst nach erfolgreicher Antwort (Signup: Konto angelegt, egal ob Token oder Bestaetigungsmail; Login: Token erhalten). Historische Zahlen bis 05.09. sind entsprechend zu hoch.
 - **Nebenbefund Panel:** Die Konten-Kachel zeigte nur "+N in 30d"; zwei neue Konten an einem Tag gehen darin unter. Jetzt zusaetzlich "+N today" (zweiter Aufruf von analytics_accounts mit p_days=1).
 - **Lektion:** Konversions-Ereignisse gehoeren hinter die Erfolgsantwort, nie an den Anfang des Handlers. Und ein Launch-Dashboard braucht die Tageszahl, nicht nur das Monatsfenster.
+
+---
+
+## BUG-038 - Statistik mischte drei Zeitbasen (UTC-Tag, rollierende 24 h, current_date) (05.09.) - BEHOBEN
+
+- **Symptom (Jonas, Launch-Abend):** "Ich habe das Gefuehl, dass unterschiedliche Anzeigen unterschiedliche Zeiten nutzen." Tageskurve, Konten-Kachel und Retention widersprachen sich um Mitternacht.
+- **Ursache:** (1) `track` setzte `analytics_events.day` als UTC-Datum -> Besuche zwischen 0 und 2 Uhr Berlin zaehlten zum Vortag. (2) `analytics_daily/pages/events_top/sources` filterten mit `current_date` der DB (UTC) und ueber N+1 Tage. (3) `analytics_accounts` ("+N today") und `analytics_retention` (active_1d/7d/30d) rechneten rollierend `now() - interval`, nicht nach Kalendertag.
+- **Fix (06.09.):** Vorgabe Jonas: **alles Berliner Zeit, neuer Tag um 00:00 Europe/Berlin.** `track` berechnet den Tag (und den Tages-Salt des Besucher-Hashs) in Europe/Berlin (deployed). Migration `2026-09-06_analytics_berlin_time.sql`: Altdaten `day` aus `created_at` neu gesetzt, Spalten-Default auf Berlin, alle sechs Auswertungs-Funktionen mit `set timezone = 'Europe/Berlin'` und **Kalendertagen inklusive heute** (p_days=1 = nur heute, 30 = heute + 29). Interne Monitor-/Probe-Skripte ebenfalls auf Berlin.
+- **Nebenwirkung:** Der Besucher-Hash rotiert jetzt um Mitternacht Berlin statt 02:00; am Umstellungstag koennen Besucher um diese Zeit einmal doppelt gezaehlt sein. Historische Hashes lassen sich nicht neu berechnen.
+- **Lektion:** Eine Zeitbasis fuer das ganze Dashboard festlegen und in den Funktionen erzwingen (`set timezone`), statt in jeder Abfrage neu zu entscheiden. "Heute" heisst Kalendertag, nicht letzte 24 Stunden.

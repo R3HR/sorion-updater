@@ -5,8 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
 const ANON = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
 const stamp = new Date().toISOString().slice(11, 16) + ' UTC';
-const today = new Date().toISOString().slice(0, 10);
-const yday = new Date(Date.now() - 86400e3).toISOString().slice(0, 10);
+const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+const yday = new Date(Date.now() - 86400e3).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 
 const rows = [];
 for (let off = 0; ; off += 1000) {

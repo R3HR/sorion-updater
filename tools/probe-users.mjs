@@ -2,7 +2,7 @@
 const H = { apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_KEY };
 const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/admin/users?per_page=500`, { headers: H });
 const d = await r.json(); const users = (d.users ?? []).sort((a, b) => a.created_at.localeCompare(b.created_at));
-const today = new Date().toISOString().slice(0, 10);
+const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 console.log(`Konten gesamt laut Admin-API: ${users.length}  (total-Feld: ${d.total ?? '-'}, aud/Seiten: ${d.aud ?? '-'})`);
 console.log(`Vor heute angelegt: ${users.filter(u => !u.created_at.startsWith(today)).length}   heute: ${users.filter(u => u.created_at.startsWith(today)).length}`);
 console.log(`Mit deleted_at (soft-deleted): ${users.filter(u => u.deleted_at).length}   Banned: ${users.filter(u => u.banned_until).length}`);
