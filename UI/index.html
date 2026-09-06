@@ -3059,9 +3059,24 @@
   function closeManagerSearch() { document.getElementById('ms-backdrop').style.display = 'none'; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeManagerSearch(); });
 
+
+  // Manager-Eingabe (alter Slug, neuer Slug, Nickname) auf den Primaer-Slug aufloesen,
+  // unter dem die Daten liegen (BUG-039: Umbenennung bei Sorare). null = unbekannt.
+  async function resolveManagerSlug(input) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_manager`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({ p_input: String(input || '').trim().toLowerCase() }),
+      });
+      const v = await r.json();
+      return (typeof v === 'string' && v) ? v : null;
+    } catch { return null; }
+  }
+
   async function msSearch() {
-    const slug = document.getElementById('ms-input').value.trim().toLowerCase();
+    let slug = document.getElementById('ms-input').value.trim().toLowerCase();
     if (!slug) return;
+    slug = (await resolveManagerSlug(slug)) || slug;   // Nickname/neuer Slug -> Primaer-Slug
     const box = document.getElementById('ms-result');
     box.innerHTML = '<div class="pm-nodata">// loading collection…</div>';
     try {

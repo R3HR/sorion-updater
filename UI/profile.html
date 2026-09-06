@@ -214,6 +214,20 @@
   const REDIRECT     = 'https://sorion.pro/profile.html';
 
   // ── Session-Verwaltung ──────────────────────────────────────
+
+  // Manager-Eingabe (alter Slug, neuer Slug, Nickname) auf den Primaer-Slug aufloesen,
+  // unter dem die Daten liegen (BUG-039: Umbenennung bei Sorare). null = unbekannt.
+  async function resolveManagerSlug(input) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_manager`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({ p_input: String(input || '').trim().toLowerCase() }),
+      });
+      const v = await r.json();
+      return (typeof v === 'string' && v) ? v : null;
+    } catch { return null; }
+  }
+
   function getSession() { try { return JSON.parse(localStorage.getItem('sorion_session')); } catch { return null; } }
   function setSession(s) {
     if (!s?.access_token) return;
@@ -385,7 +399,7 @@
   async function saveProfile() {
     const body = {
       display_name: document.getElementById('pr-name').value.trim() || null,
-      sorare_slug:  document.getElementById('pr-slug').value.trim().toLowerCase() || null,
+      sorare_slug:  await (async () => { const t = document.getElementById('pr-slug').value.trim().toLowerCase() || null; return t ? ((await resolveManagerSlug(t)) || t) : null; })(),
       updated_at:   new Date().toISOString(),
     };
     const res = await authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}`, { method: 'PATCH', body: JSON.stringify(body) });

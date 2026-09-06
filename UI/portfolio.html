@@ -1161,8 +1161,33 @@
               || localStorage.getItem('sorion_manager');
     if (slug) showPortfolio(slug.toLowerCase()); else showLogin();
   }
+  // Manager-Eingabe (alter Slug, neuer Slug, Nickname) auf den Primaer-Slug aufloesen,
+  // unter dem die Daten liegen (BUG-039: Umbenennung bei Sorare). null = unbekannt.
+  async function resolveManagerSlug(input) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/resolve_manager`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+        body: JSON.stringify({ p_input: String(input || '').trim().toLowerCase() }),
+      });
+      const v = await r.json();
+      return (typeof v === 'string' && v) ? v : null;
+    } catch { return null; }
+  }
+
 
   async function showPortfolio(slug) {
+
+    // Eingabe auf den Primaer-Slug aufloesen und die URL darauf umschreiben
+
+    const canonical = await resolveManagerSlug(slug);
+
+    if (canonical && canonical !== slug) {
+
+      slug = canonical;
+
+      try { const u = new URL(location); u.searchParams.set('manager', slug); history.replaceState({}, '', u); } catch {}
+
+    }
     if (window.track) track('portfolio_view');
     currentSlug = slug;
     document.getElementById('login-screen').style.display     = 'none';
@@ -1261,6 +1286,7 @@
   //   skipped:'in_progress' → jemand holt gerade fuer uns; kurz warten, dann DB lesen
   //   503 busy              → Sorare drosselt; einmal nach retry_after_s wiederholen
   //   404                   → Manager gibt es nicht
+  let lastSyncSlug = null;   // Primaer-Slug laut Function (kann von der Eingabe abweichen)
   async function firstSync(slug, grid, attempt = 0) {
     const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-portfolio`, {
       method: 'POST',
@@ -1268,6 +1294,7 @@
       body: JSON.stringify({ slug }),
     });
     const d = await res.json().catch(() => ({}));
+    if (d.slug) lastSyncSlug = String(d.slug);
     if (res.status === 404) return 'not_found';
     if (res.status === 503 || d.error === 'busy') {
       if (attempt >= 1) return 'busy';
@@ -1313,6 +1340,11 @@
       if (r === 'not_found') { showManagerError(`Manager "${esc(slug)}" not found`); return; }
       if (r === 'busy')      { showManagerError('Sorare is busy right now. Please try again in a minute.'); return; }
       if (r === 'error')     { showManagerError('Could not load this portfolio. Please try again later.'); return; }
+      if (lastSyncSlug && lastSyncSlug !== slug) {
+        // Eingabe war ein Alias eines bekannten Managers: unter dessen Primaer-Slug weiterarbeiten
+        slug = lastSyncSlug; currentSlug = slug;
+        try { const u = new URL(location); u.searchParams.set('manager', slug); history.replaceState({}, '', u); } catch {}
+      }
       allCards = await loadFromDb(slug);
       // Ein anderer Aufruf hat gerade fuer uns geholt: kurz nachlesen, falls die
       // Zeilen noch geschrieben werden.
