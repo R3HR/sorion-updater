@@ -301,6 +301,17 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
+**NEU 07.09. — Railway-Dienst "Rewards" anlegen** (Details im Abschnitt Team-Kosten):
+1. Railway → Projekt *faithful-gentleness* → **New Service → GitHub Repo → R3HR/sorion-updater**
+2. Settings → Config-as-code Pfad: **/railway-rewards.toml** (kein Root Directory setzen)
+3. Variables setzen: **SUPABASE_URL**, **SUPABASE_SERVICE_KEY** (aus Club_Rosters kopieren)
+   und **SORARE_APIKEY** (aus "Updater Limited" kopieren)
+4. Deploy abwarten; Cron laeuft taeglich 09:00 UTC. Erster Lauf kann per Redeploy
+   sofort ausgeloest werden.
+5. Pruefen: Logs zeigen "Bereits erfasst: N Leaderboard-Wochen" und danach
+   "Fertig: ... Zeilen". Ohne neuen Spieltag ist das nach Sekunden vorbei.
+
+
 H. ✅ **Berlin-Zeit-Migration ausgefuehrt (06.09. 14:19 Berlin, per CLI durch Claude).** Verifiziert:
    alle 6 Auswertungs-Funktionen mit TimeZone=Europe/Berlin, Spalten-Default auf Berlin, 85 von
    1.731 Ereignis-Zeilen auf den richtigen Tag verschoben, 0 verbleibend. stats.html einmal neu laden.
