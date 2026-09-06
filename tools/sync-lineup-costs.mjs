@@ -55,7 +55,11 @@ async function gql(query, label) {
   return null;
 }
 
-const pageOf = rank => Math.max(1, Math.ceil(rank / PAGE));
+// ACHTUNG: so5RankingsPaginated zaehlt Seiten ab 0 (verifiziert 06.09.:
+// page 5 bei pageSize 25 liefert die Raenge 126-150). Mit 1-basierter Rechnung
+// fehlten in der ersten Fassung ueberall die Raenge 1-50 — also genau die
+// Cash-Gewinner.
+const pageOf = rank => Math.max(0, Math.floor((rank - 1) / PAGE));
 
 async function rankingsPage(slug, page) {
   const d = await gql(`{ so5 { so5Leaderboard(slug:"${slug}") {
@@ -104,8 +108,8 @@ async function main() {
     const maxRank = lb.essence_rank || lb.cash_rank;
     if (!maxRank) continue;                       // Leaderboard ohne Geld/Essence
     // Spitzenfeld + die Seiten an den beiden Preisgrenzen
-    const pages = [...new Set([1, lb.cash_rank ? pageOf(lb.cash_rank) : null, pageOf(maxRank)]
-      .filter(Boolean))].slice(0, 3);
+    const pages = [...new Set([0, lb.cash_rank ? pageOf(lb.cash_rank) : null, pageOf(maxRank)]
+      .filter(x => x != null))].slice(0, 3);
     let got = 0;
     for (const p of pages) {
       await sleep(DELAY_MS);
