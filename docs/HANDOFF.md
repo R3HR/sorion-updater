@@ -252,6 +252,20 @@ und sicherer machen. Befunde wie dieser werden als Marktkunde formuliert ("zwei 
 so unterscheidet man sie"), nie als Vorwurf ("Sorare verschleiert"). Gilt fuer den
 geplanten Knowledge-Artikel ebenso wie fuer Discord und Reddit.
 
+## 🥊 Wettbewerb (06.09.2026) — siehe [WETTBEWERB.md](WETTBEWERB.md)
+
+Zwei sichtbare Konkurrenten entdeckt: **sowizzy.com** (breiteres Toolset: Craft Assist,
+Price Alerts, Lineups; Preismethode = gewichteter Verkaufsschnitt + Ratios fuer duenne
+Scarcities) und **sorareterminal.com** (Market-Cap-Dashboard). **Beide verlangen einen
+Login, bevor man etwas sieht** (sowizzy sogar Sorare-OAuth). Sorion braucht keinen.
+
+Sowizzys Methode ist exakt unser `avg_sales`-Benchmark. Messung 06.09.: bei Limited
+liegt der einfache Schnitt hauchduenn vorn, bei Rare sind wir 4-5 Punkte besser, bei
+Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.md.
+
+**Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
+haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
+
 ## 🎯 LANGFRISTZIEL FMV (festgelegt von Jonas, 26.08.): den Last-5-Schnitt schlagen
 
 Sorare Inside nutzt den ungewichteten Durchschnitt der letzten 5 Verkaeufe. Vergleich
