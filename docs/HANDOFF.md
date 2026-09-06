@@ -719,8 +719,16 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   Rechnung fehlten in allen 178 Leaderboards die Raenge 1-50 — also genau die Cash-Gewinner,
   weshalb die Cash-Team-Spalte leer blieb. Nach dem Fix: niedrigster Rang 1, 95 von 190
   Leaderboard-Wochen mit Cash-Kosten, 3.826 Cash-Aufstellungen (vorher 1.662).
-- **Offen:** Cron einrichten (analog `railway-rewards.toml`), damit neue Spieltage
-  automatisch nachlaufen.
+- **Cron:** `railway-rewards.toml` fuehrt BEIDE Sync-Schritte nacheinander aus
+  (`sync-reward-thresholds && sync-lineup-costs`, taeglich 09:00 UTC). Reihenfolge ist
+  zwingend: die Kosten brauchen die Preisgrenzen aus Schritt 1. **Offen: Jonas muss den
+  Railway-Dienst noch anlegen** (wie Club_Rosters, Repo-Root, Config-Pfad
+  /railway-rewards.toml) und dort SUPABASE_URL, SUPABASE_SERVICE_KEY UND **SORARE_APIKEY**
+  setzen — den Schluessel braucht nur Schritt 2, ohne ihn bricht er sauber ab.
+- **Falle (06.09., gefixt):** Die "schon erledigt"-Pruefung las `lineup_costs` ohne
+  Paginierung; PostgREST deckelt bei 1000 Zeilen, die Tabelle hat ueber 30.000. Der Cron
+  haette dadurch taeglich die ganze Saison neu abgefragt (359 statt ~10 Aufrufe).
+  **Regel: Jede Bestandspruefung ueber eine grosse Tabelle seitenweise lesen.**
 
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 

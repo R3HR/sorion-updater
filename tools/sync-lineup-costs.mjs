@@ -93,10 +93,20 @@ async function main() {
   if (error) { console.error('reward_thresholds:', error.message); process.exit(1); }
   console.log(`${lbs.length} Leaderboard-Wochen dieser Saison`);
 
+  // Bereits erfasste Leaderboards ueberspringen. WICHTIG seitenweise lesen:
+  // PostgREST liefert hoechstens 1000 Zeilen, die Tabelle hat zehntausende —
+  // ohne Paginierung waere die Liste unvollstaendig und der taegliche Cron
+  // wuerde jedes Mal die ganze Saison neu abfragen.
   let done = new Set();
   if (!FORCE && !DRY) {
-    const { data } = await supabase.from('lineup_costs').select('fixture_slug, leaderboard_slug');
-    for (const r of data ?? []) done.add(r.fixture_slug + '|' + r.leaderboard_slug);
+    for (let off = 0; ; off += 1000) {
+      const { data, error } = await supabase.from('lineup_costs')
+        .select('fixture_slug, leaderboard_slug').range(off, off + 999);
+      if (error) { console.warn(`  Bestand lesen: ${error.message}`); break; }
+      for (const r of data) done.add(r.fixture_slug + '|' + r.leaderboard_slug);
+      if (data.length < 1000) break;
+    }
+    console.log(`Bereits erfasst: ${done.size} Leaderboard-Wochen`);
   }
 
   // 1) Aufstellungen einsammeln
