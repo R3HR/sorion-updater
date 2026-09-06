@@ -52,18 +52,12 @@ const SLUG_NAMES = { champions: 'Champion', contenders: 'Contender', rest_of_the
   korea: 'K League 1', portugal: 'Liga Portugal', turkey: 'Turkish League', scotland: 'SPFL' };
 const compName = lb => {
   const n = lb.displayName.replace(/\s*[–-]\s*(Limited|Rare|Super Rare|Unique)\s*$/i, '').trim();
-  if (n && !/^in-season$|^classic$|^all seasons$/i.test(n)) {
-    const classic = /-all_seasons_/.test(lb.slug) && !/under_twenty_one|all_star/.test(lb.slug);
-    return classic && !/classic/i.test(n) ? n + ' (Classic)' : n;
-  }
+  // Sorares Anzeigename ist massgeblich ("Champion" IST ein All-Seasons-Wettbewerb,
+  // es gibt keine In-Season-Variante — kein eigener Zusatz noetig)
+  if (n && !/^in-season$|^classic$|^all seasons$/i.test(n)) return n;
   const m = lb.slug.match(/-seasonal-([a-z_]+?)-(in_season|all_seasons)_/);
   const key = m?.[1] ?? '';
-  const base = SLUG_NAMES[key] ?? key.replace(/_/g, ' ');
-  // Champion/Contender/RoW/Ligen gibt es als In-Season UND als Classic-Leaderboard
-  // (all_seasons) mit eigenen Preisen — getrennt fuehren. U23/All Star existieren
-  // nur als all_seasons, bleiben ohne Zusatz.
-  const classic = /-all_seasons_/.test(lb.slug) && !/under_twenty_one|all_star/.test(lb.slug);
-  return classic ? base + ' (Classic)' : base;
+  return SLUG_NAMES[key] ?? key.replace(/_/g, ' ');
 };
 
 async function listSeasonFixtures() {
