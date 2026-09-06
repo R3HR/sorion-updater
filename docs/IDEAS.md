@@ -576,3 +576,31 @@ Karte) ist die Grundlage und kann vorher als freie Vorstufe leben.
 
 **Abgrenzung (Jonas, 05.09.):** KEIN Eigenhandel des Betreibers auf Basis der Daten
 (Vertrauen, Sorare T&C 5.2, Lebenslauf). Die Schaufel verkaufen, nicht selbst graben.
+
+## IDEA-006 - Kartenbestand (cardSupply) erfassen (Befund 06.09.2026)
+
+**Fund:** Sorares `anyPlayer { cardSupply { season { startYear name } limited rare superRare unique } }`
+liefert die **tatsaechliche Stueckzahl je Spieler, Saison und Rarity**. Beispiel Kobel:
+2026-27 = 212 Limited / 22 Rare / 4 SR; die fuenf Vorsaisons zusammen 3.182 / 410 / 44.
+In-Season = aktuelle Saison, Classic = Summe der frueheren. **Kostet keinen zusaetzlichen
+API-Aufruf**: ein Feld mehr im bestehenden Query von `update-scarcity.mjs`.
+
+**Aktueller Stand ist unbrauchbar:** `card_prices.available_supply` ist verwaist. Kein
+Skript schreibt die Spalte (grep 06.09.), Classic hat 0 %, In-Season 23-28 % Abdeckung.
+
+**Drei Anwendungen, nach Wert sortiert:**
+
+1. **Knappheit als FMV-Faktor (der eigentliche Gewinn, Entscheidung Jonas).** Eine Karte mit
+   212 Exemplaren ist knapper als eine mit 978. Der Bestand duerfte gerade dort erklaeren,
+   wo wir heute schwach sind. Vorgehen wie bei v3.3: erst messen (Backtest gegen
+   `fmv_accuracy`), dann entscheiden. Formel bleibt bis dahin unveraendert.
+2. **Kartenwert im Kontext:** "212 von 1.000 gemintet" ist eine Information, die Managern
+   beim Kaufen hilft und die heute niemand neben dem Preis zeigt.
+3. **Marktkapitalisierung** (wie sorareterminal.com, siehe WETTBEWERB.md). Deren Methode:
+   Supply x min(letzter Verkauf, aktuelles Angebot). Beide Bestandteile sind laut unserer
+   eigenen Messung schlechtere Schaetzer als unser FMV (Floor 33-38 % Abweichung). Eine
+   Marktkapitalisierung auf FMV-Basis waere belastbarer. **Aber:** reines Marketing-Feature,
+   hilft niemandem beim Kaufen. Nur als Nebenprodukt bauen, nie als Selbstzweck.
+
+**Aufwand:** Feld in den Updater-Query, Spalten je Saison/Rarity (oder JSONB), Backfill laeuft
+mit dem normalen Updater-Zyklus mit. Kein Cron, keine Zusatzlast.
