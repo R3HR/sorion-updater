@@ -609,6 +609,44 @@ kein Fehler. `analytics_prune` bleibt ohne Zeitzonen-Setting (400-Tage-Loeschung
 - KEINEN Cron fuer diese Werkzeuge anlegen — Einmal-/Diagnose-Skripte, Dauerlast war die INC-005/006-Falle
 - Vorbereiteter Analyse-Auftrag: `C:\Users\Jonas\Documents\Bot2B\07_Wissen\Prompts_Bibliothek\Sorion_FMV_Faktoren_Analyst.json` — prueft, ob Score/Einsatzquote/Liga/Club die VERKAUFSPREISE ueber v3.2 hinaus erklaeren (Ziel: Formel-Faktoren fuer v3.3+). Kernregeln stehen im Prompt: gegen Verkaeufe messen (nie gegen den eigenen FMV — zirkulaer), Walk-Forward-Backtest vor jedem Formel-Vorschlag, DB nur lesend.
 
+## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
+
+Diese Liste existiert, weil ich am 06.09. zweimal in Limits gelaufen bin, die bereits
+dokumentiert waren. **Regel: Bei jeder Sorare-API-Frage erst diesen Abschnitt und die
+Suche in HANDOFF.md, dann das Schema.**
+
+- **Limits:** anonym Tiefe 7 / Komplexitaet 500. Mit `APIKEY`-Header Tiefe 13 /
+  Komplexitaet 30.000, 200 Anfragen/Minute (geteilt von ALLEN Diensten!).
+- **Wo liegt der Schluessel:** nur auf den Railway-Diensten `Updater Limited`,
+  `Update Rare`, `Updater SR` — NICHT auf `Club_Rosters`/`sorion-updater`. Zusaetzlich als
+  Supabase-Secret (seit 04.09.). Lokal ausfuehren:
+  `railway run -s "Updater Limited" node tools/<skript>.mjs`
+- **Schema herunterladen:** `curl -sL https://api.sorare.com/graphql/schema -o schema.graphql`.
+  Introspektion (`__type`) ist ABGESCHALTET, die Schema-Datei ist der einzige Weg.
+- **Feldnamen-Fallen (live gelernt):**
+  - Karte: `rarityTyped`, NICHT `rarity`. Dazu `seasonYear`, `inSeasonEligible`.
+  - Spieler: `age`, `country{code}`, `gameplayTier` (GOAT/STAR/IMPACT/ROSTER/DNP),
+    `eligibleSo5Competitions`, `averageScore(type: LAST_FIVE_SO5_AVERAGE_SCORE)`,
+    `lastFiveSo5Appearances`. `birthDate` gibt es nicht (`birthDay`).
+  - Startelf-Quote/Prognose haengen am Typ `Player`, nicht am Interface: Fragment
+    `... on Player { playingStatus nextClassicFixturePlayingStatusOdds { ... } }` noetig.
+    "Classic" heisst dort WOCHEN-Spieltag, nicht unsere Classic-Eligibility.
+  - `so5Fixtures(...)` kennt KEIN Argument `type` (nur `so5Fixture` hat es). Zustand ueber
+    `aasmState` (opened|started|closed) filtern; die Liste kommt NEUESTE zuerst.
+  - `So5Leaderboard` hat KEIN Feld `so5Competition` — Zuordnung ueber den Slug
+    (`...-seasonal-<key>-(in_season|all_seasons)_<key>_<rarity>`).
+  - "Champion" existiert nur als `all_seasons`-Wettbewerb, es gibt kein In-Season-Pendant.
+- **Ranglisten und Aufstellungen (06.09. verifiziert, braucht APIKEY):**
+  `so5.so5Leaderboard(slug).so5Rankings(first, after)` — Cursor-Pagination, ODER
+  `so5RankingsPaginated(page, pageSize)` — mit SEITENNUMMER, damit sind gezielte Raenge
+  ohne Durchblaettern erreichbar. Je Ranking: `ranking`, `score`, `so5Lineup.so5Appearances`
+  mit `anyPlayer{slug}`, `anyCard{rarityTyped inSeasonEligible}`, `captain`. Das mappt
+  direkt auf `card_prices(player_slug, scarcity, eligibility)`.
+- **Preisgelder und Punkte-Schwellen:** `so5Leaderboard.rewardsConfig.ranking[]` mit
+  `fromRank/toRank`, `usdAmount`, `cardShardRewardConfigs` (Essence), `cards`, und
+  `fromSo5Ranking/toSo5Ranking { ranking score }` = die SCORE-Grenzen der Preisstufen.
+  `totalRewards { prizePool prizePoolCurrency }` = Preisgeld je Leaderboard.
+
 ## Architektur-Wissen (Kern)
 
 **Manager-Identitaet (seit 06.09., BUG-039):** Sorare-Slugs sind aenderbar. Bei Umbenennung
