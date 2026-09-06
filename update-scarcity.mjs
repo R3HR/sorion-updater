@@ -56,6 +56,10 @@ async function fetchData(playerSlug, eligibility) {
       age
       gameplayTier
       activeClub { name country { code } domesticLeague { name country { code } } }
+      // Tatsaechliche Stueckzahl je Saison und Rarity (IDEA-006). Grundlage fuer
+      // "212 von 1.000 gepraegt", Marktkapitalisierung und die Pruefung, ob
+      // Knappheit den FMV verbessert. Kostet keinen eigenen API-Aufruf.
+      cardSupply { season { startYear } limited rare superRare unique }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl
         liveSingleSaleOffer { receiverSide { amounts { eurCents } } }
@@ -91,6 +95,22 @@ async function fetchData(playerSlug, eligibility) {
       // ~12 % unter dem Sofortkauf. Wird ab jetzt in fmv_accuracy.deal_type geloggt;
       // die FMV-Formel bleibt bis zur Entscheidung (Jonas) unveraendert.
       const sales = (data?.data?.tokens?.tokenPrices ?? []).map(p => ({ date: p.date, eur: p.amounts.eurCents / 100, deal: p.deal?.__typename ?? null }));
+
+      // Stueckzahl fuer diese Zeile: in_season = aktuelle Saison (hoechstes
+      // startYear), classic = Summe aller frueheren. Kobel Limited: 212 vs 3.182.
+      const supplyRows = data?.data?.player?.cardSupply ?? [];
+      const supplyField = SCARCITY === 'super_rare' ? 'superRare' : SCARCITY;
+      let supply = null, supplySeason = null;
+      if (supplyRows.length) {
+        const years = supplyRows.map(r => r.season?.startYear).filter(y => Number.isFinite(y));
+        if (years.length) {
+          supplySeason = Math.max(...years);
+          supply = inSeason
+            ? (supplyRows.find(r => r.season?.startYear === supplySeason)?.[supplyField] ?? 0)
+            : supplyRows.filter(r => r.season?.startYear < supplySeason)
+                        .reduce((sum, r) => sum + (r[supplyField] ?? 0), 0);
+        }
+      }
       const floorCents = data?.data?.player?.lowestPriceAnyCard?.liveSingleSaleOffer?.receiverSide?.amounts?.eurCents;
       // Kartenbild der RICHTIGEN Rarity/Eligibility (Backfill hatte Bilder quer kopiert, z. B. Yamal rare mit SR-Bild)
       const cardPic = data?.data?.player?.lowestPriceAnyCard?.pictureUrl ?? null;
@@ -112,7 +132,7 @@ async function fetchData(playerSlug, eligibility) {
       const age = Number.isFinite(data?.data?.player?.age) ? data.data.player.age : null;
       // Sterne-Klassifizierung des Spielers: GOAT/STAR/IMPACT/ROSTER/DNP
       const gameplayTier = data?.data?.player?.gameplayTier ?? null;
-      return { sales, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry, nation, age, gameplayTier };
+      return { sales, supply, supplySeason, fetchedFloor: floorCents ? floorCents / 100 : null, cardPic, hasClub: !!club, teamName, leagueName, position, leagueCountry, nation, age, gameplayTier };
     } catch (e) { console.warn(`  Fetch failed for ${playerSlug}: ${e.message}`); return null; }
   }
   return null;
@@ -176,6 +196,11 @@ async function main() {
 
   // Spalte last_sale_at vorhanden? (migrations/2026-08-02_last_sale_date.sql)
   // Vergleichs-Spalten vorhanden? (migrations/2026-08-22_accuracy_benchmarks.sql)
+  // Supply-Spalte vorhanden? (migrations/2026-09-06_card_supply.sql)
+  const supProbe = await supabase.from('card_prices').select('supply').limit(1);
+  const hasSupply = !supProbe.error;
+  if (!hasSupply) console.warn('card_prices.supply fehlt — Kartenbestand wird nicht geschrieben');
+
   // Verkaufsart-Spalte vorhanden? (migrations/2026-09-05_accuracy_deal_type.sql)
   const dtProbe = await supabase.from('fmv_accuracy').select('deal_type').limit(1);
   const hasDealType = !dtProbe.error;
@@ -348,6 +373,11 @@ async function main() {
       sales_72h:   sales.filter(s => new Date(s.date) >= h72ago).length,
       sales_7d:    sales.filter(s => new Date(s.date) >= d7ago).length,
       updated_at:  new Date().toISOString(),
+      // Kartenbestand (IDEA-006): nur setzen, wenn die Spalte existiert und Sorare
+      // etwas geliefert hat — sonst wuerde ein Fehlschlag den Wert auf null setzen.
+      ...(hasSupply && result.supply != null
+          ? { supply: result.supply, supply_season: result.supplySeason, supply_updated_at: new Date().toISOString() }
+          : {}),
       ...(result.cardPic ? { picture_url: result.cardPic } : {}), // nur setzen, wenn vorhanden — nie löschen
       // Club-Felder als EINHEIT schreiben, sobald ein Club bekannt ist — auch
       // wenn die Liga darin null ist. Vorher blieb beim Vereinswechsel zu einem
