@@ -434,59 +434,123 @@ mit einem Key, ~60/min mit zwei). Reddit-Post geplant Mo 08.09. 15:00 (docs/redd
 | Notifications (Stufe 3, braucht OAuth-App) | ⬜ nach Launch |
 | 30d-Marktbewegung ergänzen | ⬜ ab ~20.08. (History reicht dann) |
 
-## Pro-Features: Unterstuetzer-Stufen + Freischaltung (06.09.) — ERSTES BEZAHL-FEATURE
+## 💎 PRO-FEATURES — vollstaendige Referenz (Stand 06.09.2026)
 
-Vorgabe Jonas: Die Cash-Schwelle auf der Leaderboards-Seite wird ein Pro-Feature, fuer alle
-anderen unscharf. Manuelle Vergabe am Anfang, spaeter Ko-fi-Automatik.
+Alles zu Bezahl-Features an EINER Stelle. Wer ein neues Bezahl-Feature baut, liest zuerst
+die Checkliste weiter unten.
 
-**Grundregel (gilt fuer JEDES kuenftige Bezahl-Feature):** Ein CSS-Blur ist KEIN Schutz.
-Wer F12 drueckt oder die REST-Adresse aufruft, liest den Wert. Der Wert darf den Server
-nicht verlassen. Deshalb: Tabelle sperren, gefilterte RPC ausliefern, im Frontend nur einen
-Platzhalter blurren.
+### Was ist heute kostenpflichtig?
 
-**Bausteine (Migration `2026-09-06_user_tiers_feature_access.sql`):**
-- `user_tiers` — je Konto ein Schalter pro Ko-fi-Stufe: `supporter` (0,50), `pro` (5,00),
-  `vip` (25,00), dazu `valid_until` (NULL = unbefristet; verhindert, dass ein gekuendigtes
-  Abo ewig freigeschaltet bleibt) und `source` (manual | kofi). Lesen nur die eigene Zeile,
-  Schreiben nur per Service-Key/`set_user_tier`.
-- `feature_access` — Feature -> Mindeststufe (`leaderboard_cash` = `pro`). Ein Feature laesst
-  sich damit OHNE Deploy verschieben oder freigeben (`min_tier = 'free'`).
-- `has_feature(key)` — die EINZIGE Stelle, die Berechtigungen entscheidet; Rangfolge
-  vip > pro > supporter ueber `tier_rank()`/`my_tier_rank()`. Unbekanntes Feature = gesperrt
-  (fail closed). **Nie an anderer Stelle nachbauen** (Lehre BUG-022/023/024).
-- `leaderboard_thresholds()` — liefert alle Zeilen, `cash_score` aber nur bei Berechtigung,
-  plus `cash_locked` fuer die Anzeige. `cash_rank` (bezahlte Raenge) bleibt bewusst frei.
-  Direktzugriff auf `reward_thresholds` ist entzogen.
+| Feature-Key | Was | Stufe | Wo |
+|---|---|---|---|
+| `leaderboard_cash` | Cash-Punkteschwelle UND Cash-Team-Kosten auf der Leaderboards-Seite | `pro` | rewards.html |
 
-**Stufe vergeben (manuell, SQL-Editor):**
-`select set_user_tier('mail@example.com', 'pro');` — aus, befristet:
-`select set_user_tier('mail@example.com', 'pro', false);` / `(..., true, '2026-12-31')`.
-Die Funktion erlaubt sich selbst nur bei direktem SQL-Zugriff oder fuer `is_analytics_admin()`.
+Frei bleiben dort bewusst: Essence-Schwelle, Essence-Team-Kosten, bezahlte Raenge, Top-Score,
+Lineup-Zahlen. Grund: Die Seite muss ohne Konto genug zeigen, um ueberhaupt zu ueberzeugen.
 
-**Creator-Zugang (Wunsch Jonas 06.09.):** Zum Testen der Bezahl-Features schaltet sich Jonas
-im Profil selbst frei. Zwei Wege, beide serverseitig geprueft:
-- fest hinterlegter Betreiber (`is_analytics_admin()`, E-Mail jonas.rehr@outlook.de), oder
-- **Schluessel** aus dem Passwort-Manager, eingegeben im **Gutschein-Feld** des Profils
-  (Wunsch Jonas: getarnt als Gutschein-Fenster, das spaeter auch wirklich eines ist).
-  `redeem_code(code)` prueft zuerst den Creator-Schluessel, dann die Gutschein-Codes.
-  Schluessel einmalig setzen: `select set_creator_key('...>=24 Zeichen...');` (nur im
-  SQL-Editor). In der DB liegt nur der SHA-256-Hash, nie der Schluessel.
-  `lock_creator()` gibt den Zugang zurueck.
-- **Gutschein-Codes (echtes Feature, schliesst die Ko-fi-Luecke):** Tabelle `redeem_codes`
-  (nur Hash, Stufe, Laufzeit in Monaten, max_uses, Ablauf). Anlegen im SQL-Editor:
-  `select create_redeem_code('SORION-PRO-7QX2', 'pro', 1);` bzw. mit Mehrfachnutzung
-  `select create_redeem_code('LAUNCH25', 'supporter', 3, 25);`. Eingeloest wird im Profil;
-  eine laufende Stufe wird verlaengert statt ueberschrieben. **Damit braucht die Ko-fi-
-  Anbindung keine E-Mail** — der Code kommt in die Ko-fi-Dankesnachricht, die
-  Datenschutz-Entscheidung vom 04.09. (keine Mail speichern) bleibt unangetastet.
-- `set_my_tier(tier, on)` schaltet dann die Stufen; erlaubt fuer Betreiber ODER Creator-Konto,
-  und fasst ausschliesslich die eigene Zeile an.
-- **Einordnung:** Der Schluessel ist ein zweites Passwort, nicht sicherer als der Login. Sein
-  Nutzen ist Beweglichkeit (jedes Konto, kein SQL-Editor), nicht zusaetzliche Haerte.
+### Grundregel (gilt fuer JEDES Bezahl-Feature)
 
-**Offen:** (a) Ko-fi-Automatik — der Weg steht (Codes), es fehlt nur die Ausgabe der Codes in
-der Ko-fi-Dankesnachricht bzw. ein Vorrat generierter Codes. (b) Produktfrage: einen Wettbewerb als
-Kostprobe offen lassen, damit die Seite auf Reddit ihren Aufhaenger behaelt.
+**Ein CSS-Blur ist KEIN Schutz.** Wer F12 drueckt oder die REST-Adresse aufruft, liest den
+Wert im Klartext. Der Wert darf den Server gar nicht erst verlassen. Deshalb immer:
+Tabelle sperren -> gefilterte RPC ausliefern -> im Frontend nur einen Platzhalter blurren.
+Verifiziert am 06.09.: `cash_score` steht bei Nicht-Pro auch im Browser-Speicher auf `null`.
+
+### Datenmodell (Migration `2026-09-06_user_tiers_feature_access.sql`)
+
+- **`user_tiers`** — je Konto ein Schalter pro Ko-fi-Stufe: `supporter` (0,50 EUR),
+  `pro` (5,00), `vip` (25,00). Dazu:
+  - `valid_until` (NULL = unbefristet) — verhindert, dass ein gekuendigtes Abo ewig gilt.
+  - `creator` — Betreiber-Zugang (siehe unten), unabhaengig von den Stufen.
+  - `source` — manual | kofi | key | code.
+  RLS: jeder liest NUR die eigene Zeile; es gibt KEINE Schreib-Policy (nur Service-Key
+  und die Funktionen unten schreiben).
+- **`feature_access`** — Feature -> Mindeststufe (`free | supporter | pro | vip`).
+  Oeffentlich lesbar, damit die UI weiss, was gefordert ist. **Ein Feature laesst sich hier
+  OHNE Deploy verschieben oder freigeben:**
+  `update feature_access set min_tier = 'free' where feature_key = 'leaderboard_cash';`
+- **`app_secrets`** — nur der SHA-256-Hash des Creator-Schluessels. Kein anon/authenticated.
+- **`redeem_codes`** — Gutschein-Codes: nur Hash, Stufe, Laufzeit (Monate), `max_uses`,
+  `used_count`, Ablaufdatum. Kein anon/authenticated.
+
+### Die einzige Entscheidungsstelle
+
+`has_feature(key)` beantwortet "darf dieser Nutzer das?" — Rangfolge vip > pro > supporter
+ueber `tier_rank()` / `my_tier_rank()`, abgelaufene Stufen zaehlen nicht, unbekanntes Feature
+= gesperrt (**fail closed**, ein Tippfehler verschenkt kein Bezahl-Feature).
+**Diese Logik NIE an anderer Stelle nachbauen** — Lehre aus BUG-022/023/024, wo dieselbe
+Regel dreifach implementiert war und dreimal unterschiedlich falsch.
+
+### Stufe vergeben — drei Wege
+
+1. **SQL-Editor (manuell, heute der Normalfall):**
+   `select set_user_tier('mail@example.com', 'pro');`
+   aus: `select set_user_tier('mail@example.com', 'pro', false);`
+   befristet: `select set_user_tier('mail@example.com', 'pro', true, '2026-12-31');`
+2. **Gutschein-Code (fuer Unterstuetzer, schliesst die Ko-fi-Luecke):**
+   Anlegen nur im SQL-Editor:
+   `select create_redeem_code('SORION-PRO-7QX2', 'pro', 1);`
+   mehrfach nutzbar: `select create_redeem_code('LAUNCH25', 'supporter', 3, 25);`
+   Eingeloest wird im **Profil unter "Gutschein einloesen"**. Eine laufende Stufe wird
+   VERLAENGERT, nicht ueberschrieben. **Damit braucht die Ko-fi-Anbindung keine E-Mail** —
+   der Code kommt in die Ko-fi-Dankesnachricht; die Datenschutz-Entscheidung vom 04.09.
+   (keine Mail speichern) bleibt unangetastet.
+3. **Creator-Schalter im Profil** (nur Betreiber, zum Testen) — siehe naechster Punkt.
+
+### Creator-Zugang (Testen der Bezahl-Features)
+
+Zweck: Jonas schaltet die Stufen an seinem eigenen Konto an und aus, um beide Ansichten zu
+pruefen. Zwei Wege hinein, beide serverseitig geprueft:
+- fest hinterlegter Betreiber: `is_analytics_admin()` (E-Mail `jonas.rehr@outlook.de`), oder
+- **Schluessel** aus dem Passwort-Manager, eingegeben im **Gutschein-Feld** (bewusst getarnt,
+  Wunsch Jonas). `redeem_code()` prueft zuerst den Creator-Schluessel, dann die Gutscheine.
+  Einmalig setzen (nur SQL-Editor): `select set_creator_key('...mind. 24 Zeichen...');`
+  In der DB liegt nur der Hash. Gesetzt am 06.09. (57 Zeichen).
+  `lock_creator()` gibt den Zugang samt Stufen wieder ab.
+- Danach erscheint im Profil die Karte **"Creator-Schalter"** mit je einem Knopf pro Stufe.
+  `set_my_tier(tier, on)` ist doppelt gesperrt: Betreiber ODER Creator-Konto, UND es fasst
+  ausschliesslich die eigene Zeile an.
+
+### Checkliste fuer ein NEUES Bezahl-Feature
+
+1. Feature-Key in `feature_access` eintragen (`insert ... on conflict do nothing`).
+2. Datenquelle sperren: `revoke select` auf der Tabelle, RLS-Policy entfernen.
+3. RPC bauen, die den Wert nur bei `has_feature('<key>')` liefert, sonst `null`, plus ein
+   `*_locked`-Flag fuer die Anzeige. **`round(x::numeric, 2)`** nicht vergessen.
+4. Aendert sich der Rueckgabetyp einer bestehenden RPC: `drop function` davor (42P13).
+5. Frontend: Platzhalter blurren (NIE den echten Wert), Upsell-Hinweis, Ko-fi-Link.
+6. **Alle Client-Pfade auf 401 pruefen** (siehe Falle unten).
+7. Von aussen verifizieren (Rezept unten), erst dann als fertig melden.
+
+### Fallen (alle real aufgetreten)
+
+- **Abgelaufene Sitzung leerte die Seite (06.09., gefixt):** Nach dem Sperren der Tabelle
+  schickte die Leaderboards-Seite ein abgelaufenes Token, bekam 401, und der Rueckfall griff
+  auf die inzwischen gesperrte Tabelle zu -> gar keine Anzeige. Anonyme Besucher waren nie
+  betroffen, deshalb fiel es beim Test nicht auf. **Regel: Wer eine Tabelle sperrt, muss
+  JEDEN Client-Pfad durchgehen, der sie bisher las** — und eingeloggte Nutzer separat testen.
+  Loesung: Token erneuern (`grant_type=refresh_token`), sonst anonym erneut anfragen und die
+  freie Ansicht zeigen statt nichts.
+- **42P13** bei geaendertem RPC-Rueckgabetyp -> `drop function` davor.
+- **42883** `round(double precision, int)` gibt es nicht -> `round(x::numeric, 2)`.
+
+### Verifikation (von aussen, ohne Login)
+
+```
+curl ".../rest/v1/reward_thresholds?select=cash_score&limit=1" -H "apikey: <anon>"   # 401
+curl -X POST ".../rest/v1/rpc/leaderboard_thresholds" -H "apikey: <anon>" -d '{}'    # cash_score null, cash_locked true
+curl -X POST ".../rest/v1/rpc/has_feature" -d '{"p_feature":"leaderboard_cash"}'     # false
+curl -X POST ".../rest/v1/rpc/set_user_tier" ... / set_my_tier / redeem_code / set_creator_key   # alle 401
+```
+Stand 06.09.: alle Punkte geprueft und bestanden.
+
+### Offen
+
+- **Ko-fi-Automatik:** Der Weg steht (Codes), es fehlt nur die Ausgabe in der
+  Ko-fi-Dankesnachricht bzw. ein Vorrat generierter Codes.
+- **Produktfrage:** einen Wettbewerb als Kostprobe offen lassen, damit die Seite auf Reddit
+  ihren Aufhaenger behaelt?
+- **Preisfrage:** Partner-API-Staffel (29-49 EUR/Monat) ist nur Konzept, siehe
+  MONETARISIERUNG.md.
 
 ## Reward-Schwellen (06.09.) — rewards.html, Tabelle reward_thresholds
 
@@ -632,7 +696,7 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   oeffentlich lesbar; `leaderboard_thresholds()` um `cash_cost`/`essence_cost` erweitert),
   Sync `tools/sync-lineup-costs.mjs` (idempotent, ueberspringt fertige Leaderboards).
   Aufruf: `railway run -s "Updater Limited" node tools/sync-lineup-costs.mjs`.
-- **Gate:** Die CASH-Kosten haengen am selben Schalter wie die Cash-Schwelle
+- **Gate (Details: Abschnitt PRO-FEATURES):** Die CASH-Kosten haengen am selben Schalter wie die Cash-Schwelle
   (`leaderboard_cash`), Essence-Kosten sind frei. Umstellen ohne Deploy ueber
   `feature_access`.
 - **Offen:** Cron einrichten (analog `railway-rewards.toml`), damit neue Spieltage
