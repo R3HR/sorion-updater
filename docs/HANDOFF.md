@@ -463,6 +463,19 @@ Platzhalter blurren.
 `select set_user_tier('mail@example.com', 'pro', false);` / `(..., true, '2026-12-31')`.
 Die Funktion erlaubt sich selbst nur bei direktem SQL-Zugriff oder fuer `is_analytics_admin()`.
 
+**Creator-Zugang (Wunsch Jonas 06.09.):** Zum Testen der Bezahl-Features schaltet sich Jonas
+im Profil selbst frei. Zwei Wege, beide serverseitig geprueft:
+- fest hinterlegter Betreiber (`is_analytics_admin()`, E-Mail jonas.rehr@outlook.de), oder
+- **Schluessel** aus dem Passwort-Manager: `unlock_creator(key)` setzt `user_tiers.creator`
+  auf dem AUFRUFENDEN Konto. Damit laesst sich auch ein Testkonto freischalten.
+  Schluessel einmalig setzen: `select set_creator_key('...>=24 Zeichen...');` (nur im
+  SQL-Editor moeglich). In der DB liegt nur der SHA-256-Hash, nie der Schluessel.
+  Eingabe im Profil unter `profile.html?creator`; `lock_creator()` gibt den Zugang zurueck.
+- `set_my_tier(tier, on)` schaltet dann die Stufen; erlaubt fuer Betreiber ODER Creator-Konto,
+  und fasst ausschliesslich die eigene Zeile an.
+- **Einordnung:** Der Schluessel ist ein zweites Passwort, nicht sicherer als der Login. Sein
+  Nutzen ist Beweglichkeit (jedes Konto, kein SQL-Editor), nicht zusaetzliche Haerte.
+
 **Offen:** (a) Ko-fi-Automatik — `kofi_events` speichert bewusst KEINE Mail, es fehlt also die
 Bruecke zum Konto. Wege: Einloese-Code in der Ko-fi-Dankesnachricht (sauber) oder Mail-Abgleich
 (kippt die Datenschutz-Entscheidung vom 04.09.). (b) Produktfrage: einen Wettbewerb als

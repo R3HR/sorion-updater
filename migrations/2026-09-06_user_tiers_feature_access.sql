@@ -34,7 +34,8 @@ create table if not exists public.user_tiers (
   pro         boolean     not null default false,   -- Ko-fi "Pro-Supporter"  5,00 EUR
   vip         boolean     not null default false,   -- Ko-fi "Sorion VIP"    25,00 EUR
   valid_until date,                                 -- NULL = unbefristet
-  source      text        not null default 'manual',-- manual | kofi | ...
+  source      text        not null default 'manual',-- manual | kofi | key | ...
+  creator     boolean     not null default false,   -- Betreiber-Zugang (per Schluessel)
   note        text,
   updated_at  timestamptz not null default now()
 );
@@ -178,7 +179,12 @@ returns text language plpgsql security definer set search_path = public, auth as
 declare uid uuid := auth.uid();
 begin
   if uid is null then raise exception 'nicht eingeloggt'; end if;
-  if not public.is_analytics_admin() then raise exception 'not allowed'; end if;
+  -- Erlaubt: fest hinterlegter Betreiber ODER ein per Schluessel freigeschaltetes
+  -- Konto (siehe unlock_creator). Der Schluessel-Weg macht Testkonten moeglich.
+  if not (public.is_analytics_admin()
+          or exists (select 1 from public.user_tiers t where t.user_id = uid and t.creator)) then
+    raise exception 'not allowed';
+  end if;
   if lower(p_tier) not in ('supporter', 'pro', 'vip') then
     raise exception 'unbekannte Stufe: % (supporter|pro|vip)', p_tier;
   end if;
@@ -191,6 +197,82 @@ end $fn$;
 revoke execute on function public.set_my_tier(text, boolean) from public, anon;
 grant execute on function public.set_my_tier(text, boolean) to authenticated;
 
+-- ── 7) Creator-Zugang per Schluessel (Wunsch Jonas 06.09.) ────────────────
+-- Statt an eine feste E-Mail gebunden zu sein, schaltet ein Schluessel das
+-- aufrufende Konto frei. Damit laesst sich der Pro-Zustand auch aus einem
+-- Testkonto heraus umschalten.
+--
+-- EHRLICHE EINORDNUNG: Der Schluessel ist ein zweites Passwort, nicht mehr.
+-- Er ist NICHT sicherer als der Login (der schuetzt bereits mit Passwort +
+-- Supabase-Sitzung). Sein Nutzen ist Beweglichkeit, nicht Haerte. Deshalb:
+--   * In der Datenbank liegt NUR der SHA-256-Hash, nie der Schluessel selbst.
+--   * Freischalten setzt eine bestehende Anmeldung voraus (auth.uid()).
+--   * Mindestlaenge 24 Zeichen, damit Raten aussichtslos bleibt.
+-- Schluessel wechseln: einfach set_creator_key() erneut aufrufen. Zugaenge
+-- entziehen: update public.user_tiers set creator = false;
+create extension if not exists pgcrypto with schema extensions;
+
+create table if not exists public.app_secrets (
+  name        text primary key,
+  secret_hash text not null,
+  updated_at  timestamptz not null default now()
+);
+alter table public.app_secrets enable row level security;
+revoke all on public.app_secrets from anon, authenticated;   -- nur Service-Rolle
+
+-- Einmal im SQL-Editor setzen (Schluessel im Passwort-Manager erzeugen!):
+--   select set_creator_key('<dein-langer-zufaelliger-schluessel>');
+create or replace function public.set_creator_key(p_key text)
+returns text language plpgsql security definer
+set search_path = public, extensions as $fn$
+begin
+  -- Nur direkter SQL-Zugriff (kein JWT) darf den Schluessel setzen.
+  if current_setting('request.jwt.claims', true) is not null then
+    raise exception 'nur im SQL-Editor';
+  end if;
+  if length(coalesce(p_key, '')) < 24 then
+    raise exception 'Schluessel zu kurz (mindestens 24 Zeichen)';
+  end if;
+  insert into public.app_secrets (name, secret_hash)
+  values ('creator_key', encode(digest(p_key, 'sha256'), 'hex'))
+  on conflict (name) do update set secret_hash = excluded.secret_hash, updated_at = now();
+  return 'Creator-Schluessel gesetzt (' || length(p_key) || ' Zeichen)';
+end $fn$;
+revoke execute on function public.set_creator_key(text) from public, anon, authenticated;
+
+-- Vom Profil aus aufgerufen: schaltet NUR das eigene Konto frei.
+create or replace function public.unlock_creator(p_key text)
+returns boolean language plpgsql security definer
+set search_path = public, extensions, auth as $fn$
+declare uid uuid := auth.uid(); ok boolean;
+begin
+  if uid is null then raise exception 'nicht eingeloggt'; end if;
+  select exists (
+    select 1 from public.app_secrets s
+    where s.name = 'creator_key'
+      and s.secret_hash = encode(digest(coalesce(p_key, ''), 'sha256'), 'hex')
+  ) into ok;
+  if not ok then return false; end if;
+  insert into public.user_tiers (user_id, source, creator) values (uid, 'key', true)
+    on conflict (user_id) do update set creator = true, source = 'key', updated_at = now();
+  return true;
+end $fn$;
+revoke execute on function public.unlock_creator(text) from public, anon;
+grant execute on function public.unlock_creator(text) to authenticated;
+
+-- Zugang des eigenen Kontos wieder abgeben (z. B. auf einem Testkonto).
+create or replace function public.lock_creator()
+returns boolean language plpgsql security definer set search_path = public, auth as $fn$
+begin
+  if auth.uid() is null then raise exception 'nicht eingeloggt'; end if;
+  update public.user_tiers
+     set creator = false, supporter = false, pro = false, vip = false, updated_at = now()
+   where user_id = auth.uid();
+  return true;
+end $fn$;
+revoke execute on function public.lock_creator() from public, anon;
+grant execute on function public.lock_creator() to authenticated;
+
 -- ── Verifikation ───────────────────────────────────────────────────────────
 -- 1) Anonym darf die Tabelle NICHT mehr lesen (muss leer/401 geben):
 --    curl ".../rest/v1/reward_thresholds?select=cash_score&limit=1" -H "apikey: <anon>"
@@ -200,3 +282,6 @@ from public.leaderboard_thresholds() limit 5;
 -- 3) Freischalten (deine Konto-Mail einsetzen) und Punkt 2 erneut pruefen:
 --    select set_user_tier('jonas.rehr@outlook.de', 'pro');
 select feature_key, min_tier from public.feature_access;
+-- 4) Creator-Schluessel setzen (im Passwort-Manager erzeugen, hier einsetzen):
+--    select set_creator_key('...mindestens 24 zufaellige Zeichen...');
+--    Danach im Profil unter sorion.pro/profile.html?creator eingeben.

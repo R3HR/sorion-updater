@@ -204,6 +204,12 @@
       <div class="hint">Nur fuer dein eigenes Konto, zum Testen der Unterstuetzer-Features.
         Die Freischaltung wird serverseitig auf den Betreiber begrenzt und wirkt ausschliesslich
         auf dieses Profil.</div>
+      <div id="tier-unlock" style="display:none">
+        <label>Creator-Schluessel</label>
+        <input type="password" id="tier-key" autocomplete="off" spellcheck="false"
+               placeholder="aus dem Passwort-Manager einfuegen">
+        <button onclick="unlockCreator()">Freischalten</button>
+      </div>
       <div id="tier-switches" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px"></div>
       <div class="hint" id="tier-hint" style="margin-top:4px"></div>
       <div class="msg" id="tier-msg"></div>
@@ -412,25 +418,66 @@
   const TIER_LABELS = { supporter: 'Supporter', pro: 'Pro-Supporter', vip: 'Sorion VIP' };
   let myTiers = { supporter: false, pro: false, vip: false };
 
+  // Zwei Wege zur Karte: fest hinterlegter Betreiber ODER ein Konto, das per
+  // Schluessel freigeschaltet wurde. Die Eingabe erscheint zusaetzlich ueber
+  // profile.html?creator — der eigentliche Schutz ist der Schluessel selbst.
+  let isCreator = false;
   async function loadCreatorSwitches() {
     try {
-      const a = await authFetch('/rest/v1/rpc/is_analytics_admin', { method: 'POST', body: '{}' });
-      if (!a.ok || (await a.json()) !== true) return;         // kein Betreiber: Karte bleibt aus
       const t = await authFetch(`/rest/v1/user_tiers?user_id=eq.${currentUser.id}&select=*`);
       const rows = t.ok ? await t.json() : [];
       if (Array.isArray(rows) && rows.length) {
         myTiers = { supporter: !!rows[0].supporter, pro: !!rows[0].pro, vip: !!rows[0].vip };
+        isCreator = !!rows[0].creator;
       }
+      let admin = false;
+      try {
+        const a = await authFetch('/rest/v1/rpc/is_analytics_admin', { method: 'POST', body: '{}' });
+        admin = a.ok && (await a.json()) === true;
+      } catch (e) {}
+      const wantsKey = new URLSearchParams(location.search).has('creator');
+      if (!isCreator && !admin && !wantsKey) return;          // Karte bleibt aus
       document.getElementById('creator-card').style.display = 'block';
-      renderTierSwitches();
+      document.getElementById('tier-unlock').style.display = (isCreator || admin) ? 'none' : 'block';
+      renderTierSwitches(isCreator || admin);
     } catch (e) {}
   }
 
-  function renderTierSwitches() {
+  async function unlockCreator() {
+    const key = document.getElementById('tier-key').value.trim();
+    if (!key) { msg('tier-msg', 'Schluessel eingeben'); return; }
+    try {
+      const r = await authFetch('/rest/v1/rpc/unlock_creator', {
+        method: 'POST', body: JSON.stringify({ p_key: key }) });
+      const ok = r.ok && (await r.json()) === true;
+      document.getElementById('tier-key').value = '';
+      if (!ok) { msg('tier-msg', 'Schluessel ungueltig'); return; }
+      isCreator = true;
+      document.getElementById('tier-unlock').style.display = 'none';
+      renderTierSwitches(true);
+      msg('tier-msg', 'Creator-Zugang aktiv \u2713', true);
+    } catch (e) { msg('tier-msg', 'Freischalten fehlgeschlagen'); }
+  }
+
+  async function lockCreator() {
+    try {
+      await authFetch('/rest/v1/rpc/lock_creator', { method: 'POST', body: '{}' });
+      isCreator = false;
+      myTiers = { supporter: false, pro: false, vip: false };
+      document.getElementById('tier-unlock').style.display = 'block';
+      renderTierSwitches(false);
+      msg('tier-msg', 'Zugang und Stufen entfernt \u2713', true);
+    } catch (e) { msg('tier-msg', 'Fehlgeschlagen'); }
+  }
+
+  function renderTierSwitches(unlocked) {
+    const box = document.getElementById('tier-switches');
+    if (!unlocked) { box.innerHTML = ''; document.getElementById('tier-hint').textContent = ''; return; }
     const rank = myTiers.vip ? 'Sorion VIP' : myTiers.pro ? 'Pro-Supporter'
                : myTiers.supporter ? 'Supporter' : 'keine';
-    document.getElementById('tier-switches').innerHTML = Object.keys(TIER_LABELS).map(k =>
-      `<button class="${myTiers[k] ? '' : 'ghost'}" onclick="toggleTier('${k}')">${myTiers[k] ? '\u25CF' : '\u25CB'} ${TIER_LABELS[k]}</button>`).join('');
+    box.innerHTML = Object.keys(TIER_LABELS).map(k =>
+      `<button class="${myTiers[k] ? '' : 'ghost'}" onclick="toggleTier('${k}')">${myTiers[k] ? '\u25CF' : '\u25CB'} ${TIER_LABELS[k]}</button>`).join('')
+      + '<button class="ghost" onclick="lockCreator()">Zugang abgeben</button>';
     document.getElementById('tier-hint').textContent =
       'Aktive Stufe: ' + rank + ' \u00b7 VIP schliesst Pro und Supporter mit ein.';
   }
@@ -442,7 +489,7 @@
         method: 'POST', body: JSON.stringify({ p_tier: k, p_on: on }) });
       if (!r.ok) { msg('tier-msg', 'Nicht erlaubt (' + r.status + ')'); return; }
       myTiers[k] = on;
-      renderTierSwitches();
+      renderTierSwitches(true);
       msg('tier-msg', TIER_LABELS[k] + (on ? ': an \u2713' : ': aus \u2713'), true);
     } catch (e) { msg('tier-msg', 'Fehlgeschlagen'); }
   }
