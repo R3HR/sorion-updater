@@ -202,6 +202,7 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 - **✅ 0-Runden im Durchschnitt (05.09., BUG-037):** Wer in einer live erfassten Runde nicht aufgestellt hat, zaehlt jetzt mit 0 Punkten (Regel 8). Strafe -5 dafuer bleibt Captain-Entscheidung ueber `penalty`; fuer R29 (Sorare | MA) eingetragen. Neue lesende Action `rounds` (Einzelscores je Runde, `?round=N`), `steps` lesend freigegeben. Cowork-Bot nutzt inzwischen Pfad-Suffix /v4 - jedes Suffix ist erlaubt.
 - **Befund 05.09. "Der Bot stand" - war Sorares API:** Cron und Function liefen luckenlos (pg_cron `succeeded`, HTTP 200 `ok:true` um 07:00, 07:10, 07:20, 07:30 UTC). Die Antworten enthielten aber **nur das alte Board** (R27-R30); das neue Board (Ziel 700) tauchte in `currentUser.boards(mode: SQUAD, ...)` erst um **07:40 UTC = 09:40 Berlin** auf - mit da schon 3 Aufstellungen. Die App zeigt ein neues Wochen-Board also frueher als die API. **Gemessene Wechselzeiten** (erstes Sehen des neuen Boards durch den 10-min-Cron, Berlin): 24.08. **09:10**, 29.08. **10:20**, 05.09. **09:40** - unregelmaessig, immer nach 09:00. `endDate` ist an allen Boards null, ein Cutover-Zeitpunkt ist nicht ablesbar. `nextMatchdayAt` (= 09:00 Berlin) gilt nur fuer Stages INNERHALB eines Boards; die sind als LOCKED-Steps schon vorher sichtbar und werden puenktlich erfasst. Betroffen ist ausschliesslich der Board-Wechsel nach einer verlorenen Stage. Folge: In diesem Fenster ist `first_seen` fuer alle bis dahin gesetzten Aufstellungen identisch - die Reihenfolge fuer den Cap-Streit ist dann nicht bestimmbar, es entscheidet faktisch der Bonus. Naechste Beobachtung 12.09. Beleg abrufbar ueber die neue Action **`cron_runs`** (pg_cron-Laeufe + pg_net-Antworten inkl. Body, ~6 h Vorhalt; RPCs `squad_cron_runs`, `squad_http_responses`, `squad_cron_jobs`).
 - **pg_net-Timeout 5 s -> 30 s (05.09.):** Die Function braucht 4-7 s; am 05.09. 07:40 UTC lief der Cron-Aufruf in den 5-s-Timeout (Function lief trotzdem zu Ende, darauf ist aber kein Verlass). Beide Jobs per `cron.alter_job` auf `timeout_milliseconds := 30000`, verifiziert.
+- **✅ Slug-Aliase (05.09., BUG-039):** Jonas hat sich bei Sorare umbenannt (JR3HR -> R3HR), Sorare vergab einen neuen Slug, der Bot sah einen elften Manager und zaehlte seine Spieler doppelt fuer den Cap. Jetzt `squad_slug_aliases` + Kanonisierung an der Eingangstuer. **Kanon ist auf Wunsch von Jonas `r3hr`** (Migration 20260905123000 zog alle Tabellen inkl. Notification-Schluessel um); `jr3hr` in aelteren Eintraegen = derselbe Manager. **Ablauf bei jeder Umbenennung:** Alias eintragen, `purge_manager all_steps`, Poll.
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
 
 ## 🔴 AKUT (25.08.): DB-Totalausfall Nr. 2 — siehe [INCIDENTS.md](INCIDENTS.md) INC-006
@@ -286,11 +287,9 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
-H. 🔴 **NEU (06.09.) — Migration `2026-09-06_analytics_berlin_time.sql` ausfuehren.** Stellt alle
-   Statistik-Funktionen auf Berliner Kalendertage um und korrigiert die Alt-Tage (BUG-038).
-   Die track-Function ist bereits umgestellt; bis zur Migration weichen Kacheln und Kurve
-   um Mitternacht noch voneinander ab. Pruefung: stats.html, Konten-Kachel "+N today" muss
-   ab 00:00 Berlin auf 0 springen, nicht um 02:00.
+H. ✅ **Berlin-Zeit-Migration ausgefuehrt (06.09. 14:19 Berlin, per CLI durch Claude).** Verifiziert:
+   alle 6 Auswertungs-Funktionen mit TimeZone=Europe/Berlin, Spalten-Default auf Berlin, 85 von
+   1.731 Ereignis-Zeilen auf den richtigen Tag verschoben, 0 verbleibend. stats.html einmal neu laden.
 
 
 G. ✅ **edge_cache-Migration ausgefuehrt (05.09. ~13:05 UTC).** Verifiziert: 1. Aufruf miss 1,75 s,
@@ -512,6 +511,20 @@ Stand 04.09.: jr3hr komplett erfasst — 84 Gameweeks, 257 Karten, zurueck bis
 zum Sorare-Start im September 2025. Ausbaustufe (Ziel Jonas): ueber
 `so5_card_earnings` laesst sich kuenftig fuer JEDE Karte ausweisen, was sie
 JEMALS erspielt hat — ueber alle Manager hinweg.
+
+## 🛠 Migrationen laufen jetzt per CLI (seit 06.09.2026)
+
+Kein Kopieren in den SQL-Editor mehr. Aus `C:\craft-log\supabase` (dort ist die CLI eingeloggt
+und das Projekt verknuepft):
+
+    npx supabase db query --linked --file "C:/craft-log/Sorion_pro/migrations/<datei>.sql"
+    npx supabase db query --linked --output-format json "select ..."      # Verifikation
+
+Laeuft ueber die Management-API mit dem CLI-Login, kein DB-Passwort noetig. Regeln dazu:
+Vor dem Ausfuehren sagen, was die Migration tut (Lehre INC-005/006: die DB ist gedrosselt,
+schwere Migrationen koennen sie lahmlegen); danach immer mit einer Abfrage verifizieren;
+Admin-gegatete RPCs (is_analytics_admin) liefern ueber die API leere Ergebnisse, das ist
+kein Fehler. `analytics_prune` bleibt ohne Zeitzonen-Setting (400-Tage-Loeschung, 2 h egal).
 
 ## Werkzeuge in tools/ (bei Bedarf per `railway run node tools/<name>.mjs` ausloesen)
 
