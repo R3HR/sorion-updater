@@ -713,6 +713,12 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
 - **Gate (Details: Abschnitt PRO-FEATURES):** Die CASH-Kosten haengen am selben Schalter wie die Cash-Schwelle
   (`leaderboard_cash`), Essence-Kosten sind frei. Umstellen ohne Deploy ueber
   `feature_access`.
+- **Kadergroesse:** All Star und Under 23 spielen mit SIEBEN Karten, alle anderen mit fuenf.
+  Team-Kosten sind daher nur INNERHALB eines Wettbewerbs vergleichbar (Hinweis steht auf der Seite).
+- **Falle (06.09., gefixt):** `so5RankingsPaginated` zaehlt Seiten **ab 0**. Mit 1-basierter
+  Rechnung fehlten in allen 178 Leaderboards die Raenge 1-50 — also genau die Cash-Gewinner,
+  weshalb die Cash-Team-Spalte leer blieb. Nach dem Fix: niedrigster Rang 1, 95 von 190
+  Leaderboard-Wochen mit Cash-Kosten, 3.826 Cash-Aufstellungen (vorher 1.662).
 - **Offen:** Cron einrichten (analog `railway-rewards.toml`), damit neue Spieltage
   automatisch nachlaufen.
 
