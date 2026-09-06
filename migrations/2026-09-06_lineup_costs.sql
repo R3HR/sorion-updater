@@ -77,8 +77,8 @@ language sql stable security definer set search_path = public as $fn$
          r.cash_rank,
          case when g.ok then r.cash_score end,
          r.essence_rank, r.essence_score,
-         case when g.ok then round(lc.cash_cost, 2) end,
-         round(lc.essence_cost, 2),
+         case when g.ok then round(lc.cash_cost::numeric, 2) end,
+         round(lc.essence_cost::numeric, 2),
          not g.ok
   from public.reward_thresholds r
   cross join g

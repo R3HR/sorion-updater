@@ -670,6 +670,8 @@ Suche in HANDOFF.md, dann das Schema.**
   `drop function if exists <name>(<argtypen>);` davor. Der SQL-Editor laeuft als EINE
   Transaktion, die Funktion ist also nie wirklich weg. Aufgetreten bei market_facets (25.08.)
   und leaderboard_thresholds (06.09.) — beide Male dieselbe Ursache.
+- **`round(x, 2)` gibt es nur fuer `numeric`:** `percentile_cont` liefert
+  `double precision` -> 42883. Immer `round(wert::numeric, 2)` schreiben.
 - **Ranglisten und Aufstellungen (06.09. verifiziert, braucht APIKEY):**
   `so5.so5Leaderboard(slug).so5Rankings(first, after)` — Cursor-Pagination, ODER
   `so5RankingsPaginated(page, pageSize)` — mit SEITENNUMMER, damit sind gezielte Raenge
