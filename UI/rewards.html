@@ -168,8 +168,30 @@
   const KEY  = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
   let rows = [], rarity = 'limited', sortKey = 'cash', sortDir = -1;
   let cashLocked = false;          // vom Server: hat dieses Konto das Pro-Feature?
+  let staleSession = false;        // Token abgelaufen -> nur freie Ansicht moeglich
   // Session teilen wir mit Portfolio/Profil (localStorage 'sorion_session')
-  const authToken = () => { try { return JSON.parse(localStorage.getItem('sorion_session') || 'null')?.access_token || null; } catch { return null; } };
+  const session = () => { try { return JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch { return null; } };
+  // Abgelaufenes Token erneuern, sonst antwortet die RPC mit 401 und die Seite
+  // waere leer (Fund 06.09.: eingeloggt mit alter Sitzung -> keine Tabelle).
+  async function authToken() {
+    const s = session();
+    if (!s?.access_token) return null;
+    try {
+      const exp = JSON.parse(atob(s.access_token.split('.')[1])).exp * 1000;
+      if (Date.now() < exp - 30000) return s.access_token;      // noch gueltig
+    } catch { return s.access_token; }                          // kein lesbares exp: einfach versuchen
+    if (!s.refresh_token) return null;
+    try {
+      const r = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co/auth/v1/token?grant_type=refresh_token', {
+        method: 'POST', headers: { 'apikey': KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: s.refresh_token }) });
+      if (!r.ok) return null;
+      const d = await r.json();
+      if (!d?.access_token) return null;
+      localStorage.setItem('sorion_session', JSON.stringify({ ...s, ...d }));
+      return d.access_token;
+    } catch { return null; }
+  }
 
   const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
@@ -272,12 +294,15 @@
     try {
       // Ueber die RPC statt direkt auf die Tabelle: das Cash-Gate sitzt im Server
       // (leaderboard_thresholds). Eingeloggte schicken ihr Token mit, sonst anon.
-      const tok = authToken();
-      const res = await fetch(`${BASE}/rpc/leaderboard_thresholds`, {
+      const call = t => fetch(`${BASE}/rpc/leaderboard_thresholds`, {
         method: 'POST',
-        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + (tok || KEY), 'Content-Type': 'application/json' },
+        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
         body: '{}'
       });
+      const tok = await authToken();
+      let res = await call(tok || KEY);
+      // Sitzung nicht mehr gueltig? Dann die freie Ansicht zeigen statt gar nichts.
+      if (!res.ok && tok) { staleSession = true; res = await call(KEY); }
       if (res.ok) {
         rows = await res.json();
       } else {
@@ -290,6 +315,12 @@
       }
       cashLocked = rows.length ? !!rows[0].cash_locked : false;
       document.getElementById('upsell').style.display = cashLocked ? '' : 'none';
+      if (staleSession) {
+        const u = document.getElementById('upsell');
+        u.style.display = '';
+        u.innerHTML = '<b>Your session has expired.</b><br>Sign in again to see the Pro columns. '
+          + '<a href="profile.html">Go to profile</a>';
+      }
       document.getElementById('cash-chip').style.display = cashLocked ? '' : 'none';
       const last = rows.length ? rows.reduce((m, r) => r.start_date > m.start_date ? r : m) : null;
       document.getElementById('asof').textContent = last ? `// through ${last.fixture_name} · ${rows.length} leaderboard-weeks` : '';
