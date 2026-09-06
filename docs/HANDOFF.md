@@ -434,6 +434,24 @@ mit einem Key, ~60/min mit zwei). Reddit-Post geplant Mo 08.09. 15:00 (docs/redd
 | Notifications (Stufe 3, braucht OAuth-App) | ⬜ nach Launch |
 | 30d-Marktbewegung ergänzen | ⬜ ab ~20.08. (History reicht dann) |
 
+## Reward-Schwellen (06.09.) — rewards.html, Tabelle reward_thresholds
+
+Wunsch Jonas: "Wie viele Punkte braucht man im Schnitt fuer Geld/Essence je Leaderboard?" —
+nur Saison 26/27 (GW1 ab 31.07.), als Tabelle je Wettbewerb, auf der Seite visualisiert.
+- **Quelle:** je abgeschlossenem Spieltag (`so5Fixtures`, aasmState=closed) die Wettbewerbs-
+  Leaderboards; je Leaderboard `rewardsConfig.ranking[]` mit `toSo5Ranking.score` = Score des
+  letzten belohnten Rangs je Stufe. Anonym Komplexitaet 500 -> 1 Call je Leaderboard (~40/Spieltag).
+  Arena/PvP/Cap/Beginner-Raeume werden ausgeschlossen (Slug-Regex in `isCompetition`).
+- **Pipeline:** `tools/sync-reward-thresholds.mjs` (idempotent, ueberspringt fertige Spieltage) ->
+  Tabelle `reward_thresholds` (Migration `2026-09-04_reward_thresholds.sql`, oeffentlich lesbar) ->
+  `UI/rewards.html` aggregiert clientseitig je Wettbewerb x Rarity (Ø Cash-/Essence-Schwelle mit
+  Min-Max, bezahlte Raenge, Top-Score, Lineups, Cash-Trend-Sparkline). Footer-Link auf der Marktseite.
+- **Cron:** `railway-rewards.toml` (taeglich 09:00 UTC) — Railway-Service muss Jonas wie
+  Club_Rosters anlegen. Bis dahin manuell: `railway run node tools/sync-reward-thresholds.mjs`.
+- **Status 06.09.:** Code/Seite deployt, Migration + Erst-Sync (~400 Calls, ~8 min) OFFEN.
+- Hinweis: Laenderspielpausen (z. B. GW10, 1.-4.9.) haben nur ~13 Leaderboards — deshalb
+  ungleiche GW-Zahlen je Zeile; ist erklaert auf der Seite.
+
 ## Live-Daten im Spieler-Modal (04.09.) — Edge Function `player-live`
 
 `C:\craft-log\supabase\functions\player-live\index.ts` (deployed, `verify_jwt=false`, CORS
