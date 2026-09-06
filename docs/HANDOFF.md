@@ -557,6 +557,16 @@ kein Fehler. `analytics_prune` bleibt ohne Zeitzonen-Setting (400-Tage-Loeschung
 
 ## Architektur-Wissen (Kern)
 
+**Manager-Identitaet (seit 06.09., BUG-039):** Sorare-Slugs sind aenderbar. Bei Umbenennung
+bleibt der alte Slug als Alias, der neue bekommt eine UUID angehaengt. Bei uns hat jeder
+Manager EINEN Primaer-Slug (`manager_sync.sorare_slug`, unter dem alle Daten liegen) plus
+`sorare_user_id` (Sorare "User:<uuid>", stabil), `current_slug`, `nickname`. Eingaben werden
+mit `resolve_manager(input)` (RPC, oeffentlich) auf den Primaer-Slug aufgeloest; die Seiten
+schreiben die URL darauf um. `sync-portfolio` speichert die Identitaet bei jedem Sync und
+fragt Sorare mit `current_slug` ab. Daten werden NIE umgehaengt. Sorare kann NICHT per ID
+suchen; die ID dient nur dem Abgleich in unseren Tabellen. Offen: so5-results/squad_* siehe BUG-039.
+
+
 **Edge Functions haben KEINEN wirksamen Speicher-Cache (gemessen 05.09.):** Supabase gibt
 jeder Anfrage praktisch eine frische Instanz; 7 von 7 Aufrufen einer Function mit
 modul-globaler Map waren Cache-Misses, auch bei 5 gleichzeitigen. Was zwischen Anfragen
