@@ -665,6 +665,11 @@ Suche in HANDOFF.md, dann das Schema.**
   - `So5Leaderboard` hat KEIN Feld `so5Competition` — Zuordnung ueber den Slug
     (`...-seasonal-<key>-(in_season|all_seasons)_<key>_<rarity>`).
   - "Champion" existiert nur als `all_seasons`-Wettbewerb, es gibt kein In-Season-Pendant.
+- **Postgres-Falle bei RPC-Aenderungen:** Kommt eine SPALTE zur Rueckgabe dazu, scheitert
+  `create or replace function` mit 42P13 ("cannot change return type"). Immer
+  `drop function if exists <name>(<argtypen>);` davor. Der SQL-Editor laeuft als EINE
+  Transaktion, die Funktion ist also nie wirklich weg. Aufgetreten bei market_facets (25.08.)
+  und leaderboard_thresholds (06.09.) — beide Male dieselbe Ursache.
 - **Ranglisten und Aufstellungen (06.09. verifiziert, braucht APIKEY):**
   `so5.so5Leaderboard(slug).so5Rankings(first, after)` — Cursor-Pagination, ODER
   `so5RankingsPaginated(page, pageSize)` — mit SEITENNUMMER, damit sind gezielte Raenge

@@ -44,7 +44,12 @@ revoke all on public.lineup_costs from anon, authenticated;
 -- Die CASH-Kosten haengen am selben Feature-Schalter wie die Cash-Schwelle
 -- ('leaderboard_cash'); die Essence-Kosten bleiben frei. Umstellen ohne
 -- Deploy: update feature_access set min_tier = 'free' where feature_key = ...
-create or replace function public.leaderboard_thresholds()
+-- Rueckgabetyp aendert sich (zwei neue Spalten) -> create or replace reicht NICHT
+-- (42P13). Erst droppen, dann neu anlegen; der SQL-Editor laeuft als EINE
+-- Transaktion, die Funktion ist also nie wirklich weg. Gleiche Falle wie bei
+-- market_facets am 25.08.
+drop function if exists public.leaderboard_thresholds();
+create function public.leaderboard_thresholds()
 returns table (
   fixture_slug text, fixture_name text, start_date date,
   competition text, rarity text, lineups int, top_score numeric,
