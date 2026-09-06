@@ -175,6 +175,9 @@
 
   // Verlauf der Cash-Schwelle ueber die Spieltage als Mini-SVG
   function spark(vals) {
+    // Gesperrt: der Verlauf gehoert zu den Cash-Daten, also ebenfalls Platzhalter.
+    // Eine Spalte voller Striche saehe nach Fehler aus, nicht nach Schloss.
+    if (cashLocked) return '<span class="lockv">\u2581\u2583\u2582\u2585\u2583\u2586</span>';
     const v = vals.filter(x => x != null);
     if (v.length < 2) return '<span class="rng">—</span>';
     const W = 90, H = 22, min = Math.min(...v), max = Math.max(...v), r = max - min || 1;
