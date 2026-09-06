@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SORION — Reward Thresholds</title>
+<meta name="description" content="How many SO5 points do you need for cash or essence? Season 26/27 reward thresholds per Sorare competition and rarity, from every closed gameweek.">
+<link rel="canonical" href="https://sorion.pro/rewards.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SORION">
+<meta property="og:title" content="SORION — Reward Thresholds">
+<meta property="og:description" content="How many SO5 points do you need for cash or essence? Season 26/27 reward thresholds per Sorare competition and rarity.">
+<meta property="og:url" content="https://sorion.pro/rewards.html">
+<meta property="og:image" content="https://sorion.pro/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://sorion.pro/og-image.png">
+<!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
+<script>
+(function(){
+  var URL_='https://jxhdlcpdupmkpsoytzes.supabase.co/functions/v1/track', SITE='sorion';
+  window.track=function(ev){
+    try{
+      fetch(URL_,{method:'POST',keepalive:true,
+        headers:{'Content-Type':'application/json','apikey':'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016'},
+        body:JSON.stringify({site:SITE,path:location.pathname,event:ev||'pageview',ref:document.referrer||null})
+      }).catch(function(){});
+    }catch(e){}
+  };
+  window.track();
+})();
+</script>
+<link href="fonts/fonts.css" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d1a; --surface: #13131f; --surface2: #1a1a2e; --border: #2a2a45;
+    --purple: #b060ff; --text: #e8e8ff; --text2: #9090c0; --dim: #8888b4;
+    --limited: #ffb830; --rare: #ff5555; --sr: #7090ff; --up: #00f5a0; --down: #ff2d78;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; line-height: 1.7; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 24px 80px; }
+  a { color: var(--purple); }
+  h1 { font-family: 'Orbitron', monospace; font-size: 22px; margin-bottom: 10px; }
+  h2 { font-family: 'Orbitron', monospace; font-size: 15px; color: var(--purple); margin: 36px 0 12px; }
+  p, li { font-size: 14px; color: var(--text2); margin-bottom: 10px; }
+  .back { font-family: 'Share Tech Mono', monospace; font-size: 12px; display: inline-block; margin-bottom: 24px; padding: 10px 6px; margin-left: -6px; }
+  .sub { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 28px; }
+  .mono { font-family: 'Share Tech Mono', monospace; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0 14px; }
+  .btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text2);
+         font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: .1em; padding: 9px 14px; cursor: pointer; }
+  .btn:hover { border-color: var(--purple); color: var(--purple); }
+  .btn.active { border-color: var(--purple); color: var(--purple); background: rgba(176,96,255,.08); }
+  .btn.ltd.active { border-color: var(--limited); color: var(--limited); background: rgba(255,184,48,.08); }
+  .btn.rar.active { border-color: var(--rare); color: var(--rare); background: rgba(255,85,85,.08); }
+  .btn.sr.active  { border-color: var(--sr); color: var(--sr); background: rgba(112,144,255,.08); }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .kpi small { display: block; font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .15em;
+               text-transform: uppercase; color: var(--dim); margin-bottom: 4px; }
+  .kpi b { font-family: 'Orbitron', monospace; font-size: 17px; font-weight: 700; }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; min-width: 760px; }
+  th, td { padding: 11px 12px; text-align: left; font-size: 13px; white-space: nowrap; }
+  thead th { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+             color: var(--text2); background: var(--surface2); border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  thead th.sorted { color: var(--purple); }
+  tbody tr + tr td { border-top: 1px solid var(--border); }
+  tbody tr:hover td { background: rgba(176,96,255,.04); }
+  td.num { text-align: right; font-family: 'Share Tech Mono', monospace; }
+  th.num { text-align: right; }
+  td .rng { color: var(--dim); font-size: 10px; margin-left: 4px; }
+  .cash { color: var(--up); } .ess { color: var(--purple); }
+  .comp { font-weight: 600; }
+  .spark { vertical-align: middle; }
+  .empty { padding: 26px; text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); }
+  .note { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--purple);
+          border-radius: 8px; padding: 14px 18px; margin-top: 24px; font-size: 13px; color: var(--text2); }
+  @media (max-width: 720px) { .wrap { padding: 28px 14px 60px; } th, td { padding: 9px 8px; font-size: 12px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← back to SORION</a>
+  <h1>Reward Thresholds</h1>
+  <div class="sub">// what score gets you paid — season 26/27, every closed gameweek</div>
+
+  <p>For every closed gameweek we read the reward tiers of each competition leaderboard and the
+     exact score of the <strong>last manager who still got paid</strong>. Averaged over the season,
+     that is the number you need to plan a lineup: how many SO5 points for <span class="cash">cash</span>,
+     how many for <span class="ess">essence</span>. The range shows how much it moves from week to week.</p>
+
+  <div class="controls" id="rarity-ctl">
+    <button class="btn ltd active" data-r="limited" onclick="setRarity('limited')">◆ Limited</button>
+    <button class="btn rar" data-r="rare" onclick="setRarity('rare')">◆ Rare</button>
+    <button class="btn sr" data-r="super_rare" onclick="setRarity('super_rare')">◆ Super Rare</button>
+    <button class="btn" data-r="unique" onclick="setRarity('unique')">◆ Unique</button>
+    <span class="mono" id="asof" style="margin-left:auto;font-size:10px;color:var(--text2);letter-spacing:.1em"></span>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="table-wrap">
+    <table aria-label="Reward thresholds per competition">
+      <thead>
+        <tr>
+          <th onclick="sortBy('comp')">Competition</th>
+          <th class="num" onclick="sortBy('gws')">GWs</th>
+          <th class="num sorted" onclick="sortBy('cash')">Cash from <span class="cash">pts</span></th>
+          <th class="num" onclick="sortBy('cashRank')">paid ranks</th>
+          <th class="num" onclick="sortBy('ess')">Essence from <span class="ess">pts</span></th>
+          <th class="num" onclick="sortBy('essRank')">ranks</th>
+          <th class="num" onclick="sortBy('top')">Top score</th>
+          <th class="num" onclick="sortBy('lineups')">Lineups</th>
+          <th>Cash trend</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="9" class="empty">// loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <h2>// How to read this</h2>
+  <ul>
+    <li><strong>Cash from</strong> = average score of the lowest-ranked manager who received USD in that leaderboard; the small range is min–max across gameweeks. Score above it and, historically, you were in the money.</li>
+    <li><strong>Essence from</strong> = same for the lowest tier that paid essence (card shards). Card prizes exist too but are not shown here.</li>
+    <li><strong>Paid ranks</strong> = how deep the cash tiers reach (e.g. top 125). Leaderboards with more lineups pay more ranks but need higher scores.</li>
+    <li>Gameweeks in international breaks have fewer competitions — that is why some rows have fewer GWs than others.</li>
+  </ul>
+
+  <div class="note">
+    Source: Sorare's official reward configurations and rankings for closed gameweeks (season 26/27 only).
+    Thresholds move with lineup counts and scoring variance — treat them as a planning guide, not a guarantee.
+  </div>
+</div>
+
+<script>
+  const BASE = 'https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1';
+  const KEY  = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
+  let rows = [], rarity = 'limited', sortKey = 'cash', sortDir = -1;
+
+  const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+  const n0 = v => v == null ? '—' : Math.round(v).toLocaleString('en-GB');
+
+  function setRarity(r) {
+    rarity = r;
+    document.querySelectorAll('#rarity-ctl .btn').forEach(b => b.classList.toggle('active', b.dataset.r === r));
+    render();
+  }
+  function sortBy(k) { if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = k === 'comp' ? 1 : -1; } render(); }
+
+  // Verlauf der Cash-Schwelle ueber die Spieltage als Mini-SVG
+  function spark(vals) {
+    const v = vals.filter(x => x != null);
+    if (v.length < 2) return '<span class="rng">—</span>';
+    const W = 90, H = 22, min = Math.min(...v), max = Math.max(...v), r = max - min || 1;
+    const pts = v.map((y, i) => `${(i / (v.length - 1) * W).toFixed(1)},${(H - 3 - (y - min) / r * (H - 6)).toFixed(1)}`).join(' ');
+    return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><polyline points="${pts}" fill="none" stroke="#00f5a0" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+  }
+
+  function aggregate() {
+    const by = new Map();
+    for (const r of rows) {
+      if (r.rarity !== rarity) continue;
+      if (!by.has(r.competition)) by.set(r.competition, []);
+      by.get(r.competition).push(r);
+    }
+    return [...by.entries()].map(([comp, rs]) => {
+      rs.sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const cashV = rs.map(r => r.cash_score).filter(x => x != null).map(Number);
+      const essV  = rs.map(r => r.essence_score).filter(x => x != null).map(Number);
+      return {
+        comp, gws: rs.length,
+        cash: avg(cashV), cashMin: cashV.length ? Math.min(...cashV) : null, cashMax: cashV.length ? Math.max(...cashV) : null,
+        cashRank: avg(rs.map(r => r.cash_rank).filter(x => x != null)),
+        ess: avg(essV), essMin: essV.length ? Math.min(...essV) : null, essMax: essV.length ? Math.max(...essV) : null,
+        essRank: avg(rs.map(r => r.essence_rank).filter(x => x != null)),
+        top: avg(rs.map(r => r.top_score).filter(x => x != null).map(Number)),
+        lineups: avg(rs.map(r => r.lineups).filter(x => x != null)),
+        cashSeries: rs.map(r => r.cash_score == null ? null : Number(r.cash_score)),
+      };
+    });
+  }
+
+  function render() {
+    const agg = aggregate();
+    const tb = document.getElementById('tbody');
+    document.querySelectorAll('thead th').forEach(th => th.classList.toggle('sorted', th.getAttribute('onclick')?.includes(`'${sortKey}'`)));
+    if (!agg.length) { tb.innerHTML = `<tr><td colspan="9" class="empty">// no closed gameweeks for this rarity yet</td></tr>`; document.getElementById('kpis').innerHTML = ''; return; }
+    agg.sort((a, b) => {
+      const ka = a[sortKey], kb = b[sortKey];
+      if (ka == null && kb == null) return 0; if (ka == null) return 1; if (kb == null) return -1;
+      return typeof ka === 'string' ? sortDir * ka.localeCompare(kb) : sortDir * (ka - kb);
+    });
+    tb.innerHTML = agg.map(a => `<tr>
+      <td class="comp">${esc(a.comp)}</td>
+      <td class="num">${a.gws}</td>
+      <td class="num cash">${n0(a.cash)}${a.cash != null ? `<span class="rng">${n0(a.cashMin)}–${n0(a.cashMax)}</span>` : ''}</td>
+      <td class="num">${a.cashRank != null ? 'top ' + n0(a.cashRank) : '—'}</td>
+      <td class="num ess">${n0(a.ess)}${a.ess != null ? `<span class="rng">${n0(a.essMin)}–${n0(a.essMax)}</span>` : ''}</td>
+      <td class="num">${a.essRank != null ? 'top ' + n0(a.essRank) : '—'}</td>
+      <td class="num">${n0(a.top)}</td>
+      <td class="num">${n0(a.lineups)}</td>
+      <td>${spark(a.cashSeries)}</td></tr>`).join('');
+
+    // Kopfzahlen: leichtester / haertester Cash-Einstieg dieser Rarity
+    const withCash = agg.filter(a => a.cash != null).sort((a, b) => a.cash - b.cash);
+    const gwCount = new Set(rows.filter(r => r.rarity === rarity).map(r => r.fixture_slug)).size;
+    document.getElementById('kpis').innerHTML = withCash.length ? `
+      <div class="kpi"><small>Gameweeks covered</small><b>${gwCount}</b></div>
+      <div class="kpi"><small>Easiest cash entry</small><b class="cash">${n0(withCash[0].cash)} pts</b><span class="mono" style="font-size:10px;color:var(--dim)">${esc(withCash[0].comp)}</span></div>
+      <div class="kpi"><small>Hardest cash entry</small><b class="cash">${n0(withCash[withCash.length - 1].cash)} pts</b><span class="mono" style="font-size:10px;color:var(--dim)">${esc(withCash[withCash.length - 1].comp)}</span></div>
+      <div class="kpi"><small>Competitions paying cash</small><b>${withCash.length}</b></div>` : '';
+  }
+
+  (async () => {
+    try {
+      const res = await fetch(`${BASE}/reward_thresholds?select=fixture_slug,fixture_name,start_date,competition,rarity,lineups,top_score,cash_rank,cash_score,essence_rank,essence_score&order=start_date.asc&limit=1000`,
+        { headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY } });
+      if (!res.ok) throw new Error(res.status);
+      rows = await res.json();
+      const last = rows.length ? rows.reduce((m, r) => r.start_date > m.start_date ? r : m) : null;
+      document.getElementById('asof').textContent = last ? `// through ${last.fixture_name} · ${rows.length} leaderboard-weeks` : '';
+      render();
+    } catch (e) {
+      document.getElementById('tbody').innerHTML = `<tr><td colspan="9" class="empty">// data not available yet</td></tr>`;
+    }
+  })();
+</script>
+<script src="discord.js" defer></script>
+<script src="a11y.js" defer></script>
+</body>
+</html>

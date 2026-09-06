@@ -1,0 +1,15 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+# Reward-Schwellen (rewards.html): liest je abgeschlossenem Spieltag die
+# Preisstufen + Score-Grenzen aller Wettbewerbs-Leaderboards (tools/
+# sync-reward-thresholds.mjs). Idempotent: bereits synchronisierte Spieltage
+# werden uebersprungen -> an Tagen ohne neuen Abschluss kostet der Lauf 2 Calls,
+# nach einem Spieltag-Ende ~40 Calls (~1 min). Deshalb einfach taeglich.
+#
+# 09:00 UTC ist eine freie Stunde (Updater-Fenster 22-04 + 16-20, Harvester
+# 05:30, Kader 07:00) — Sorare-Kontingent wird geteilt (siehe railway-rosters).
+cronSchedule = "0 9 * * *"
+startCommand = "node tools/sync-reward-thresholds.mjs"
+restartPolicyType = "never"
