@@ -103,6 +103,10 @@
      that is the number you need to plan a lineup: how many SO5 points for <span class="cash">cash</span>,
      how many for <span class="ess">essence</span>. The range shows how much it moves from week to week.</p>
 
+  <p>The <strong>team</strong> columns answer the other half: we read the actual lineups of managers
+     who finished in the money, price all five cards at today's FMV and take the median. That is what
+     a winning squad costs to assemble right now, not what its owner once paid.</p>
+
   <div class="controls" id="rarity-ctl">
     <button class="btn ltd active" data-r="limited" onclick="setRarity('limited')">◆ Limited</button>
     <button class="btn rar" data-r="rare" onclick="setRarity('rare')">◆ Rare</button>
@@ -128,15 +132,17 @@
           <th onclick="sortBy('comp')">Competition</th>
           <th class="num" onclick="sortBy('gws')">GWs</th>
           <th class="num sorted" onclick="sortBy('cash')">Cash from <span class="cash">pts</span><span class="pro-chip" id="cash-chip" style="display:none">PRO</span></th>
+          <th class="num" onclick="sortBy('cashCost')">Cash <span class="cash">team</span></th>
           <th class="num" onclick="sortBy('cashRank')">paid ranks</th>
           <th class="num" onclick="sortBy('ess')">Essence from <span class="ess">pts</span></th>
+          <th class="num" onclick="sortBy('essCost')">Essence <span class="ess">team</span></th>
           <th class="num" onclick="sortBy('essRank')">ranks</th>
           <th class="num" onclick="sortBy('top')">Top score</th>
           <th class="num" onclick="sortBy('lineups')">Lineups</th>
           <th>Cash trend</th>
         </tr>
       </thead>
-      <tbody id="tbody"><tr><td colspan="9" class="empty">// loading…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="11" class="empty">// loading…</td></tr></tbody>
     </table>
   </div>
 
@@ -144,6 +150,9 @@
   <ul>
     <li><strong>Cash from</strong> = average score of the lowest-ranked manager who received USD in that leaderboard; the small range is min–max across gameweeks. Score above it and, historically, you were in the money.</li>
     <li><strong>Essence from</strong> = same for the lowest tier that paid essence (card shards). Card prizes exist too but are not shown here.</li>
+    <li><strong>Cash team / Essence team</strong> = median cost of the lineups that actually won
+        in that band, priced at today's FMV across all five cards. Only fully priced lineups count,
+        so a squad with an unpriced card never drags the number down.</li>
     <li><strong>Paid ranks</strong> = how deep the cash tiers reach (e.g. top 125). Leaderboards with more lineups pay more ranks but need higher scores.</li>
     <li>Gameweeks in international breaks have fewer competitions — that is why some rows have fewer GWs than others.</li>
   </ul>
@@ -165,6 +174,7 @@
   const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
   const n0 = v => v == null ? '—' : Math.round(v).toLocaleString('en-GB');
+  const eur = v => v == null ? '—' : '€' + Math.round(v).toLocaleString('en-GB');
 
   function setRarity(r) {
     rarity = r;
@@ -203,6 +213,8 @@
         ess: avg(essV), essMin: essV.length ? Math.min(...essV) : null, essMax: essV.length ? Math.max(...essV) : null,
         essRank: avg(rs.map(r => r.essence_rank).filter(x => x != null)),
         top: avg(rs.map(r => r.top_score).filter(x => x != null).map(Number)),
+        cashCost: avg(rs.map(r => r.cash_cost).filter(x => x != null).map(Number)),
+        essCost:  avg(rs.map(r => r.essence_cost).filter(x => x != null).map(Number)),
         lineups: avg(rs.map(r => r.lineups).filter(x => x != null)),
         cashSeries: rs.map(r => r.cash_score == null ? null : Number(r.cash_score)),
       };
@@ -213,7 +225,7 @@
     const agg = aggregate();
     const tb = document.getElementById('tbody');
     document.querySelectorAll('thead th').forEach(th => th.classList.toggle('sorted', th.getAttribute('onclick')?.includes(`'${sortKey}'`)));
-    if (!agg.length) { tb.innerHTML = `<tr><td colspan="9" class="empty">// no closed gameweeks for this rarity yet</td></tr>`; document.getElementById('kpis').innerHTML = ''; return; }
+    if (!agg.length) { tb.innerHTML = `<tr><td colspan="11" class="empty">// no closed gameweeks for this rarity yet</td></tr>`; document.getElementById('kpis').innerHTML = ''; return; }
     agg.sort((a, b) => {
       const ka = a[sortKey], kb = b[sortKey];
       if (ka == null && kb == null) return 0; if (ka == null) return 1; if (kb == null) return -1;
@@ -225,8 +237,12 @@
       <td class="num cash">${cashLocked
           ? '<span class="lockv">000</span><span class="lock-ico">🔒</span>'
           : n0(a.cash) + (a.cash != null && a.gws > 1 ? ` <span class="rng">(${n0(a.cashMin)}–${n0(a.cashMax)})</span>` : '')}</td>
+      <td class="num cash">${cashLocked
+          ? '<span class="lockv">000</span><span class="lock-ico">\uD83D\uDD12</span>'
+          : eur(a.cashCost)}</td>
       <td class="num">${a.cashRank != null ? 'top ' + n0(a.cashRank) : '—'}</td>
       <td class="num ess">${n0(a.ess)}${a.ess != null && a.gws > 1 ? ` <span class="rng">(${n0(a.essMin)}–${n0(a.essMax)})</span>` : ''}</td>
+      <td class="num ess">${eur(a.essCost)}</td>
       <td class="num">${a.essRank != null ? 'top ' + n0(a.essRank) : '—'}</td>
       <td class="num">${n0(a.top)}</td>
       <td class="num">${n0(a.lineups)}</td>
@@ -279,7 +295,7 @@
       document.getElementById('asof').textContent = last ? `// through ${last.fixture_name} · ${rows.length} leaderboard-weeks` : '';
       render();
     } catch (e) {
-      document.getElementById('tbody').innerHTML = `<tr><td colspan="9" class="empty">// data not available yet</td></tr>`;
+      document.getElementById('tbody').innerHTML = `<tr><td colspan="11" class="empty">// data not available yet</td></tr>`;
     }
   })();
 </script>

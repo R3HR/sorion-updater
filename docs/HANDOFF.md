@@ -609,6 +609,35 @@ kein Fehler. `analytics_prune` bleibt ohne Zeitzonen-Setting (400-Tage-Loeschung
 - KEINEN Cron fuer diese Werkzeuge anlegen — Einmal-/Diagnose-Skripte, Dauerlast war die INC-005/006-Falle
 - Vorbereiteter Analyse-Auftrag: `C:\Users\Jonas\Documents\Bot2B\07_Wissen\Prompts_Bibliothek\Sorion_FMV_Faktoren_Analyst.json` — prueft, ob Score/Einsatzquote/Liga/Club die VERKAUFSPREISE ueber v3.2 hinaus erklaeren (Ziel: Formel-Faktoren fuer v3.3+). Kernregeln stehen im Prompt: gegen Verkaeufe messen (nie gegen den eigenen FMV — zirkulaer), Walk-Forward-Backtest vor jedem Formel-Vorschlag, DB nur lesend.
 
+## Team-Kosten je Wettbewerb (06.09.) — was kostet eine Gewinner-Aufstellung?
+
+Wunsch Jonas: "Was kostet ein Team im Durchschnitt je Wettbewerb, um Cash bzw. Essence
+abzuraeumen?" **Nur diese Saison** (ab GW1, 31.07.2026) — Spielmechaniken aendern sich je
+Saison, aeltere Aufstellungen taugen nicht als Massstab.
+
+- **Quelle:** `so5Leaderboard.so5RankingsPaginated(page, pageSize)` -> `so5Lineup.so5Appearances`
+  mit `anyPlayer{slug}` + `anyCard{rarityTyped inSeasonEligible}`. **Braucht den APIKEY**
+  (Tiefe 8 noetig, anonym nur 7). Gemessen: 50 Aufstellungen je Aufruf in ~0,4 s.
+- **Stichprobe statt Vollerhebung:** je Leaderboard drei gezielte SEITEN — Spitzenfeld, die
+  Seite an der Cash-Grenze, die Seite an der Essence-Grenze. Seitennummern erlauben den
+  direkten Sprung, kein Durchblaettern. Ergebnis GW10: 1.160 Aufstellungen aus 26 Aufrufen.
+- **Bepreisung:** Karten gegen `card_prices` (player_slug + scarcity + eligibility) zu
+  HEUTIGEN FMV. Bewusst nicht historisch: die nuetzliche Frage ist "was kostet so ein Team
+  jetzt". Nur vollstaendig bepreiste Aufstellungen zaehlen (5/5), sonst waere die Summe
+  systematisch zu niedrig; Abdeckung GW10 lag bei 76 %.
+- **Kennzahl:** Median, nicht Mittelwert — einzelne Sammler-Aufstellungen mit teuren Karten
+  wuerden den Schnitt verzerren. GW10 gesamt: Cash-Team 184,60 EUR, Essence-Team 76,08 EUR
+  (ueber alle Rarities gemischt; die Seite zeigt es je Wettbewerb und Rarity).
+- **Bausteine:** Migration `2026-09-06_lineup_costs.sql` (Tabelle `lineup_costs`, nicht
+  oeffentlich lesbar; `leaderboard_thresholds()` um `cash_cost`/`essence_cost` erweitert),
+  Sync `tools/sync-lineup-costs.mjs` (idempotent, ueberspringt fertige Leaderboards).
+  Aufruf: `railway run -s "Updater Limited" node tools/sync-lineup-costs.mjs`.
+- **Gate:** Die CASH-Kosten haengen am selben Schalter wie die Cash-Schwelle
+  (`leaderboard_cash`), Essence-Kosten sind frei. Umstellen ohne Deploy ueber
+  `feature_access`.
+- **Offen:** Cron einrichten (analog `railway-rewards.toml`), damit neue Spieltage
+  automatisch nachlaufen.
+
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 
 Diese Liste existiert, weil ich am 06.09. zweimal in Limits gelaufen bin, die bereits
