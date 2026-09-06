@@ -73,6 +73,17 @@
   th.num { text-align: right; }
   td .rng { color: var(--dim); font-size: 10px; margin-left: 4px; }
   .cash { color: var(--up); } .ess { color: var(--purple); }
+  /* Pro-Gate: der Wert kommt gar nicht erst vom Server (Migration
+     2026-09-06_user_tiers_feature_access.sql) — hier steht nur ein Platzhalter. */
+  .lockv { filter: blur(4px); user-select: none; color: var(--up); opacity: .75; }
+  .lock-ico { margin-left: 5px; opacity: .8; }
+  .pro-chip { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 4px;
+              background: rgba(176,96,255,.15); border: 1px solid var(--purple); color: var(--purple);
+              font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: .1em; }
+  .upsell { background: linear-gradient(135deg, rgba(176,96,255,.12), rgba(176,96,255,.03));
+            border: 1px solid var(--purple); border-radius: 8px; padding: 14px 18px; margin: 16px 0;
+            font-size: 13px; color: var(--text2); }
+  .upsell b { color: var(--text); font-family: 'Orbitron', monospace; font-size: 13px; }
   .comp { font-weight: 600; }
   .spark { vertical-align: middle; }
   .empty { padding: 26px; text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); }
@@ -102,13 +113,21 @@
 
   <div class="kpis" id="kpis"></div>
 
+  <div class="upsell" id="upsell" style="display:none">
+    <b>Cash thresholds are a Pro feature.</b><br>
+    The exact score you need to finish in the money is unlocked for Pro supporters. Everything else
+    on this page stays free: essence thresholds, paid ranks, top scores and lineup counts.
+    <a href="https://ko-fi.com/X5L225H2O9" target="_blank" rel="noopener">Become a Pro supporter on Ko-fi</a>,
+    then sign in with the same account.
+  </div>
+
   <div class="table-wrap">
     <table aria-label="Reward thresholds per competition">
       <thead>
         <tr>
           <th onclick="sortBy('comp')">Competition</th>
           <th class="num" onclick="sortBy('gws')">GWs</th>
-          <th class="num sorted" onclick="sortBy('cash')">Cash from <span class="cash">pts</span></th>
+          <th class="num sorted" onclick="sortBy('cash')">Cash from <span class="cash">pts</span><span class="pro-chip" id="cash-chip" style="display:none">PRO</span></th>
           <th class="num" onclick="sortBy('cashRank')">paid ranks</th>
           <th class="num" onclick="sortBy('ess')">Essence from <span class="ess">pts</span></th>
           <th class="num" onclick="sortBy('essRank')">ranks</th>
@@ -139,6 +158,9 @@
   const BASE = 'https://jxhdlcpdupmkpsoytzes.supabase.co/rest/v1';
   const KEY  = 'sb_publishable_cplVdUDlMw1S5IcjlwxPTA_Mx8G7016';
   let rows = [], rarity = 'limited', sortKey = 'cash', sortDir = -1;
+  let cashLocked = false;          // vom Server: hat dieses Konto das Pro-Feature?
+  // Session teilen wir mit Portfolio/Profil (localStorage 'sorion_session')
+  const authToken = () => { try { return JSON.parse(localStorage.getItem('sorion_session') || 'null')?.access_token || null; } catch { return null; } };
 
   const esc = s => String(s ?? '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const avg = a => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
@@ -197,7 +219,9 @@
     tb.innerHTML = agg.map(a => `<tr>
       <td class="comp">${esc(a.comp)}</td>
       <td class="num">${a.gws}</td>
-      <td class="num cash">${n0(a.cash)}${a.cash != null && a.gws > 1 ? ` <span class="rng">(${n0(a.cashMin)}–${n0(a.cashMax)})</span>` : ''}</td>
+      <td class="num cash">${cashLocked
+          ? '<span class="lockv">000</span><span class="lock-ico">🔒</span>'
+          : n0(a.cash) + (a.cash != null && a.gws > 1 ? ` <span class="rng">(${n0(a.cashMin)}–${n0(a.cashMax)})</span>` : '')}</td>
       <td class="num">${a.cashRank != null ? 'top ' + n0(a.cashRank) : '—'}</td>
       <td class="num ess">${n0(a.ess)}${a.ess != null && a.gws > 1 ? ` <span class="rng">(${n0(a.essMin)}–${n0(a.essMax)})</span>` : ''}</td>
       <td class="num">${a.essRank != null ? 'top ' + n0(a.essRank) : '—'}</td>
@@ -208,6 +232,16 @@
     // Kopfzahlen: leichtester / haertester Cash-Einstieg dieser Rarity
     const withCash = agg.filter(a => a.cash != null).sort((a, b) => a.cash - b.cash);
     const gwCount = new Set(rows.filter(r => r.rarity === rarity).map(r => r.fixture_slug)).size;
+    const payers = agg.filter(a => a.cashRank != null).length;   // Raenge sind frei -> zaehlbar
+    const withEss = agg.filter(a => a.ess != null).sort((a, b) => a.ess - b.ess);
+    if (cashLocked) {
+      document.getElementById('kpis').innerHTML = `
+        <div class="kpi"><small>Gameweeks covered</small><b>${gwCount}</b></div>
+        <div class="kpi"><small>Competitions paying cash</small><b>${payers}</b></div>
+        ${withEss.length ? `<div class="kpi"><small>Easiest essence entry</small><b class="ess">${n0(withEss[0].ess)} pts</b><span class="mono" style="font-size:10px;color:var(--dim)">${esc(withEss[0].comp)}</span></div>` : ''}
+        <div class="kpi"><small>Cash thresholds</small><b class="cash"><span class="lockv">000</span> 🔒</b><span class="mono" style="font-size:10px;color:var(--dim)">Pro feature</span></div>`;
+      return;
+    }
     document.getElementById('kpis').innerHTML = withCash.length ? `
       <div class="kpi"><small>Gameweeks covered</small><b>${gwCount}</b></div>
       <div class="kpi"><small>Easiest cash entry</small><b class="cash">${n0(withCash[0].cash)} pts</b><span class="mono" style="font-size:10px;color:var(--dim)">${esc(withCash[0].comp)}</span></div>
@@ -217,10 +251,27 @@
 
   (async () => {
     try {
-      const res = await fetch(`${BASE}/reward_thresholds?select=fixture_slug,fixture_name,start_date,competition,rarity,lineups,top_score,cash_rank,cash_score,essence_rank,essence_score&order=start_date.asc&limit=1000`,
-        { headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY } });
-      if (!res.ok) throw new Error(res.status);
-      rows = await res.json();
+      // Ueber die RPC statt direkt auf die Tabelle: das Cash-Gate sitzt im Server
+      // (leaderboard_thresholds). Eingeloggte schicken ihr Token mit, sonst anon.
+      const tok = authToken();
+      const res = await fetch(`${BASE}/rpc/leaderboard_thresholds`, {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + (tok || KEY), 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      if (res.ok) {
+        rows = await res.json();
+      } else {
+        // Rueckfall, solange die Gate-Migration noch nicht eingespielt ist:
+        // direkte Tabellenlesung (danach entzogen, dann greift nur noch die RPC).
+        const alt = await fetch(`${BASE}/reward_thresholds?select=fixture_slug,fixture_name,start_date,competition,rarity,lineups,top_score,cash_rank,cash_score,essence_rank,essence_score&order=start_date.asc&limit=1000`,
+          { headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY } });
+        if (!alt.ok) throw new Error(alt.status);
+        rows = await alt.json();
+      }
+      cashLocked = rows.length ? !!rows[0].cash_locked : false;
+      document.getElementById('upsell').style.display = cashLocked ? '' : 'none';
+      document.getElementById('cash-chip').style.display = cashLocked ? '' : 'none';
       const last = rows.length ? rows.reduce((m, r) => r.start_date > m.start_date ? r : m) : null;
       document.getElementById('asof').textContent = last ? `// through ${last.fixture_name} · ${rows.length} leaderboard-weeks` : '';
       render();

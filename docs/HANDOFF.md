@@ -434,6 +434,40 @@ mit einem Key, ~60/min mit zwei). Reddit-Post geplant Mo 08.09. 15:00 (docs/redd
 | Notifications (Stufe 3, braucht OAuth-App) | ⬜ nach Launch |
 | 30d-Marktbewegung ergänzen | ⬜ ab ~20.08. (History reicht dann) |
 
+## Pro-Features: Unterstuetzer-Stufen + Freischaltung (06.09.) — ERSTES BEZAHL-FEATURE
+
+Vorgabe Jonas: Die Cash-Schwelle auf der Leaderboards-Seite wird ein Pro-Feature, fuer alle
+anderen unscharf. Manuelle Vergabe am Anfang, spaeter Ko-fi-Automatik.
+
+**Grundregel (gilt fuer JEDES kuenftige Bezahl-Feature):** Ein CSS-Blur ist KEIN Schutz.
+Wer F12 drueckt oder die REST-Adresse aufruft, liest den Wert. Der Wert darf den Server
+nicht verlassen. Deshalb: Tabelle sperren, gefilterte RPC ausliefern, im Frontend nur einen
+Platzhalter blurren.
+
+**Bausteine (Migration `2026-09-06_user_tiers_feature_access.sql`):**
+- `user_tiers` — je Konto ein Schalter pro Ko-fi-Stufe: `supporter` (0,50), `pro` (5,00),
+  `vip` (25,00), dazu `valid_until` (NULL = unbefristet; verhindert, dass ein gekuendigtes
+  Abo ewig freigeschaltet bleibt) und `source` (manual | kofi). Lesen nur die eigene Zeile,
+  Schreiben nur per Service-Key/`set_user_tier`.
+- `feature_access` — Feature -> Mindeststufe (`leaderboard_cash` = `pro`). Ein Feature laesst
+  sich damit OHNE Deploy verschieben oder freigeben (`min_tier = 'free'`).
+- `has_feature(key)` — die EINZIGE Stelle, die Berechtigungen entscheidet; Rangfolge
+  vip > pro > supporter ueber `tier_rank()`/`my_tier_rank()`. Unbekanntes Feature = gesperrt
+  (fail closed). **Nie an anderer Stelle nachbauen** (Lehre BUG-022/023/024).
+- `leaderboard_thresholds()` — liefert alle Zeilen, `cash_score` aber nur bei Berechtigung,
+  plus `cash_locked` fuer die Anzeige. `cash_rank` (bezahlte Raenge) bleibt bewusst frei.
+  Direktzugriff auf `reward_thresholds` ist entzogen.
+
+**Stufe vergeben (manuell, SQL-Editor):**
+`select set_user_tier('mail@example.com', 'pro');` — aus, befristet:
+`select set_user_tier('mail@example.com', 'pro', false);` / `(..., true, '2026-12-31')`.
+Die Funktion erlaubt sich selbst nur bei direktem SQL-Zugriff oder fuer `is_analytics_admin()`.
+
+**Offen:** (a) Ko-fi-Automatik — `kofi_events` speichert bewusst KEINE Mail, es fehlt also die
+Bruecke zum Konto. Wege: Einloese-Code in der Ko-fi-Dankesnachricht (sauber) oder Mail-Abgleich
+(kippt die Datenschutz-Entscheidung vom 04.09.). (b) Produktfrage: einen Wettbewerb als
+Kostprobe offen lassen, damit die Seite auf Reddit ihren Aufhaenger behaelt.
+
 ## Reward-Schwellen (06.09.) — rewards.html, Tabelle reward_thresholds
 
 Wunsch Jonas: "Wie viele Punkte braucht man im Schnitt fuer Geld/Essence je Leaderboard?" —
