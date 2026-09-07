@@ -457,7 +457,12 @@
       if (!r.ok) { msg('voucher-msg', 'Einlösen fehlgeschlagen'); return; }
       const res = await r.json();
       document.getElementById('voucher-code').value = '';
-      if (!res || !res.ok) { msg('voucher-msg', 'Code ungültig oder bereits eingelöst'); return; }
+      if (!res || !res.ok) {
+        msg('voucher-msg', res && res.reason === 'already'
+          ? 'Diesen Code hast du bereits eingelöst'
+          : 'Code ungültig, abgelaufen oder aufgebraucht');
+        return;
+      }
       if (res.kind === 'creator') {
         isCreator = true;
         document.getElementById('creator-card').style.display = 'block';

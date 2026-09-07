@@ -552,6 +552,16 @@ Regel dreifach implementiert war und dreimal unterschiedlich falsch.
    (keine Mail speichern) bleibt unangetastet.
 3. **Creator-Schalter im Profil** (nur Betreiber, zum Testen) — siehe naechster Punkt.
 
+**Oeffentliche Aktions-Codes (z. B. Discord), Stand 07.09.:**
+Ein Code kann breit gestreut werden, weil zwei Grenzen greifen: `max_uses` (wie oft
+insgesamt) und `expires_at` (bis wann einloesbar). Dazu seit 07.09. die Regel
+**einmal je Konto** (`redeem_log`, Migration `2026-09-07_redeem_log.sql`) — vorher haette
+EIN Konto denselben Code mehrfach einloesen und die Laufzeit jedes Mal verlaengern koennen.
+Beispiel fuer einen Discord-Code, 1 Monat Pro, 50 Einloesungen, gueltig bis 07.10.:
+`select create_redeem_code('SORION-PRO-DISCORD', 'pro', 1, 50, '2026-10-07', 'Discord Launch');`
+Nutzung pruefen: `select * from redeem_stats();` (Codes stehen nur als Hash in der DB —
+die **Notiz** beim Anlegen ist die Wiedererkennung).
+
 ### Creator-Zugang (Testen der Bezahl-Features)
 
 Zweck: Jonas schaltet die Stufen an seinem eigenen Konto an und aus, um beide Ansichten zu
