@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SORION — Profil</title>
+<title>SORION — Profile</title>
 <!-- Eigenes, cookiefreies Analytics (self-hosted in Supabase) -->
 <script>
 (function(){
@@ -94,40 +94,40 @@
       <a href="index.html">Market</a>
       <a href="portfolio.html">Portfolio</a>
       <a href="rewards.html">Leaderboards</a>
-      <a href="profile.html" style="color:var(--text)">Profil</a>
+      <a href="profile.html" style="color:var(--text)">Profile</a>
     </nav>
   </header>
 
   <!-- ── Auth (nicht eingeloggt) ─────────────────────────────── -->
   <div id="auth-view" style="display:none">
-    <h1>// Konto</h1>
+    <h1>// Account</h1>
     <div class="tabs">
-      <div class="tab active" id="tab-login" onclick="switchTab('login')">Einloggen</div>
-      <div class="tab" id="tab-signup" onclick="switchTab('signup')">Registrieren</div>
+      <div class="tab active" id="tab-login" onclick="switchTab('login')">Sign in</div>
+      <div class="tab" id="tab-signup" onclick="switchTab('signup')">Sign up</div>
     </div>
 
     <div class="card" id="login-card">
-      <label>E-Mail</label>
+      <label>Email</label>
       <input type="email" id="login-email" autocomplete="email">
-      <label>Passwort</label>
+      <label>Password</label>
       <input type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-      <button onclick="doLogin()">Einloggen</button>
-      <button class="ghost" onclick="doReset()">Passwort vergessen</button>
+      <button onclick="doLogin()">Sign in</button>
+      <button class="ghost" onclick="doReset()">Forgot password</button>
       <div class="msg" id="login-msg"></div>
     </div>
 
     <div class="card" id="signup-card" style="display:none">
-      <label>E-Mail</label>
+      <label>Email</label>
       <input type="email" id="su-email" autocomplete="email">
-      <label>Passwort (min. 8 Zeichen)</label>
+      <label>Password (min. 8 characters)</label>
       <input type="password" id="su-pass" autocomplete="new-password">
       <div class="checkbox-row">
         <input type="checkbox" id="su-privacy">
-        <span class="hint">Ich habe die <a href="legal.html" target="_blank">Datenschutzerklärung</a> gelesen und bin mit der Verarbeitung meiner E-Mail-Adresse zum Betrieb des Kontos einverstanden.</span>
+        <span class="hint">I have read the <a href="legal.html" target="_blank">privacy policy</a> gelesen und bin mit der Verarbeitung meiner E-Mail-Adresse zum Betrieb des Kontos einverstanden.</span>
       </div>
-      <button onclick="doSignup()">Konto anlegen</button>
+      <button onclick="doSignup()">Create account</button>
       <div class="msg" id="su-msg"></div>
-      <div class="hint" style="margin-top:8px">Wir speichern nur deine E-Mail-Adresse und die Profildaten, die du selbst einträgst. Keine Weitergabe an Dritte, Löschung jederzeit mit einem Klick.</div>
+      <div class="hint" style="margin-top:8px">We only store your email address and the profile data you enter yourself. Never shared with third parties, deletable at any time with one click.</div>
     </div>
   </div>
 
@@ -135,9 +135,9 @@
   <div id="recovery-view" style="display:none">
     <h1>// Neues Passwort setzen</h1>
     <div class="card">
-      <label>Neues Passwort (min. 8 Zeichen)</label>
+      <label>New password (min. 8 characters)</label>
       <input type="password" id="rec-pass" autocomplete="new-password">
-      <button onclick="doRecoverySet()">Passwort speichern</button>
+      <button onclick="doRecoverySet()">Save password</button>
       <div class="msg" id="rec-msg"></div>
     </div>
   </div>
@@ -162,69 +162,68 @@
     </script>
 
     <div class="card">
-      <h2>Profildaten</h2>
+      <h2>Profile</h2>
       <div class="hint" id="pr-email-line"></div>
-      <label>Anzeigename</label>
+      <label>Display name</label>
       <input type="text" id="pr-name" maxlength="40">
-      <label>Sorare-Konto</label>
+      <label>Sorare account</label>
       <div id="pr-link-box" style="background:#1a1a2e;border:1px solid #2a2a45;border-radius:6px;padding:12px 14px;margin-bottom:10px">
-        <div id="pr-link-state" class="hint" style="margin:0">// wird geladen…</div>
-        <button class="ghost" id="pr-link-btn" style="margin-top:10px;display:none" onclick="connectSorare()">Mit Sorare verbinden</button>
+        <div id="pr-link-state" class="hint" style="margin:0">// loading…</div>
+        <button class="ghost" id="pr-link-btn" style="margin-top:10px;display:none" onclick="connectSorare()">Connect with Sorare</button>
       </div>
-      <label>Sorare-Managername (falls nicht verbunden)</label>
-      <input type="text" id="pr-slug" placeholder="z. B. jr3hr" spellcheck="false">
-      <button onclick="saveProfile()">Speichern</button>
-      <button class="ghost" onclick="openPortfolio()">→ Mein Portfolio öffnen</button>
+      <label>Sorare manager name (if not connected)</label>
+      <input type="text" id="pr-slug" placeholder="e.g. jr3hr" spellcheck="false">
+      <button onclick="saveProfile()">Save</button>
+      <button class="ghost" onclick="openPortfolio()">→ Open my portfolio</button>
       <div class="msg" id="pr-msg"></div>
     </div>
 
     <div class="card">
-      <h2>Sicherheit</h2>
-      <label>Neues Passwort</label>
+      <h2>Security</h2>
+      <label>New password</label>
       <input type="password" id="sec-pass" autocomplete="new-password">
-      <button onclick="changePassword()">Passwort ändern</button>
+      <button onclick="changePassword()">Change password</button>
       <div class="divider"></div>
-      <label>Neue E-Mail-Adresse</label>
+      <label>New email address</label>
       <input type="email" id="sec-email" autocomplete="email">
-      <button onclick="changeEmail()">E-Mail ändern</button>
-      <div class="hint" style="margin-top:6px">Du bekommst Bestätigungs-Mails an die alte und neue Adresse.</div>
+      <button onclick="changeEmail()">Change email</button>
+      <div class="hint" style="margin-top:6px">You will receive confirmation emails at both the old and the new address.</div>
       <div class="msg" id="sec-msg"></div>
     </div>
 
     <div class="card">
-      <h2>Deine Daten (DSGVO)</h2>
-      <div class="hint">Exportiere alle bei uns gespeicherten Daten als JSON (Art. 20 DSGVO) oder lösche dein Konto vollständig und unwiderruflich (Art. 17 DSGVO) — inklusive Profil, Watchlist und gespeichertem Portfolio.</div>
-      <button class="ghost" onclick="exportData()">Daten exportieren</button>
-      <button class="danger" onclick="deleteAccount()">Konto endgültig löschen</button>
+      <h2>Your data (GDPR)</h2>
+      <div class="hint">Export everything we store about you as JSON (Art. 20 GDPR), or delete your account completely and irreversibly (Art. 17 GDPR) — inklusive Profil, Watchlist und gespeichertem Portfolio.</div>
+      <button class="ghost" onclick="exportData()">Export data</button>
+      <button class="danger" onclick="deleteAccount()">Delete account permanently</button>
       <div class="msg" id="data-msg"></div>
     </div>
 
     <div class="card" id="voucher-card">
-      <h2>Gutschein einlösen</h2>
-      <div class="hint">Unterstützer-Code eingeben, um deine Stufe freizuschalten.
-        Codes bekommst du als Ko-fi-Unterstützer.</div>
+      <h2>Redeem a code</h2>
+      <div class="hint">Enter a supporter code to unlock your tier.
+        Codes come with a Ko-fi membership.</div>
       <label>Code</label>
       <input type="text" id="voucher-code" autocomplete="off" spellcheck="false"
-             placeholder="z. B. SORION-PRO-XXXX" onkeydown="if(event.key==='Enter')redeemCode()">
-      <button onclick="redeemCode()">Einlösen</button>
+             placeholder="e.g. SORION-PRO-XXXX" onkeydown="if(event.key==='Enter')redeemCode()">
+      <button onclick="redeemCode()">Redeem</button>
       <div class="msg" id="voucher-msg"></div>
     </div>
 
     <div class="card" id="creator-card" style="display:none;border-color:#b060ff">
-      <h2>Creator-Schalter</h2>
-      <div class="hint">Nur fuer dein eigenes Konto, zum Testen der Unterstuetzer-Features.
-        Die Freischaltung wird serverseitig auf den Betreiber begrenzt und wirkt ausschliesslich
-        auf dieses Profil.</div>
+      <h2>Creator switches</h2>
+      <div class="hint">For your own account only, to test the supporter features.
+        Access is restricted to the operator on the server and applies to this profile only.</div>
       <div id="tier-switches" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px"></div>
       <div class="hint" id="tier-hint" style="margin-top:4px"></div>
       <div class="msg" id="tier-msg"></div>
     </div>
 
-    <button class="ghost" onclick="doLogout()">Ausloggen</button>
+    <button class="ghost" onclick="doLogout()">Sign out</button>
   </div>
 
   <div class="footer">
-    Not affiliated with Sorare · <a href="legal.html">Impressum &amp; Datenschutz</a>
+    Not affiliated with Sorare · <a href="legal.html">Legal &amp; Privacy</a>
   </div>
 </div>
 
@@ -279,7 +278,7 @@
 
   async function authFetch(path, opts = {}) {
     const s = await ensureSession();
-    if (!s) throw new Error('Nicht eingeloggt');
+    if (!s) throw new Error('Not signed in');
     return fetch(`${SUPABASE_URL}${path}`, {
       ...opts,
       headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${s.access_token}`, ...(opts.headers ?? {}) },
@@ -307,10 +306,10 @@
   async function doSignup() {
     // Ereignis NICHT hier: es feuerte beim Klick, vor Pruefung und Anfrage, und
     // zaehlte damit Fehlversuche und Doppelklicks (05.09.: 4 Ereignisse, 2 Konten).
-    if (!document.getElementById('su-privacy').checked) { msg('su-msg', 'Bitte Datenschutzerklärung bestätigen'); return; }
+    if (!document.getElementById('su-privacy').checked) { msg('su-msg', 'Please confirm the privacy policy'); return; }
     const email = document.getElementById('su-email').value.trim();
     const pass  = document.getElementById('su-pass').value;
-    if (pass.length < 8) { msg('su-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
+    if (pass.length < 8) { msg('su-msg', 'Password too short (min. 8 characters)'); return; }
     const res = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(REDIRECT)}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
       // site-Kennung: sorion.pro und craftlog.pro teilen EINE Nutzerverwaltung.
@@ -319,10 +318,10 @@
       body: JSON.stringify({ email, password: pass, data: { site: 'sorion' } }),
     });
     const data = await res.json();
-    if (!res.ok) { msg('su-msg', data.msg || data.error_description || 'Registrierung fehlgeschlagen'); return; }
+    if (!res.ok) { msg('su-msg', data.msg || data.error_description || 'Sign-up failed'); return; }
     if (window.track) track('signup_done');          // Konto existiert ab hier
     if (data.access_token) { setSession(data); await enterProfile(); }
-    else msg('su-msg', 'Fast geschafft — bitte bestätige den Link in deiner E-Mail.', true);
+    else msg('su-msg', 'Almost there. Please confirm the link in your email.', true);
   }
 
   async function doLogin() {
@@ -333,7 +332,7 @@
       body: JSON.stringify({ email, password: pass }),
     });
     const data = await res.json();
-    if (!data.access_token) { msg('login-msg', data.error_description || data.msg || 'Login fehlgeschlagen'); return; }
+    if (!data.access_token) { msg('login-msg', data.error_description || data.msg || 'Sign-in failed'); return; }
     if (window.track) track('login_done');           // erst nach erfolgreichem Login
     setSession(data);
     await enterProfile();
@@ -341,20 +340,20 @@
 
   async function doReset() {
     const email = document.getElementById('login-email').value.trim();
-    if (!email) { msg('login-msg', 'E-Mail oben eintragen, dann erneut klicken'); return; }
+    if (!email) { msg('login-msg', 'Enter your email above, then click again'); return; }
     await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(REDIRECT)}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
       body: JSON.stringify({ email }),
     });
-    msg('login-msg', 'Falls die Adresse existiert, ist eine Reset-Mail unterwegs.', true);
+    msg('login-msg', 'If that address exists, a reset email is on its way.', true);
   }
 
   async function doRecoverySet() {
     const pass = document.getElementById('rec-pass').value;
     if (pass.length < 8) { msg('rec-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
     const res = await authFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pass }) });
-    if (res.ok) { msg('rec-msg', 'Passwort gesetzt — du bist eingeloggt.', true); setTimeout(enterProfile, 800); }
-    else msg('rec-msg', 'Fehlgeschlagen — Link evtl. abgelaufen, bitte neu anfordern.');
+    if (res.ok) { msg('rec-msg', 'Password set. You are signed in.', true); setTimeout(enterProfile, 800); }
+    else msg('rec-msg', 'Failed. The link may have expired, please request a new one.');
   }
 
   async function doLogout() {
@@ -380,14 +379,14 @@
       const inp = document.getElementById('pr-slug');
       if (!st || !btn) return;
       if (row?.sorare_verified && row?.sorare_slug) {
-        st.innerHTML = '✓ verbunden als <b style="color:#e8e8ff">' + String(row.sorare_slug).replace(/[<>]/g, '') + '</b>'
+        st.innerHTML = '✓ connected as <b style="color:#e8e8ff">' + String(row.sorare_slug).replace(/[<>]/g, '') + '</b>'
                      + (row.sorare_linked_at ? ' · seit ' + new Date(row.sorare_linked_at).toLocaleDateString('de-DE') : '');
         st.style.color = '#00f5a0';
         btn.textContent = 'Neu verbinden';
         btn.style.display = '';
         if (inp) { inp.disabled = true; inp.title = 'Durch die Sorare-Verbindung festgelegt'; }
       } else {
-        st.innerHTML = 'Noch nicht verbunden. Mit der Verbindung weisen wir nach, dass dir der Managername wirklich gehört — Voraussetzung für gespeicherte Portfolios.';
+        st.innerHTML = 'Not connected yet. Connecting proves the manager name is really yours, which is required for saved portfolios.';
         st.style.color = '';
         btn.textContent = 'Mit Sorare verbinden';
         btn.style.display = '';
@@ -450,31 +449,31 @@
   const TIER_NAMES = { supporter: 'Supporter', pro: 'Pro-Supporter', vip: 'Sorion VIP' };
   async function redeemCode() {
     const code = document.getElementById('voucher-code').value.trim();
-    if (!code) { msg('voucher-msg', 'Bitte Code eingeben'); return; }
+    if (!code) { msg('voucher-msg', 'Please enter a code'); return; }
     try {
       const r = await authFetch('/rest/v1/rpc/redeem_code', {
         method: 'POST', body: JSON.stringify({ p_code: code }) });
-      if (!r.ok) { msg('voucher-msg', 'Einlösen fehlgeschlagen'); return; }
+      if (!r.ok) { msg('voucher-msg', 'Redeeming failed'); return; }
       const res = await r.json();
       document.getElementById('voucher-code').value = '';
       if (!res || !res.ok) {
         msg('voucher-msg', res && res.reason === 'already'
-          ? 'Diesen Code hast du bereits eingelöst'
-          : 'Code ungültig, abgelaufen oder aufgebraucht');
+          ? 'You have already redeemed this code'
+          : 'Code invalid, expired or used up');
         return;
       }
       if (res.kind === 'creator') {
         isCreator = true;
         document.getElementById('creator-card').style.display = 'block';
         renderTierSwitches(true);
-        msg('voucher-msg', 'Code eingelöst \u2713', true);
+        msg('voucher-msg', 'Code redeemed \u2713', true);
         return;
       }
       myTiers[res.tier] = true;
       msg('voucher-msg', TIER_NAMES[res.tier] + ' freigeschaltet \u2713'
           + (res.valid_until ? ' (bis ' + res.valid_until + ')' : ''), true);
       renderTierSwitches(isCreator);
-    } catch (e) { msg('voucher-msg', 'Einlösen fehlgeschlagen'); }
+    } catch (e) { msg('voucher-msg', 'Redeeming failed'); }
   }
 
   async function lockCreator() {
@@ -484,20 +483,20 @@
       myTiers = { supporter: false, pro: false, vip: false };
       document.getElementById('tier-unlock').style.display = 'block';
       renderTierSwitches(false);
-      msg('tier-msg', 'Zugang und Stufen entfernt \u2713', true);
-    } catch (e) { msg('tier-msg', 'Fehlgeschlagen'); }
+      msg('tier-msg', 'Access and tiers removed \u2713', true);
+    } catch (e) { msg('tier-msg', 'Failed'); }
   }
 
   function renderTierSwitches(unlocked) {
     const box = document.getElementById('tier-switches');
     if (!unlocked) { box.innerHTML = ''; document.getElementById('tier-hint').textContent = ''; return; }
     const rank = myTiers.vip ? 'Sorion VIP' : myTiers.pro ? 'Pro-Supporter'
-               : myTiers.supporter ? 'Supporter' : 'keine';
+               : myTiers.supporter ? 'Supporter' : 'none';
     box.innerHTML = Object.keys(TIER_LABELS).map(k =>
       `<button class="${myTiers[k] ? '' : 'ghost'}" onclick="toggleTier('${k}')">${myTiers[k] ? '\u25CF' : '\u25CB'} ${TIER_LABELS[k]}</button>`).join('')
-      + '<button class="ghost" onclick="lockCreator()">Zugang abgeben</button>';
+      + '<button class="ghost" onclick="lockCreator()">Give up access</button>';
     document.getElementById('tier-hint').textContent =
-      'Aktive Stufe: ' + rank + ' \u00b7 VIP schliesst Pro und Supporter mit ein.';
+      'Active tier: ' + rank + ' \u00b7 VIP includes Pro and Supporter.';
   }
 
   async function toggleTier(k) {
@@ -505,7 +504,7 @@
     try {
       const r = await authFetch('/rest/v1/rpc/set_my_tier', {
         method: 'POST', body: JSON.stringify({ p_tier: k, p_on: on }) });
-      if (!r.ok) { msg('tier-msg', 'Nicht erlaubt (' + r.status + ')'); return; }
+      if (!r.ok) { msg('tier-msg', 'Not allowed (' + r.status + ')'); return; }
       myTiers[k] = on;
       renderTierSwitches(true);
       msg('tier-msg', TIER_LABELS[k] + (on ? ': an \u2713' : ': aus \u2713'), true);
@@ -525,12 +524,12 @@
       localStorage.setItem('sorion_own', String(body.sorare_slug).toLowerCase());
       localStorage.setItem('sorion_manager', body.sorare_slug);
     }
-    msg('pr-msg', res.ok ? 'Gespeichert ✓' : 'Speichern fehlgeschlagen', res.ok);
+    msg('pr-msg', res.ok ? 'Gespeichert ✓' : 'Saving failed', res.ok);
   }
 
   function openPortfolio() {
     const slug = document.getElementById('pr-slug').value.trim().toLowerCase();
-    if (!slug) { msg('pr-msg', 'Erst Sorare-Managernamen eintragen'); return; }
+    if (!slug) { msg('pr-msg', 'Enter your Sorare manager name first'); return; }
     window.location.href = `portfolio.html?manager=${encodeURIComponent(slug)}`;
   }
 
@@ -538,15 +537,15 @@
     const pass = document.getElementById('sec-pass').value;
     if (pass.length < 8) { msg('sec-msg', 'Passwort zu kurz (min. 8 Zeichen)'); return; }
     const res = await authFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pass }) });
-    msg('sec-msg', res.ok ? 'Passwort geändert ✓' : 'Fehlgeschlagen', res.ok);
+    msg('sec-msg', res.ok ? 'Password changed ✓' : 'Fehlgeschlagen', res.ok);
     if (res.ok) document.getElementById('sec-pass').value = '';
   }
 
   async function changeEmail() {
     const email = document.getElementById('sec-email').value.trim();
-    if (!email) { msg('sec-msg', 'Neue E-Mail eintragen'); return; }
+    if (!email) { msg('sec-msg', 'Enter a new email address'); return; }
     const res = await authFetch(`/auth/v1/user?redirect_to=${encodeURIComponent(REDIRECT)}`, { method: 'PUT', body: JSON.stringify({ email }) });
-    msg('sec-msg', res.ok ? 'Bestätigungs-Mails verschickt ✓' : 'Fehlgeschlagen', res.ok);
+    msg('sec-msg', res.ok ? 'Confirmation emails sent ✓' : 'Fehlgeschlagen', res.ok);
   }
 
   // ── DSGVO ───────────────────────────────────────────────────
@@ -584,20 +583,20 @@
     a.href = URL.createObjectURL(blob);
     a.download = `sorion-datenexport-${new Date().toISOString().slice(0,10)}.json`;
     a.click();
-    msg('data-msg', 'Export heruntergeladen ✓', true);
+    msg('data-msg', 'Export downloaded ✓', true);
   }
 
   async function deleteAccount() {
-    if (!confirm('Konto wirklich ENDGÜLTIG löschen? Profil und Watchlist werden unwiderruflich entfernt.')) return;
-    if (!confirm('Letzte Sicherheitsfrage: Es gibt kein Zurück. Löschen?')) return;
+    if (!confirm('Permanently delete your account? Profile and watchlist will be removed for good.')) return;
+    if (!confirm('Last check: there is no way back. Delete?')) return;
     const res = await authFetch('/functions/v1/delete-account', { method: 'POST', body: '{}' });
     const data = await res.json();
     if (data.deleted) {
       clearSession();
-      alert('Dein Konto wurde gelöscht. Danke, dass du dabei warst.');
+      alert('Your account has been deleted. Thanks for being here.');
       window.location.href = 'index.html';
     } else {
-      msg('data-msg', data.error || 'Löschen fehlgeschlagen');
+      msg('data-msg', data.error || 'Deletion failed');
     }
   }
 
