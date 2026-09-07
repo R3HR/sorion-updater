@@ -359,12 +359,11 @@ G. ✅ **edge_cache-Migration ausgefuehrt (05.09. ~13:05 UTC).** Verifiziert: 1.
    mehr an der Live-RPC. Eine RPC je 10 Minuten statt einer je Besucher.
 
 
-F. 🔴 **NEU (05.09.) — Migration `2026-09-05_accuracy_deal_type.sql` ausfuehren** (Spalte
-   `fmv_accuracy.deal_type` + RPC `accuracy_by_deal`). Der Updater ist bereits so deployed,
-   dass er die Verkaufsart loggt, SOBALD die Spalte da ist (Probe, kein Crash ohne). Danach
-   **Formel-Entscheidung** auf Basis von `select * from accuracy_by_deal(3)` nach 2 bis 3 Tagen
-   Daten: FMV nur aus Manager-Verkaeufen (TokenOffer), gewichtet, oder zwei Werte anzeigen?
-   Siehe Abschnitt "Verkaufsarten" unten und `docs/2026-09-05_VERKAUFSARTEN_MESSUNG.md`.
+F. ✅ **Migration `2026-09-05_accuracy_deal_type.sql` ausgefuehrt (07.09., nachgeholt).**
+   War seit 05.09. offen und ist mir durchgerutscht, als ich ab 06.09. Migrationen selbst
+   per CLI ausfuehrte. Folge: `fmv_accuracy.deal_type` blieb zwei Tage lang unbeschrieben,
+   6.704 Accuracy-Zeilen aus dieser Zeit haben keine Verkaufsart. Ab dem naechsten
+   Updater-Lauf (16:00 UTC) wird sie geschrieben. Auswertung dann per `accuracy_by_deal(3)`.
 
 
 E. **Zweiter Sorare-API-Key: NICHT nutzen (Pruefung der Sorare-Bedingungen 05.09.).**
@@ -892,6 +891,11 @@ hinter eine Function mit Service-Key + DB-Cache legen, nicht direkt aus der Seit
 
 ## Regeln
 
+- **Migrationen sofort ausfuehren, nicht als offenen Punkt liegen lassen** (Lehre 07.09.):
+  Seit dem 06.09. kann Claude Migrationen selbst per CLI einspielen. Die deal_type-Migration
+  vom 05.09. blieb trotzdem zwei Tage liegen, weil sie als "Aufgabe fuer Jonas" notiert war —
+  in der Zeit sammelte die Erfassung nichts. Wer eine Migration schreibt, fuehrt sie im selben
+  Zug aus und verifiziert sie.
 - **Zeitbasis der Statistik: Europe/Berlin, Tag beginnt 00:00 Berlin** (Jonas 05.09.). Alle
   Auswertungs-Funktionen laufen mit `set timezone = 'Europe/Berlin'`; Fenster sind Kalendertage
   inklusive heute, nie rollierende 24 h. Neue Auswertungen halten sich daran. (Preis-Snapshots
