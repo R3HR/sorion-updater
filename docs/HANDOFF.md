@@ -654,10 +654,29 @@ Spieltag und verschwinden danach (Jonas 04.09.). Felder: `nextClassicFixturePlay
 heisst hier WOCHEN-Spieltag, nicht unsere Classic-Eligibility. Ein Sorare-Call je
 Modal-Oeffnung (Cache daempft); SORARE_APIKEY als Supabase-Secret wuerde das Limit heben.
 
+## ✍️ Schreibregel: KEINE Gedankenstriche (bindend, alle Texte)
+
+Ansage Jonas (mehrfach, zuletzt 07.09.2026): **Keine Gedankenstriche.** Betrifft ALLES, was
+von uns geschrieben wird: Discord-Patchnotes, Seitentexte auf sorion.pro und craftlog.pro,
+Chat-Antworten, Commit-Beschreibungen, Dokumentation.
+
+Gemeint sind der lange Gedankenstrich (—, U+2014) und der als Gedankenstrich gesetzte
+Halbgeviertstrich (–, U+2013). Ersatz je nach Sinn:
+- Doppelpunkt, wenn eine Erklaerung folgt
+- Komma, wenn es ein Einschub ist
+- Punkt und neuer Satz, wenn es ein eigener Gedanke ist
+- Klammern nur sparsam
+
+ERLAUBT bleibt der Bindestrich in zusammengesetzten Woertern (Cash-Schwelle, Ko-fi) und
+der Streckenstrich in Zahlenbereichen (461-520), dort aber besser als Bindestrich setzen.
+
+**Pruefen vor dem Abgeben:** `grep -c "—" <datei>` muss 0 ergeben.
+
 ## 📣 Patch Notes -> Discord (eingerichtet 01.09., Regeln BINDEND)
 
 Der Sorion-Discord bekommt oeffentliche Patch Notes ueber einen Webhook.
-**Regeln von Jonas: (1) KEINE Interna** — keine Formel-Zutaten, keine
+**Regeln von Jonas: (0) KEINE Gedankenstriche** (siehe Schreibregel unten)
+**(1) KEINE Interna** — keine Formel-Zutaten, keine
 Sicherheits-/Incident-Details, keine Infrastruktur/Kosten/Dateipfade; nur was
 Nutzer sehen. **(2) Jonas muss VOR jeder Veroeffentlichung den Entwurf
 freigeben** — erst nach dem "Go" posten, nie automatisch.
