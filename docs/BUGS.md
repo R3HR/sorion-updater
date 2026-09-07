@@ -447,3 +447,13 @@
 - **Verifikation:** r3hr, R3HR, UUID-Slug, jr3hr -> alle `slug=jr3hr, nickname=R3HR`; unbekannt -> 404; neuer Manager (andreihaha) -> synchronisiert mit Identitaet.
 - **Offen:** `so5-results` fragt Sorare weiter mit dem Primaer-Slug (Alias) ab; falls Sorare Aliasse einmal verwirft, dort `current_slug` nutzen. Squad-Tabellen (`squad_*`) kennen nur den Slug; Umbenennungen dort noch nicht abgefangen. Der OAuth-Pfad wurde nicht live durchgespielt (braucht Jonas' Sorare-Login), Code-Pfad geprueft.
 - **Lektion:** Fremde Bezeichner, die der Nutzer aendern kann, taugen nicht als einziger Schluessel. Feste ID mitfuehren, eigenen stabilen Schluessel behalten, Eingaben aufloesen statt Daten umzuhaengen.
+
+## BUG-040 - MLS, J1 League und K League 1 fehlten in der Leaderboard-Tabelle (07.09.) - BEHOBEN
+
+- **Symptom (Jonas):** "Und wo sind in der Tabelle die K1 League, Die J1 League und die MLS?" Die Reward-Tabelle kannte 14 Wettbewerbe, die drei Winter-Ligen fehlten vollstaendig.
+- **Ursache:** Der Wettbewerbs-Filter in `tools/sync-reward-thresholds.mjs` warf `_pvp` zusammen mit den Uebungs-/Sonderraeumen (`arena`, `pve`, `_cap_`, `beginner`, `elite`, `uncapped`) weg. `_pvp` ist aber KEIN Raum, sondern das regulaere Format dieser drei Ligen: geprueft an `football-28-aug-1-sep-2026-seasonal-us-in_season_us_limited_pvp` (MLS Limited, 3.750 USD Preisgeld ueber 13 Rangstufen) und `...-japan-in_season_japan_rare_pvp` (J1 League Rare, 7.490 USD). Nur `_pve` (Hot Streak) hat keine Rangstufen und gehoert raus.
+- **Fix:** Regex um das optionale Suffix erweitert und `pvp` aus der Ausschlussliste genommen:
+  `/-(in_season|all_seasons)_[a-z_]+_(limited|rare|super_rare|unique)(_pvp)?$/` mit `!/arena|pve|_cap_|beginner|elite|uncapped/`.
+  Danach `sync-reward-thresholds.mjs --force` und `sync-lineup-costs.mjs` nachgezogen.
+- **Verifikation:** Tabelle von 190 auf 237 Leaderboard-Wochen und von 14 auf 17 Wettbewerbe gewachsen (MLS 15 Wochen, J1 League 14, K League 1 18). Kosten-Lauf: 4.550 Aufstellungen, 1.125 Spieler, 91 API-Calls, 80 % vollstaendig bepreist.
+- **Lektion:** Ausschlusslisten aus Slug-Bestandteilen bauen heisst raten. Jeder ausgeschlossene Marker gehoert einmal gegen die API geprueft (hat das Leaderboard Preisgeld und Rangstufen?), sonst verschwinden ganze Ligen lautlos. Zeichen dafuer war, dass Jonas die Luecke sah und nicht wir.

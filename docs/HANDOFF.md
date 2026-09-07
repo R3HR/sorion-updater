@@ -630,14 +630,23 @@ nur Saison 26/27 (GW1 ab 31.07.), als Tabelle je Wettbewerb, auf der Seite visua
 - **Quelle:** je abgeschlossenem Spieltag (`so5Fixtures`, aasmState=closed) die Wettbewerbs-
   Leaderboards; je Leaderboard `rewardsConfig.ranking[]` mit `toSo5Ranking.score` = Score des
   letzten belohnten Rangs je Stufe. Anonym Komplexitaet 500 -> 1 Call je Leaderboard (~40/Spieltag).
-  Arena/PvP/Cap/Beginner-Raeume werden ausgeschlossen (Slug-Regex in `isCompetition`).
+  Arena/PvE/Cap/Beginner-Raeume werden ausgeschlossen (Slug-Regex in `isCompetition`).
+  **`_pvp` gehoert NICHT dazu** (siehe Falle unten), nur `_pve` (Hot Streak, keine Rangstufen).
 - **Pipeline:** `tools/sync-reward-thresholds.mjs` (idempotent, ueberspringt fertige Spieltage) ->
   Tabelle `reward_thresholds` (Migration `2026-09-04_reward_thresholds.sql`, oeffentlich lesbar) ->
   `UI/rewards.html` aggregiert clientseitig je Wettbewerb x Rarity (Ø Cash-/Essence-Schwelle mit
   Min-Max, bezahlte Raenge, Top-Score, Lineups, Cash-Trend-Sparkline). Footer-Link auf der Marktseite.
 - **Cron:** `railway-rewards.toml` (taeglich 09:00 UTC) — Railway-Service muss Jonas wie
   Club_Rosters anlegen. Bis dahin manuell: `railway run node tools/sync-reward-thresholds.mjs`.
-- **Status 06.09.:** Code/Seite deployt, Migration + Erst-Sync (~400 Calls, ~8 min) OFFEN.
+- **Status 07.09.:** Live. Tabelle **237 Leaderboard-Wochen, 17 Wettbewerbe** (Saison 26/27 bis GW11).
+- **Falle (07.09., BUG-040): `_pvp` ist kein Sonderraum, sondern das REGULAERE Format von
+  MLS, J1 League und K League 1.** Der alte Filter warf es mit den Uebungsraeumen weg, dadurch
+  fehlten die drei Winter-Ligen komplett (Jonas fiel es auf, nicht uns). Belegt an
+  `...-seasonal-us-in_season_us_limited_pvp` = MLS Limited, 3.750 USD ueber 13 Rangstufen, und
+  `...-japan-in_season_japan_rare_pvp` = J1 League Rare, 7.490 USD. Regex jetzt:
+  `/-(in_season|all_seasons)_[a-z_]+_(limited|rare|super_rare|unique)(_pvp)?$/`.
+  **Regel: jeden ausgeschlossenen Slug-Marker einmal gegen die API pruefen** (Preisgeld? Rangstufen?),
+  sonst verschwinden ganze Ligen lautlos.
 - Hinweis: Laenderspielpausen (z. B. GW10, 1.-4.9.) haben nur ~13 Leaderboards — deshalb
   ungleiche GW-Zahlen je Zeile; ist erklaert auf der Seite.
 
@@ -805,6 +814,12 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   Paginierung; PostgREST deckelt bei 1000 Zeilen, die Tabelle hat ueber 30.000. Der Cron
   haette dadurch taeglich die ganze Saison neu abgefragt (359 statt ~10 Aufrufe).
   **Regel: Jede Bestandspruefung ueber eine grosse Tabelle seitenweise lesen.**
+- **Stand 07.09. nach dem `_pvp`-Nachzug:** 4.550 zusaetzliche Aufstellungen, 1.125 Spieler,
+  91 API-Calls, 80 % vollstaendig bepreist. Essence-Team-Median der neuen Ligen (Limited):
+  K League 1 14 EUR, J1 League 14 EUR, MLS 16 EUR: mit Abstand der guenstigste Einstieg,
+  LALIGA liegt bei 120 EUR. Rare: J1 League 34 EUR, K League 1 48 EUR, MLS 125 EUR.
+  **Die drei starten zum Winter und laufen dann, wenn Europa pausiert** (Ansage Jonas 07.09.),
+  gehoeren also dauerhaft in die Tabelle.
 
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 
