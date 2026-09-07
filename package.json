@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "node update.mjs",
+    "start": "node tools/no-start.mjs",
     "seed": "node seed-all-players.mjs"
   },
   "dependencies": {

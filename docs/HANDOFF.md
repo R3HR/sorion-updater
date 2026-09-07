@@ -339,6 +339,12 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
    und **SORARE_APIKEY** (aus "Updater Limited" kopieren)
 4. Deploy abwarten; Cron laeuft taeglich 09:00 UTC. Erster Lauf kann per Redeploy
    sofort ausgeloest werden.
+   **STOLPERSTEIN (07.09. passiert):** Ohne gesetzten Config-as-code-Pfad faellt Railway auf
+   `npm start` zurueck. Das Repo hat bewusst KEINEN echten Standard-Start — frueher zeigte
+   es auf das geloeschte `update.mjs` und der Dienst stuerzte mit MODULE_NOT_FOUND ab, was
+   die Ursache verschleierte. Seit 07.09. meldet `tools/no-start.mjs` stattdessen im Klartext,
+   dass der Pfad fehlt. Merkmal im Log: "> node update.mjs" oder "Kein Startbefehl gesetzt"
+   = Schritt 2 wurde vergessen.
 5. Pruefen: Logs zeigen "Bereits erfasst: N Leaderboard-Wochen" und danach
    "Fertig: ... Zeilen". Ohne neuen Spieltag ist das nach Sekunden vorbei.
 
