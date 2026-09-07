@@ -266,6 +266,62 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
+## 🟡 FMV v3.5 GEBAUT, NOCH NICHT GEPUSHT (07.09.2026) — nur Manager-Verkäufe
+
+**Vorgabe Jonas (bindend, zweimal bestätigt):** Auktion (`TokenAuction`) und Sofortkauf
+(`TokenPrimaryOffer`) sind KEINE Marktpreise. Auf beiden Sorare-Märkten gelten Gutscheine
+mit bis zu 50 % Rabatt, dazu Zugaben wie Essence und Wheel-Tickets. Nur der Handel zwischen
+Managern (`TokenOffer`) ist Zweitmarkt und spiegelt den echten Wert. **42 % aller Datenpunkte
+fallen damit weg.**
+
+**Umgesetzt in `lib/fmv.mjs` als v3.5** (Sicherung der Vorversion: `lib/fmv.mjs.bak-v34`):
+- **Prinzip 0:** Nur `TokenOffer` bestimmt den Wert. Absicherung: liefert die Quelle GAR keine
+  Verkaufsart, wird nicht gefiltert — sonst verlören Karten stumm ihren Wert.
+- **Prinzip 5** (`WINDOW_STRETCH = 3`): unter 3 Manager-Verkäufen im Fenster wird bis zum
+  dreifachen Zeitraum zurückgeschaut. Echte Marktpreise, nur ältere.
+- **Prinzip 6:** Der Sicherheitsdeckel (Floor × 1,5) liest ALLE Verkaufsarten. Er fragt nicht
+  nach dem Wert, sondern ob die Karte lebhaft gehandelt wird — das bezeugt auch eine Auktion.
+  Ohne ihn stieg die Deckelquote bei rare in-season von 23 auf 33 %, die betroffenen Werte
+  halbierten sich im Median und trafen schlechter (±32,9 → ±44,2 %).
+
+**Messung** (`docs/2026-09-07_ZWEITMARKT_FILTER.md` und `_FALLBACK.md`, 7.029 Walk-Forward-Ziele,
+frischer Datensatz `tools/analysis-out/2026-09-07_deal-type-data.json`, Ziel ist immer ein
+Manager-Verkauf, Gegencheck mit der fertigen Bibliothek):
+
+| Segment | v3.4 | v3.5 | Bias | ohne Wert |
+|---|---|---|---|---|
+| limited/classic | ±22,7 % | **±22,4 %** | +0,1 % | 0 % |
+| limited/in_season | ±31,1 % | **±25,2 %** | +3,3 % | 3 % |
+| rare/in_season | ±24,8 % | **±22,8 %** | +2,9 % | 15 % |
+| **ALLE** | ±26,3 % | **±23,8 %** | +2,1 % | 3 % |
+
+Besser in jedem Segment. Bewusst in Kauf genommen: **15 % der rare/in_season-Karten bekommen
+keinen FMV mehr** (es gibt schlicht keine Manager-Verkäufe), und grobe Fehlschläge über 100 %
+steigen von 7,4 auf 8,4 %. Der Bias dreht von −0,6 auf +2,1 %: gefiltert schätzen wir eher zu
+niedrig, was die Begründung der Vorgabe bestätigt — die Sorare-Märkte zogen den Wert nach unten.
+
+**Smoke-Test:** 12 Fälle gegen v3.4, alle bestanden (u. a. unverändert bei reinen
+Manager-Daten, kein Wert ohne Manager-Verkäufe, Deckel greift weiter bei einzelnem oder
+altem Verkauf, Absicherung ohne `deal`-Feld).
+
+**Änderungssperre:** Es braucht **keine neue Migration**, WENN der Push heute vor 22:00 UTC
+erfolgt. v3.4 lief nur wenige Stunden und hat nie einen eigenen Tages-Snapshot erzeugt: die
+Updater sind Cron-Jobs (22:00–05:00 UTC), der letzte Lauf endete am 07.09. gegen 05:00 UTC
+noch mit v3.3. Die bereits gesetzte Kante **08.09.** trennt damit v3.3 von v3.5.
+**Erfolgt der Push später, muss eine Kante auf den ersten Snapshot mit v3.5-Werten gesetzt
+werden** (Vorlage: `migrations/2026-09-07_fmv_v34_change_guard.sql`).
+
+**Zykluszeiten (gemessen 07.09.):** in-season limited/rare laufen täglich vollständig durch
+(100 % in 24 h). Classic braucht ~4–5 Tage (41 % in 48 h) — dort schmiert die Umstellung über
+mehrere Tage, was unkritisch ist, weil v3.5 bei classic praktisch nichts ändert.
+
+**OFFEN:**
+1. **Push und Deploy** (steht bei Jonas).
+2. **UI:** Karten ohne FMV sauber anzeigen ("zu wenige Manager-Verkäufe" statt leerem Wert),
+   besonders bei rare in-season.
+3. **Nachkontrolle** in 3–4 Tagen per `accuracy_benchmark(3)`, zusammen mit der v3.4-Kontrolle.
+4. Restbias +2,1 % als Kandidat für eine spätere Feinjustierung.
+
 ## ✅ FMV v3.4 DEPLOYED (07.09.2026)
 
 **Aenderung:** effektive Halbwertszeit sinkt mit der Verkaufsdichte,
@@ -347,6 +403,13 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
    = Schritt 2 wurde vergessen.
 5. Pruefen: Logs zeigen "Bereits erfasst: N Leaderboard-Wochen" und danach
    "Fertig: ... Zeilen". Ohne neuen Spieltag ist das nach Sekunden vorbei.
+
+**NEU 07.09. — Railway-Dienst für super_rare fehlt** (Befund BUG-041): 5.225 Karten
+`super_rare / in_season` haben seit rund 20 Tagen kein Update. `railway status` listet nur
+die Cron-Jobs *Updater Limited* und *Update Rare*; ein SR-Dienst fehlt, obwohl
+`railway-sr.toml` im Repo liegt und dieses Dokument (Abschnitt API-Kontingent) einen
+*Updater SR* führt. Anlegen exakt wie oben, aber mit Config-as-code-Pfad **/railway-sr.toml**.
+Noch offen: warum `super_rare / classic` trotzdem täglich frisch ist.
 
 
 H. ✅ **Berlin-Zeit-Migration ausgefuehrt (06.09. 14:19 Berlin, per CLI durch Claude).** Verifiziert:
