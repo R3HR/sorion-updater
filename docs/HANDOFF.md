@@ -266,6 +266,34 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
+## ✅ FMV v3.4 DEPLOYED (07.09.2026)
+
+**Aenderung:** effektive Halbwertszeit sinkt mit der Verkaufsdichte,
+`hlEff = halfLife / (1 + nWindow / 5)` (Konstante `DENSITY_DIVISOR` in lib/fmv.mjs).
+Bei 5 Verkaeufen im Fenster also die halbe, bei 10 ein Drittel der Grundhalbwertszeit.
+Alles andere unveraendert; bei 1-2 Verkaeufen rechnet v3.4 identisch zu v3.3.
+
+**Warum:** Die Stichprobenmessung vom 06.09. (docs/2026-09-06_SUPPLY_VS_ACCURACY.md)
+zeigte bei den meistgehandelten Karten einen durchgehend positiven Bias (+7 bis +26 %),
+also systematische Unterschaetzung genau dort, wo viel gehandelt wird.
+
+**Backtest** (docs/2026-09-06_V34_BACKTEST.md, 11.917 Walk-Forward-Ziele, dieselbe
+Zielmenge wie v3.3 und der avg5-Vergleich): Median gesamt 23,9 -> 23,2 %, **erstmals
+besser als der Last-5-Schnitt** (23,7 %). Rare in-season 24,1 -> 22,3 %, Classic limited
+22,4 -> 21,5 %, limited in-season 24,5 -> 24,4 %. Bias +1,9 %. Sprunghoehe (neu
+mitgemessen) 5,5 % gegenueber 4,1 % bei v3.3, bleibt aber unter avg5 (6,1 %).
+Staerkere Divisoren (3 oder 2) trafen minimal besser, sprangen deutlich mehr.
+
+**Aenderungssperre:** `migrations/2026-09-07_fmv_v34_change_guard.sql` mit Cut
+**08.09.** ausgefuehrt (dritte Schnittkante nach 22.08. und 26.08.). Der Cut liegt
+bewusst NICHT auf dem Deploy-Tag: der 07.09.-Snapshot entstand um 05:30 UTC und ist
+noch v3.3. Erste Fassung hatte 07.09. und sperrte den Chip sofort — korrigiert.
+`market_move` liefert danach fuer p_days Tage leer, das ist gewollt.
+
+**Nachkontrolle (offen):** in 3 bis 4 Tagen `accuracy_benchmark(3)` gegen die Werte
+vom 06.09. halten (FMV in-season limited 21,1 %, rare 27,9 %, classic limited 28,3 %).
+Der Backtest sagt eine Verbesserung voraus; nur die Live-Messung beweist sie.
+
 ## 🎯 LANGFRISTZIEL FMV (festgelegt von Jonas, 26.08.): den Last-5-Schnitt schlagen
 
 Sorare Inside nutzt den ungewichteten Durchschnitt der letzten 5 Verkaeufe. Vergleich
@@ -276,9 +304,12 @@ Vorteile: Bias ±2 % statt −4…−7 %, Ausreisser-Trimmen, Abdeckung ohne fri
 
 **ZIEL: FMV schlaegt avg5 im Median in ALLEN Segmenten, bei |Bias| < 5 %.**
 Messlatte: das Vergleichs-Skript nach jeder Formel-Aenderung neu laufen lassen
-(gleiche Zielmenge = fairer Vergleich). Kandidat v3.4: bei sehr frischer, sehr
-liquider Basis die juengsten Verkaeufe noch staerker gewichten (kuerzere effektive
-Halbwertszeit bei hoher Sales-Dichte) — wie immer erst Backtest, dann Deploy.
+(gleiche Zielmenge = fairer Vergleich). **Stand 07.09.: v3.4 ist deployed** (Halbwertszeit sinkt mit der Verkaufsdichte).
+Gesamt liegt FMV damit erstmals vor avg5 (23,2 vs 23,7 %), und in rare/in_season sowie
+classic/limited deutlich. **Offen bleibt limited/in_season** (24,4 vs 23,5 %): dort half
+kuerzere Gewichtung kaum. Naechster Ansatz dort ist die Verkaufsart (`deal_type`, seit
+05.09. in Erfassung) — 79 % der Verkaeufe in diesem Segment sind Sorares eigene
+Primaermarkt-Preise, kein Zweitmarkt (docs/2026-09-05_VERKAUFSARTEN_MESSUNG.md).
 
 ## FMV-Faktoren-Analyse (25.08.) — ✅ v3.3 DEPLOYED (25.08. abends)
 
