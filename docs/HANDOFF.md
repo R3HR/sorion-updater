@@ -858,6 +858,12 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   oeffentlich lesbar; `leaderboard_thresholds()` um `cash_cost`/`essence_cost` erweitert),
   Sync `tools/sync-lineup-costs.mjs` (idempotent, ueberspringt fertige Leaderboards).
   Aufruf: `railway run -s "Updater Limited" node tools/sync-lineup-costs.mjs`.
+- **Kein Schloss ohne Cash (07.09., Migration `2026-09-07_cash_gate_only_where_cash.sql`):**
+  Eine Zeile wird nur gesperrt, wenn sie ueberhaupt Cash-Daten HAT. In Champion, Under 23,
+  All Star und K League 1 zahlt Sorare in Limited/Rare/Super Rare KEIN Geld (nur Unique),
+  dort stand vorher ein Schloss vor einer leeren Zelle. Die Seite zeigt jetzt `no cash`.
+  Regel statt Namensliste, damit es bei neuen Wettbewerben und Regelaenderungen stimmt.
+  Aggregation in der Seite ist fail-closed: gesperrt, sobald EINE Zeile des Wettbewerbs gesperrt ist.
 - **Gratis-Kostprobe (07.09., Ansage Jonas):** EIN Wettbewerb zeigt Cash-Schwelle und
   Cash-Team offen, damit man das Feature beurteilen kann. Gesetzt ist der teuerste:
   `feature_access.preview_value = 'English League Players'` (Migration
