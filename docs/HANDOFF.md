@@ -891,6 +891,21 @@ hinter eine Function mit Service-Key + DB-Cache legen, nicht direkt aus der Seit
 
 ## Regeln
 
+- 🔴 **FMV: NUR Manager-zu-Manager-Verkaeufe (`TokenOffer`) sind Marktpreise.**
+  Bindende Vorgabe Jonas (wiederholt und begruendet am 07.09.2026). Sorares eigene
+  Maerkte fliessen NICHT in den FMV ein:
+  * **Sofortkauf** (`TokenPrimaryOffer`) und **Auktion** (`TokenAuction`) sind durch
+    Promo-Aktionen verzerrt: Es gibt **Gutscheine mit bis zu 50 % Rabatt**, die nur auf
+    diesen beiden Maerkten gelten, dazu Zugaben wie **geschenkte Essence oder
+    Wheel-Tickets** beim Kauf. Der gezahlte Betrag entspricht also weder dem Wert der
+    Karte noch dem, was ein anderer Manager zahlen wuerde — und die Verzerrung ist nicht
+    einmal konstant, weil sie davon abhaengt, welcher Kaeufer welchen Gutschein hatte.
+  * Nur der Zweitmarkt (Manager verkauft an Manager) bildet den echten Wert ab.
+  **Status 07.09.:** Diese Regel war NIE im Code umgesetzt (v3.2/v3.3/v3.4 rechnen mit
+  allen Verkaufsarten) und stand in keinem Dokument. Umsetzung laeuft, siehe
+  docs/2026-09-07_ZWEITMARKT_FILTER.md. Bei In-Season Limited entfallen dadurch ~79 %
+  der Datenpunkte — die Abdeckung ist der kritische Punkt, nicht die Richtigkeit der Regel.
+
 - **Migrationen sofort ausfuehren, nicht als offenen Punkt liegen lassen** (Lehre 07.09.):
   Seit dem 06.09. kann Claude Migrationen selbst per CLI einspielen. Die deal_type-Migration
   vom 05.09. blieb trotzdem zwei Tage liegen, weil sie als "Aufgabe fuer Jonas" notiert war —
