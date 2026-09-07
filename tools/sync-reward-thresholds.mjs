@@ -43,8 +43,15 @@ async function gql(query, label) {
 
 // Wettbewerbs-Leaderboards erkennen: seasonal-<comp>-(in_season|all_seasons)_<comp>_<rarity>,
 // KEINE Arena-/PvP-/Cap-/Beginner-/Elite-/Uncapped-Raeume.
-const isCompetition = slug => /-(in_season|all_seasons)_[a-z_]+_(limited|rare|super_rare|unique)$/.test(slug)
-  && !/arena|pvp|_cap_|beginner|elite|uncapped/.test(slug);
+// Wettbewerbs-Leaderboards. Das optionale _pvp gehoert DAZU: MLS, J1 League und
+// K League 1 laufen als "...\_limited_pvp" statt mit blankem Rarity-Suffix, sind
+// aber vollwertige Ranglisten mit Preisgeld (07.09. geprueft: MLS Limited 3.750 USD
+// ueber 13 Stufen). Frueher schloss der Filter sie zusammen mit den Arena-Raeumen
+// aus, wodurch diese Ligen komplett fehlten.
+// AUSGESCHLOSSEN bleiben: _pve ("Hot Streak" hat KEINE Rangstufen, dort schlaegt man
+// eine Zielpunktzahl), Arena-Raeume, Cap-/Beginner-/Elite-/Uncapped-Zimmer.
+const isCompetition = slug => /-(in_season|all_seasons)_[a-z_]+_(limited|rare|super_rare|unique)(_pvp)?$/.test(slug)
+  && !/arena|pve|_cap_|beginner|elite|uncapped/.test(slug);
 const SLUG_NAMES = { champions: 'Champion', contenders: 'Contender', rest_of_the_world: 'Rest of the World',
   under_twenty_one: 'Under 23', all_star: 'All Star', england: 'English League Players',
   england_second: 'EFL Championship', germany: 'Bundesliga', spain: 'LALIGA EA SPORTS', france: 'Ligue 1',

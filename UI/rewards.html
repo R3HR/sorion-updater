@@ -38,7 +38,9 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: 'Exo 2', sans-serif; line-height: 1.7; }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 48px 24px 80px; }
+  .wrap { max-width: 1600px; margin: 0 auto; padding: 0 32px 80px; }
+  /* Fliesstext bleibt lesbar schmal, Tabelle und Kacheln nutzen die Breite */
+  .wrap > p, .wrap > ul, .note, .upsell { max-width: 940px; }
   a { color: var(--purple); }
   h1 { font-family: 'Orbitron', monospace; font-size: 22px; margin-bottom: 10px; }
   h2 { font-family: 'Orbitron', monospace; font-size: 15px; color: var(--purple); margin: 36px 0 12px; }
@@ -90,11 +92,99 @@
   .note { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--purple);
           border-radius: 8px; padding: 14px 18px; margin-top: 24px; font-size: 13px; color: var(--text2); }
   @media (max-width: 720px) { .wrap { padding: 28px 14px 60px; } th, td { padding: 9px 8px; font-size: 12px; } }
+
+  /* ── Kopfbereich wie auf der Marktseite ─────────────────────────
+     Uebernommen aus index.html, damit Unterseiten nicht wie eine
+     fremde Seite wirken (Ansage Jonas 07.09.). */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px,
+      rgba(176,96,255,0.015) 2px, rgba(176,96,255,0.015) 4px);
+  }
+  body::after {
+    content: ''; position: fixed; top: -200px; right: -200px;
+    width: 600px; height: 600px; pointer-events: none; z-index: 0;
+    background: radial-gradient(circle, rgba(176,96,255,0.12) 0%, transparent 70%);
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+  @keyframes pulse-glow { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+  .wrap { position: relative; z-index: 1; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 0; border-bottom: 1px solid var(--border);
+    margin-bottom: 32px; position: relative; flex-wrap: wrap; gap: 14px;
+  }
+  header::after {
+    content: ''; position: absolute; bottom: -1px; left: 0; height: 1px; width: 40%;
+    background: linear-gradient(90deg, var(--purple), transparent);
+    animation: scan-line 3s ease-in-out infinite;
+  }
+  @keyframes scan-line {
+    0% { width: 0%; opacity: 1; } 50% { width: 60%; opacity: .8; } 100% { width: 100%; opacity: 0; }
+  }
+  .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+  .logo-mark {
+    font-family: 'Orbitron', monospace; font-size: 30px; font-weight: 900;
+    letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5);
+  }
+  .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
+  @keyframes logoblink { 50% { opacity: 0; } }
+  .logo-sub {
+    font-size: 9px; letter-spacing: .3em; color: var(--purple); text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace; opacity: .8;
+  }
+  .nav-links { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .nav-link {
+    font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--text2); text-decoration: none; padding: 12px 6px; margin: -12px -6px;
+    transition: color .2s;
+  }
+  .nav-link:hover { color: var(--purple); }
+  .nav-link.active { color: var(--text); }
+  .nav-support {
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: .1em;
+    text-transform: uppercase; cursor: pointer; color: #b060ff;
+    background: rgba(176,96,255,.10); border: 1px solid rgba(176,96,255,.55);
+    border-radius: 6px; padding: 10px 16px; white-space: nowrap; transition: all .15s;
+  }
+  .nav-support:hover {
+    background: #b060ff; color: #0d0d1a; border-color: #b060ff;
+    box-shadow: 0 0 18px rgba(176,96,255,.4); transform: translateY(-1px);
+  }
+  .nav-cta {
+    background: transparent; border: 1px solid var(--purple); color: var(--purple);
+    font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700;
+    letter-spacing: .15em; text-transform: uppercase; text-decoration: none;
+    padding: 9px 18px; border-radius: 4px; transition: all .2s; white-space: nowrap;
+  }
+  .nav-cta:hover { background: var(--purple); color: var(--bg); box-shadow: 0 0 20px var(--purple); }
+  @media (max-width: 720px) {
+    .logo-mark { font-size: 24px; }
+    .logo-sub { display: none; }
+    .nav-links { gap: 14px; }
+    header { padding: 16px 0; margin-bottom: 22px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <nav class="back" aria-label="Site" style="display:flex;gap:14px;flex-wrap:wrap"><a href="index.html" style="color:var(--text2)">← SORION</a><a href="index.html">Market</a><a href="portfolio.html">Portfolio</a><a href="rewards.html" style="color:var(--text)">Leaderboards</a></nav>
+  <header>
+    <a class="logo" href="index.html">
+      <div>
+        <div class="logo-mark">SORION<span class="logo-cursor">_</span></div>
+        <div class="logo-sub">// Market Intelligence</div>
+      </div>
+    </a>
+    <nav class="nav-links">
+      <a class="nav-link" href="index.html">Market</a>
+      <a class="nav-link active" href="rewards.html">Leaderboards</a>
+      <a class="nav-link" href="portfolio.html">Portfolio</a>
+      <a class="nav-link" href="https://craftlog.pro">Craft_LOG</a>
+      <button class="nav-support" type="button" onclick="openSupport()" title="Support SORION">☕ Support</button>
+      <a class="nav-cta" href="profile.html" id="btn-profile">◉ Profile</a>
+    </nav>
+  </header>
   <h1>Leaderboards</h1>
   <div class="sub">// what score gets you paid — season 26/27, every closed gameweek</div>
 
@@ -333,7 +423,34 @@
     }
   })();
 </script>
+
+<script>
+  // Kopf-Knopf zeigt den eigenen Managernamen, sobald er verknuepft ist.
+  // 'sorion_own' ist der EIGENE Manager, nicht der zuletzt angesehene (BUG-014).
+  (async () => {
+    const b = document.getElementById('btn-profile');
+    if (!b) return;
+    const paint = s => {
+      b.textContent = s ? '◉ ' + String(s).toUpperCase() : '◉ Profile';
+      b.href = s ? 'portfolio.html?manager=' + encodeURIComponent(s) : 'profile.html';
+    };
+    paint(localStorage.getItem('sorion_own'));
+    let session = null;
+    try { session = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
+    if (!session?.access_token) return;
+    try {
+      const H = { 'apikey': KEY, 'Authorization': 'Bearer ' + session.access_token };
+      const me = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co' + '/auth/v1/user', { headers: H });
+      if (!me.ok) return;
+      const id = (await me.json()).id;
+      const pr = await fetch('https://jxhdlcpdupmkpsoytzes.supabase.co' + '/rest/v1/profiles?user_id=eq.' + id + '&select=sorare_slug', { headers: H });
+      const slug = pr.ok ? (await pr.json())?.[0]?.sorare_slug : null;
+      if (slug) { localStorage.setItem('sorion_own', String(slug).toLowerCase()); paint(slug); }
+    } catch {}
+  })();
+</script>
 <script src="discord.js" defer></script>
+<script src="support.js" defer></script>
 <script src="a11y.js" defer></script>
 </body>
 </html>
