@@ -795,6 +795,13 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   oeffentlich lesbar; `leaderboard_thresholds()` um `cash_cost`/`essence_cost` erweitert),
   Sync `tools/sync-lineup-costs.mjs` (idempotent, ueberspringt fertige Leaderboards).
   Aufruf: `railway run -s "Updater Limited" node tools/sync-lineup-costs.mjs`.
+- **Gratis-Kostprobe (07.09., Ansage Jonas):** EIN Wettbewerb zeigt Cash-Schwelle und
+  Cash-Team offen, damit man das Feature beurteilen kann. Gesetzt ist der teuerste:
+  `feature_access.preview_value = 'English League Players'` (Migration
+  `2026-09-07_cash_preview_competition.sql`). Wechseln oder abschalten ohne Deploy:
+  `update feature_access set preview_value = '<Wettbewerb>' | null where feature_key = 'leaderboard_cash';`
+  `cash_locked` kommt seither JE ZEILE, die Seite blurrt zeilenweise. Der alte Rueckfall
+  der Seite auf die Tabelle `reward_thresholds` ist entfernt: nur die RPC kennt das Gate.
 - **Gate (Details: Abschnitt PRO-FEATURES):** Die CASH-Kosten haengen am selben Schalter wie die Cash-Schwelle
   (`leaderboard_cash`), Essence-Kosten sind frei. Umstellen ohne Deploy ueber
   `feature_access`.
