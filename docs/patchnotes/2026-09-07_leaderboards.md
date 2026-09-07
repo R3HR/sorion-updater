@@ -15,11 +15,11 @@ Two things to keep in mind. All Star and Under 23 are played with seven cards, e
 **◆ Pro**
 The **cash** columns, meaning the points you need for money and what those squads cost, are a Pro feature. Sorion runs on real servers and a real data pipeline, and Pro is what keeps that going without ads and without selling your data.
 
-**Free for a month, on us.** Redeem this in your profile under *Gutschein einlösen*:
+**Free for a month, on us.** Redeem this in your profile under *Redeem a code*:
 
 > `SORION-PRO-DISCORD`
 
-That unlocks Pro for 30 days from the moment you redeem it. No card, no subscription, nothing to cancel. If it turns out useful, you will know by then. If not, you have lost nothing.
+That unlocks Pro for 30 days from the moment you redeem it, for the first 50 of you. No card, no subscription, nothing to cancel. If it turns out useful, you will know by then. If not, you have lost nothing.
 
 Everything else on the page stays free, permanently: essence thresholds, squad costs for essence, paid ranks, top scores, lineup counts.
 
