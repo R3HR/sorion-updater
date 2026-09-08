@@ -900,7 +900,8 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 
 **Schema am 07.09.2026 neu gezogen** (`Invoke-WebRequest https://api.sorare.com/graphql/schema -OutFile
-C:\craft-logeference\schema.graphql`, Sicherung `.bak`). Das alte war Monate alt und kannte
+C:\craft-log
+eference\schema.graphql`, Sicherung `.bak`). Das alte war Monate alt und kannte
 Felder, die es nicht mehr gibt (`football.players(slugs:)`), und die neuen noch nicht. **Bei jedem
 "Feld existiert nicht" zuerst das Schema erneuern, nicht raten.**
 
@@ -921,6 +922,14 @@ Felder, die es nicht mehr gibt (`football.players(slugs:)`), und die neuen noch 
   die Karte ist nicht zu haben, egal was unser FMV sagt (BUG-041).
 - Mehrere `anyPlayer` in EINER Query lehnt Sorare ab ("Duplicated root field"), auch mit Aliassen.
   Also ein Aufruf je Spieler, oder ueber `football.club { activePlayers }` buendeln.
+
+**Offen (Jonas 07.09., nach dem ersten echten Kauf ueber diese Werkzeuge):** Die Kauf-Empfehlung
+kennt das eigene Depot nicht. Jonas entschied sich gegen den erstplatzierten Tiknaz, weil er ihn
+bereits besitzt UND in einer anderen Aufstellung dieses Spieltags einsetzt: **eine Karte zaehlt
+nur in EINER Aufstellung je Gameweek.** Naechster Ausbau von `pick-player.mjs`: mit dem
+OAuth-Token des Managers `hasSo5LineupForFixture(so5FixtureSlug:)` je Spieler abfragen und
+bereits aufgestellte Karten ausschliessen, besessene Karten als solche markieren
+(Depot steht in `manager_cards`). Damit wird aus der Kaufempfehlung eine Kaderplanung.
 
 **Werkzeuge dazu:** `tools/pick-player.mjs` (bester Kauf im Budget fuer einen Spieltag),
 `tools/cheapest-reliable-lineup.mjs` (billigste Elf, die im Rueckblick verlaesslich Cash holte),
