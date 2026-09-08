@@ -915,11 +915,18 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   weshalb die Cash-Team-Spalte leer blieb. Nach dem Fix: niedrigster Rang 1, 95 von 190
   Leaderboard-Wochen mit Cash-Kosten, 3.826 Cash-Aufstellungen (vorher 1.662).
 - **Cron:** `railway-rewards.toml` fuehrt BEIDE Sync-Schritte nacheinander aus
-  (`sync-reward-thresholds && sync-lineup-costs`, taeglich 09:00 UTC). Reihenfolge ist
-  zwingend: die Kosten brauchen die Preisgrenzen aus Schritt 1. **Offen: Jonas muss den
-  Railway-Dienst noch anlegen** (wie Club_Rosters, Repo-Root, Config-Pfad
-  /railway-rewards.toml) und dort SUPABASE_URL, SUPABASE_SERVICE_KEY UND **SORARE_APIKEY**
-  setzen — den Schluessel braucht nur Schritt 2, ohne ihn bricht er sauber ab.
+  (`sync-reward-thresholds && sync-lineup-costs`). **Zeitplan seit 08.09.: Dienstag
+  und Freitag 21:00 Berliner Zeit** (Ansage Jonas), in der toml als `0 19 * * 2,5`.
+  **Zeitumstellung nicht vergessen:** Railway rechnet in UTC, ab 25.10.2026 (Winterzeit)
+  muss der Wert auf `0 20 * * 2,5`, sonst laeuft der Nachtrag eine Stunde zu frueh.
+  19:00 UTC liegt im Updater-Fenster 16-20 UTC; bei 429-Fehlern zuerst hier verschieben. Reihenfolge ist
+  zwingend: die Kosten brauchen die Preisgrenzen aus Schritt 1. **Stand 08.09.: Der Dienst
+  "Rewards" existiert und hat ALLE drei Variablen korrekt gesetzt (geprueft), aber der
+  Cron hat noch nie gefeuert, weil in den Diensteinstellungen der Config-as-code-Pfad
+  `/railway-rewards.toml` fehlt. Ohne ihn liest Railway die Datei gar nicht und der
+  Dienst hat schlicht keinen Zeitplan. Das ist die einzige offene Handaktion.**
+  Alternative ohne Datei: Zeitplan direkt in den Diensteinstellungen als `0 19 * * 2,5`
+  eintragen; dann gilt aber der Kommentar in der toml nicht mehr als Quelle der Wahrheit.
 - **Falle (06.09., gefixt):** Die "schon erledigt"-Pruefung las `lineup_costs` ohne
   Paginierung; PostgREST deckelt bei 1000 Zeilen, die Tabelle hat ueber 30.000. Der Cron
   haette dadurch taeglich die ganze Saison neu abgefragt (359 statt ~10 Aufrufe).
