@@ -933,13 +933,16 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   **Zeitumstellung nicht vergessen:** Railway rechnet in UTC, ab 25.10.2026 (Winterzeit)
   muss der Wert auf `0 20 * * 2,5`, sonst laeuft der Nachtrag eine Stunde zu frueh.
   19:00 UTC liegt im Updater-Fenster 16-20 UTC; bei 429-Fehlern zuerst hier verschieben. Reihenfolge ist
-  zwingend: die Kosten brauchen die Preisgrenzen aus Schritt 1. **Stand 08.09.: Der Dienst
-  "Rewards" existiert und hat ALLE drei Variablen korrekt gesetzt (geprueft), aber der
-  Cron hat noch nie gefeuert, weil in den Diensteinstellungen der Config-as-code-Pfad
-  `/railway-rewards.toml` fehlt. Ohne ihn liest Railway die Datei gar nicht und der
-  Dienst hat schlicht keinen Zeitplan. Das ist die einzige offene Handaktion.**
-  Alternative ohne Datei: Zeitplan direkt in den Diensteinstellungen als `0 19 * * 2,5`
-  eintragen; dann gilt aber der Kommentar in der toml nicht mehr als Quelle der Wahrheit.
+  zwingend: die Kosten brauchen die Preisgrenzen aus Schritt 1. **Stand 08.09.: ERLEDIGT, aber anders als geplant.**
+  Der Config-Pfad liess sich nicht nachtragen: Railway hat Config-as-code abgekuendigt
+  (INC-008). "Rewards" laeuft deshalb NICHT ueber `railway-rewards.toml`, sondern ueber die
+  Diensteinstellungen direkt, gesetzt per `railway api` / `serviceInstanceUpdate`:
+  `cronSchedule = "0 19 * * 2,5"`, `startCommand = "node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs"`,
+  `restartPolicyType = NEVER`. Redeploy SUCCESS, erster echter Lauf Freitag 19:00 UTC.
+  **Folge fuer die toml:** Sie bleibt als lesbare Dokumentation (Begruendung, Zeitzonen-Hinweis),
+  ist aber fuer diesen Dienst NICHT mehr wirksam. Aenderungen am Zeitplan muessen dort UND
+  in den Diensteinstellungen nachgezogen werden, sonst laufen die beiden auseinander.
+  **Offen (INC-008):** Die fuenf uebrigen Dienste haengen weiter an `.toml`-Dateien.
 - **Falle (06.09., gefixt):** Die "schon erledigt"-Pruefung las `lineup_costs` ohne
   Paginierung; PostgREST deckelt bei 1000 Zeilen, die Tabelle hat ueber 30.000. Der Cron
   haette dadurch taeglich die ganze Saison neu abgefragt (359 statt ~10 Aufrufe).

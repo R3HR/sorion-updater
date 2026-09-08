@@ -1,0 +1,285 @@
+[
+  {
+    "slug": "english-2nd-division-limited",
+    "display_name": "English 2nd Division Players – Limited",
+    "sorare_leaderboard_slug": null,
+    "season": "26/27",
+    "cadence": "weekly",
+    "rarity_rule": {
+      "main": "limited",
+      "allowed": [
+        "limited",
+        "rare",
+        "super_rare",
+        "unique"
+      ],
+      "must_have": null,
+      "note": "5x Limited, höhere Seltenheiten erlaubt; Common: todo (im Screenshot nicht genannt)"
+    },
+    "positions": [
+      "GK",
+      "DEF",
+      "MID",
+      "FWD",
+      "EXTRA"
+    ],
+    "bench": {
+      "field": 1,
+      "gk": 1,
+      "note": "+2 Ersatzspieler: 1 Feld, 1 Torwart"
+    },
+    "captain": {
+      "allowed": true,
+      "multiplier": 1.5,
+      "note": "Kartenbewertung um 50 % erhöht"
+    },
+    "filters": {
+      "max_age": null,
+      "leagues": [
+        "english-second-division"
+      ],
+      "regions": [],
+      "in_season": {
+        "min_cards": 4
+      },
+      "other": "Zugelassene Spieler von English Second Division"
+    },
+    "cap": {
+      "type": "L10",
+      "limit": 260,
+      "hard": false,
+      "note": "Cap-Wert je Karte = Ø-Bewertung der letzten 10 Spiele (L10); Summe der 5 Startspieler ≤ 260 → +4 % Aufstellungsbonus, kein Ausschluss (Jonas 04.09.). Ob Ersatzspieler/Kapitänsbonus mitzählen: todo",
+      "verified": "2026-09-04"
+    },
+    "lineup_bonus": {
+      "max_pct": 6,
+      "components": [
+        {
+          "name": "multi_club",
+          "pct": 2,
+          "condition": "max. 2 Spieler vom selben Club in der Aufstellung (Jonas 04.09.)",
+          "verified": "2026-09-04"
+        },
+        {
+          "name": "cap_260",
+          "pct": 4,
+          "condition": "Summe L10-Ø der Startspieler ≤ 260",
+          "verified": "2026-09-04"
+        }
+      ]
+    },
+    "lineup_limit": "todo",
+    "prize_tiers": [
+      {
+        "rank_from": 1,
+        "rank_to": 1,
+        "rewards": [
+          {
+            "type": "cash",
+            "currency": "USD",
+            "amount": 800
+          }
+        ]
+      },
+      {
+        "rank_from": 2,
+        "rank_to": 2,
+        "rewards": [
+          {
+            "type": "cash",
+            "currency": "USD",
+            "amount": 400
+          }
+        ]
+      },
+      {
+        "rank_from": 3,
+        "rank_to": 3,
+        "rewards": [
+          {
+            "type": "cash",
+            "currency": "USD",
+            "amount": 200
+          }
+        ]
+      },
+      {
+        "rank_from": 4,
+        "rank_to": 4,
+        "rewards": [
+          {
+            "type": "cash",
+            "currency": "USD",
+            "amount": 100
+          }
+        ]
+      },
+      {
+        "rank_from": 5,
+        "rank_to": 5,
+        "rewards": [
+          {
+            "type": "cash",
+            "currency": "USD",
+            "amount": 50
+          }
+        ]
+      },
+      {
+        "rank_from": 6,
+        "rank_to": 10,
+        "rewards": [
+          {
+            "type": "cash",
+            "currency": "USD",
+            "amount": 25
+          }
+        ]
+      },
+      {
+        "rank_from": 11,
+        "rank_to": 25,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 5000,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 26,
+        "rank_to": 50,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 3000,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 51,
+        "rank_to": 100,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 2000,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 101,
+        "rank_to": 225,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 1500,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 226,
+        "rank_to": 400,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 1000,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 401,
+        "rank_to": 700,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 500,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 701,
+        "rank_to": 1500,
+        "rewards": [
+          {
+            "type": "essence",
+            "rarity": "limited",
+            "qty": 250,
+            "icon": "gelb = Limited-Essence (Umkehrschluss aus Jonas' XP-Angabe; todo endgültig bestätigen)"
+          }
+        ]
+      },
+      {
+        "rank_from": 1501,
+        "rank_to": 2000,
+        "rewards": [
+          {
+            "type": "xp",
+            "qty": 1000,
+            "icon": "bronze/dunkelgold = XP (Jonas 04.09.); Rarity der XP: Annahme limited, todo",
+            "rarity": "limited"
+          }
+        ]
+      },
+      {
+        "rank_from": 2001,
+        "rank_to": 2500,
+        "rewards": [
+          {
+            "type": "xp",
+            "qty": 500,
+            "icon": "bronze/dunkelgold = XP (Jonas 04.09.); Rarity der XP: Annahme limited, todo",
+            "rarity": "limited"
+          }
+        ]
+      }
+    ],
+    "bonus_rules": "",
+    "source": [
+      "screenshots/2026-09-04_english-2nd-division_limited_rules.png (GW12)",
+      "screenshots/2026-09-04_english-2nd-division_limited_prizes.png (GW12)",
+      "screenshots/2026-09-04_english-2nd-division_limited_prizes_gw11_a.png",
+      "screenshots/2026-09-04_english-2nd-division_limited_prizes_gw11_b.png"
+    ],
+    "captured_at": "2026-09-04",
+    "verified": null,
+    "notes": "Erster Eintrag; Schema-Ergänzungen gegenüber README: bench, lineup_bonus, cap.hard, season, captured_at",
+    "history": [],
+    "prize_tier_type": "rank",
+    "eligible_cards_jonas": {
+      "GW12": "0/2/0/0",
+      "GW11": "0/0/0/0 (GW läuft — vermutlich bereits eingesetzte Karten nicht mehr gezählt)",
+      "note": "Bedeutung der vier Zähler todo"
+    },
+    "prize_tiers_note": "Liste endet bei Rang 2.500 (GW11-Screenshot vollständig). Preispool GW11 und GW12 identisch → vorerst als statisch je Wettbewerb behandeln, bei jeder GW stichprobenartig gegenprüfen.",
+    "participants": [
+      {
+        "gameweek": "GW12",
+        "captured_at": "2026-09-04",
+        "count": 114,
+        "note": "3 d 19 h vor Start — vorläufig; Endzahl nach GW-Ende nachtragen"
+      },
+      {
+        "gameweek": "GW11",
+        "captured_at": "2026-09-04",
+        "count": 3895,
+        "note": "GW läuft seit 04.09. — Teilnehmerzahl praktisch final. Screenshots *_prizes_gw11_a/b.png"
+      }
+    ],
+    "gameweeks_seen": {
+      "GW11": "Start 04.09.2026",
+      "GW12": "Start ~08.09.2026"
+    }
+  }
+]

@@ -499,3 +499,20 @@ FMV v3.5 nicht betroffen, weil dort gar nichts neu berechnet wird.
   - `anyFutureGameStats(first:) { ... on PlayerGameStats { footballPlayingStatusOdds } }` liefert die Startelf-Quote JE SPIEL, also auch unter der Woche.
   Kandidaten unter 40 % Startelf-Quote fliegen raus.
 - **Lektion:** Ich hatte `playingStatus` abgefragt und nicht ausgewertet. Ein Feld zu holen und im Ranking zu ignorieren ist schlimmer, als es nicht zu haben: Es erzeugt den Eindruck, der Punkt sei geprueft. **Vor jeder Empfehlung an Jonas: kann der Spieler ueberhaupt spielen, und ist die Karte ueberhaupt kaufbar?** Und: Ein veraltetes Schema fuehrt lautlos zu schlechteren Antworten, nicht zu Fehlern.
+
+## BUG-041 - "Deploy crashed" bei jedem Push: Dienst Rewards ohne Startbefehl (08.09.) - BEHOBEN
+
+- **Symptom (Jonas):** Railway meldete wiederholt "Deploy crashed". Ausgeloest wurde es von
+  jedem Push auf main, weil Railway dabei alle Dienste neu baut.
+- **Ursache:** Der Dienst "Rewards" hatte weder Config-Pfad noch Startbefehl, fiel auf
+  `npm start` zurueck und landete in `tools/no-start.mjs`, das bewusst mit Code 1 endet.
+  Der Config-Pfad liess sich nicht nachtragen, weil Railway Config-as-code abgekuendigt hat
+  (Details und Tragweite: INC-008).
+- **Fix:** Zeitplan und Startbefehl direkt am Dienst gesetzt statt ueber die Datei
+  (`railway api`, `serviceInstanceUpdate`): `0 19 * * 2,5` und
+  `node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs`, Restart NEVER.
+- **Verifikation:** Redeploy-Status SUCCESS statt CRASHED; der Container startet nicht mehr
+  sofort, sondern wartet auf den Cron. Erster echter Lauf: Freitag 19:00 UTC.
+- **Lektion:** `no-start.mjs` mit Exit 1 war als sichtbarer Hinweis gedacht und hat genau das
+  geleistet. Der Fehler lag nicht im Exit-Code, sondern darin, dass die fehlende Einstellung
+  zwei Tage als Handaktion abgelegt war, statt sie beim ersten Fehlschlag zu pruefen.

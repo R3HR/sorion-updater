@@ -176,3 +176,34 @@
 - **Kritisch:** `price_history` ist NICHT rekonstruierbar (Sorare liefert nur letzte 20 Sales) — nach einer Lücke ist die Historie für immer weg.
 - **Abfederung:** (1) DB-Backups automatisieren — wichtigste Einzelmaßnahme; (2) offiziellen API-Key beantragen (HANDOFF TODO #8) = registrierter statt anonymer Nutzer; (3) Rate-Limits respektieren (Delays/Backoff seit 2026-07-06 drin); (4) Plan B: API-Calls über User-OAuth-Tokens der eigenen Nutzer verteilen (CraftLog-Flow ausbaubar).
 - **Status:** 🟡 dauerhaftes Restrisiko — Backups + API-Key als nächste Schritte
+
+## INC-008 - Railway kuendigt Config-as-code ab: fuenf Dienste haengen an einem toten Mechanismus (08.09.2026) 🟡 OFFEN
+
+- **Anlass:** Jonas meldete "Deploy crashed" fuer den Dienst "Rewards". Der Dienst hatte keinen
+  Config-Pfad, fiel deshalb auf `npm start` zurueck (`tools/no-start.mjs`, beendet mit Code 1)
+  und crashte bei jedem Push auf main erneut.
+- **Eigentlicher Befund beim Fix:** Der Versuch, den Pfad ueber die Railway-API zu setzen, wird
+  abgelehnt: *"Config as Code (railway.json / railway.toml) is deprecated. Use Infrastructure as
+  Code (.railway/railway.ts) instead."* Neue Zuweisungen sind gesperrt, bestehende laufen weiter.
+  Deshalb liess sich der Dienst seit dem 07.09. nicht einrichten, weder von Jonas in der
+  Oberflaeche noch per API.
+- **Tragweite (geprueft ueber die Projekt-API):** FUENF Dienste haengen an `.toml`-Dateien:
+  Updater Limited (/railway-limited.toml), Update Rare (/railway-rare.toml),
+  Updater SR (/railway-sr.toml), Club_Rosters (/railway-rosters.toml),
+  sorion-updater (/railway-seed.toml). Bei drei davon steht der Startbefehl NUR in der toml
+  (startCommand am Dienst ist leer). Schaltet Railway den Mechanismus ab, fallen die drei
+  Updater und der Kader-Abgleich gleichzeitig aus und laufen in denselben `no-start`-Crash.
+  Das trifft die FMV-Pipeline, also den Kern der Seite.
+- **Sofortmassnahme (erledigt):** "Rewards" laeuft nicht mehr ueber die Datei, sondern ueber die
+  Diensteinstellungen direkt (per `railway api`, `serviceInstanceUpdate`):
+  `cronSchedule = "0 19 * * 2,5"`, `startCommand = "node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs"`,
+  `restartPolicyType = NEVER`. Redeploy danach SUCCESS, der Dienst wartet jetzt auf den Cron
+  statt sofort zu starten.
+- **Offen:** Die fuenf uebrigen Dienste auf denselben Weg umstellen (Einstellungen direkt) oder
+  auf `.railway/railway.ts` migrieren. Solange das nicht passiert, haengt die Datenpipeline an
+  einem Mechanismus, den der Anbieter selbst als abgekuendigt bezeichnet. Die `railway-*.toml`
+  im Repo bleiben bis dahin die lesbare Quelle der Wahrheit, sind aber fuer NEUE Dienste
+  wirkungslos.
+- **Lektion:** Ein Dienst, der bei jedem Push crasht, war zwei Tage lang als "Jonas muss noch
+  einen Haken setzen" abgelegt. Der Haken existierte nicht mehr. Wenn eine Handaktion zweimal
+  nicht klappt, ist die Annahme ueber den Mechanismus zu pruefen, nicht die Erinnerung an ihn.
