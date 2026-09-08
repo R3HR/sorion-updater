@@ -6,22 +6,29 @@ nur noch ein Link auf die Tabelle. Der Gutschein-Hinweis steht jetzt auf der Sei
 Neu: die Tabelle wird Spieltag fuer Spieltag gepflegt.
 Regel 4 von r/Sorare beachten, Bewertung in 2026-09-08_reddit_regel4.md.
 
-## Titel (empfohlen)
+## Titel (empfohlen, Korrektur Jonas 08.09.)
 
-What it actually took to finish in the money this season, for all 17 competitions
+What it costs to win on the leaderboards, for all 17 competitions
+
+Der alte Titel ("finish in the money") versprach CASH, der frei sichtbare Teil der Tabelle
+ist aber Essence. Wer daraufhin geblurrte Spalten sieht, fuehlt sich verschaukelt. Titel und
+Einstieg zielen jetzt auf das, was der Post wirklich beantwortet.
 
 ## Alternativen
 
-2. A Limited essence squad costs 14 EUR in the J1 League and 120 EUR in LALIGA. Here is the full table
-3. How many points you need for cash or essence, and what that squad costs, gameweek by gameweek
+2. A squad that wins on the leaderboards costs 14 EUR in the J1 League and 120 EUR in LALIGA
+3. What it costs to win on the leaderboards, gameweek by gameweek, for all 17 competitions
 
 ## Body
 
-I got tired of guessing how many points I actually needed to finish in the money, so I went
-through the reward tiers of every closed gameweek this season and wrote down the exact score
-of the last manager who still got paid. Then I priced the squads that finished in those ranks.
+I got tired of guessing what it actually takes to win something on a leaderboard, so I went
+through every closed gameweek this season, wrote down the score of the last manager who still
+got a reward, and priced the squads that finished in those ranks.
 
-Disclosure: the table is on my own site. It is free to read and there is nothing to buy.
+Two numbers per competition, then: how many points you need, and what the cards cost.
+
+Disclosure: the table is on my own site. It is free to read and there is nothing to buy. The
+cash thresholds are the one paid part, everything in this post comes from the free columns.
 
 **The thing that surprised me most.** The winter leagues are in a different price class
 entirely:
@@ -43,14 +50,15 @@ A Limited essence squad in the J1 League costs about what one mid table LALIGA c
 And those leagues keep playing through the European winter.
 
 **Rarity changes the whole proposition, not just the price.** In J1 League Rare, 125 of
-roughly 420 lineups get paid, so almost every third entry sees money, and the bottom cash
-tier pays 20 USD. In Limited the same league pays only the top 5 out of about 1,400 lineups.
-Same competition, same weekend, completely different bet.
+roughly 420 lineups finish in a paying rank, so almost every third entry gets something. In
+Limited the same league rewards a far narrower slice of a field three times the size. Same
+competition, same weekend, completely different bet. Paid ranks are in the table for every
+competition, and they are worth reading before you pick where to play.
 
 **What is in the table,** per competition and rarity:
 
-* the average score of the last manager who still got cash, and the same for essence,
-  with the range across gameweeks
+* the average score of the last manager who still got a reward, with the range across
+  gameweeks
 * how many ranks got paid
 * what a squad in those ranks costs to assemble at today's prices
 * top score, number of lineups, and how the cash threshold moved week to week
