@@ -914,6 +914,19 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   Rechnung fehlten in allen 178 Leaderboards die Raenge 1-50 — also genau die Cash-Gewinner,
   weshalb die Cash-Team-Spalte leer blieb. Nach dem Fix: niedrigster Rang 1, 95 von 190
   Leaderboard-Wochen mit Cash-Kosten, 3.826 Cash-Aufstellungen (vorher 1.662).
+- **Spieltags-Zustand (08.09., Migration `2026-09-08_fixture_state.sql`):** Sorare setzt
+  einen beendeten Spieltag erst auf `computed` und nach der Belohnungs-Ausschuettung
+  (gegen 20:00 Berliner Zeit, Angabe Jonas) auf `closed`. Die Scores stehen aber schon
+  im Zustand computed fest. Der Sync nimmt deshalb BEIDE Zustaende, markiert computed als
+  vorlaeufig (`reward_thresholds.fixture_state`) und holt solche Spieltage bei jedem Lauf
+  erneut, bis sie closed sind. Ohne das waere ein Abendlauf bei verzoegertem Payout leer
+  ausgegangen und der Spieltag haette drei Tage gefehlt. `sync-lineup-costs` rechnet
+  vorlaeufige Leaderboards ebenfalls neu, weil Score-Korrekturen die Raenge verschieben.
+- **Bekannte Unschaerfe:** Der Skip-Check in `sync-reward-thresholds` haelt einen Spieltag
+  ab 20 gespeicherten Zeilen fuer fertig. Kleine Spieltage (10 bis 15 Leaderboards) fallen
+  darunter und werden bei jedem Lauf neu geholt: kostet rund 80 zusaetzliche API-Calls je
+  Lauf, schadet sonst nicht. Sauber waere ein Abgleich gegen die tatsaechliche Anzahl
+  Leaderboards des Spieltags.
 - **Cron:** `railway-rewards.toml` fuehrt BEIDE Sync-Schritte nacheinander aus
   (`sync-reward-thresholds && sync-lineup-costs`). **Zeitplan seit 08.09.: Dienstag
   und Freitag 21:00 Berliner Zeit** (Ansage Jonas), in der toml als `0 19 * * 2,5`.

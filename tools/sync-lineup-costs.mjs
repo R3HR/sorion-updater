@@ -88,7 +88,7 @@ async function main() {
   console.log(`[${new Date().toISOString()}] Aufstellungs-Kosten${DRY ? ' (DRY)' : ''}, Saison ab ${SINCE}`);
 
   const { data: lbs, error } = await supabase.from('reward_thresholds')
-    .select('fixture_slug, leaderboard_slug, fixture_name, competition, rarity, cash_rank, essence_rank, lineups')
+    .select('fixture_slug, leaderboard_slug, fixture_name, competition, rarity, cash_rank, essence_rank, lineups, fixture_state')
     .gte('start_date', SINCE).order('start_date', { ascending: true });
   if (error) { console.error('reward_thresholds:', error.message); process.exit(1); }
   console.log(`${lbs.length} Leaderboard-Wochen dieser Saison`);
@@ -114,7 +114,9 @@ async function main() {
   const slugSet = new Set();
   let calls = 0;
   for (const lb of lbs) {
-    if (done.has(lb.fixture_slug + '|' + lb.leaderboard_slug)) continue;
+    // Vorlaeufige Spieltage (noch nicht "closed", Ausschuettung laeuft) neu rechnen:
+    // ihre Raenge koennen sich mit einer Score-Korrektur noch verschieben.
+    if (lb.fixture_state === 'closed' && done.has(lb.fixture_slug + '|' + lb.leaderboard_slug)) continue;
     const maxRank = lb.essence_rank || lb.cash_rank;
     if (!maxRank) continue;                       // Leaderboard ohne Geld/Essence
     // Spitzenfeld + die Seiten an den beiden Preisgrenzen

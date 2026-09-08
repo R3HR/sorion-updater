@@ -78,7 +78,12 @@ async function listSeasonFixtures() {
     const c = d?.so5?.so5Fixtures; if (!c) break;
     const now = new Date().toISOString();
     for (const f of c.nodes) {
-      if (f.startDate.slice(0, 10) >= SINCE && f.aasmState === 'closed') out.push(f);
+      // "closed" = Belohnungen ausgeschuettet, endgueltig. "computed" = Spieltag vorbei
+      // und alle Scores stehen, aber die Ausschuettung laeuft noch (bei Sorare gegen
+      // 20:00 Berliner Zeit). Beides wird uebernommen, computed aber als VORLAEUFIG
+      // markiert und beim naechsten Lauf erneut geholt. Sonst liefe ein Abendlauf
+      // an einem verzoegerten Payout vorbei und der Spieltag fehlte drei Tage lang.
+      if (f.startDate.slice(0, 10) >= SINCE && (f.aasmState === 'closed' || f.aasmState === 'computed')) out.push(f);
     }
     // Liste ist NEUESTE zuerst: sobald ein Spieltag vor SINCE auftaucht, sind wir durch
     if (!c.pageInfo.hasNextPage || c.nodes.some(f => f.startDate.slice(0, 10) < SINCE)) break;
@@ -131,14 +136,22 @@ async function main() {
 
   let done = new Set();
   if (!DRY && !FORCE) {
-    const { data } = await supabase.from('reward_thresholds').select('fixture_slug');
-    const counts = new Map(); for (const r of data ?? []) counts.set(r.fixture_slug, (counts.get(r.fixture_slug) || 0) + 1);
-    for (const [k, n] of counts) if (n >= 20) done.add(k);   // "vollstaendig genug"
+    // Nur ENDGUELTIG erfasste Spieltage gelten als fertig. Ein vorlaeufig (computed)
+    // erfasster wird erneut geholt, bis Sorare ihn schliesst: Scores werden gelegentlich
+    // nachkorrigiert, und die Korrektur soll bei uns ankommen.
+    const { data } = await supabase.from('reward_thresholds').select('fixture_slug, fixture_state');
+    const counts = new Map(), open = new Set();
+    for (const r of data ?? []) {
+      counts.set(r.fixture_slug, (counts.get(r.fixture_slug) || 0) + 1);
+      if (r.fixture_state !== 'closed') open.add(r.fixture_slug);
+    }
+    for (const [k, n] of counts) if (n >= 20 && !open.has(k)) done.add(k);
   }
 
   let rows = 0, calls = 0;
   for (const f of fixtures) {
-    if (done.has(f.slug)) { console.log(`  ${f.displayName}: bereits synchronisiert — uebersprungen`); continue; }
+    if (done.has(f.slug)) { console.log(`  ${f.displayName}: bereits synchronisiert, uebersprungen`); continue; }
+    if (f.aasmState !== 'closed') console.log(`  ${f.displayName}: noch ${f.aasmState}, wird vorlaeufig erfasst`);
     const lbs = await leaderboardsOf(f.slug); calls++;
     console.log(`  ${f.displayName}: ${lbs.length} Wettbewerbs-Leaderboards`);
     const batch = [];
@@ -147,7 +160,7 @@ async function main() {
       const t = await thresholdsOf(lb); calls++;
       if (!t) continue;
       batch.push({
-        fixture_slug: f.slug, leaderboard_slug: lb.slug,
+        fixture_slug: f.slug, leaderboard_slug: lb.slug, fixture_state: f.aasmState,
         game_week: f.gameWeek, season_game_week: f.seasonGameWeek, fixture_name: f.displayName,
         start_date: f.startDate.slice(0, 10),
         competition: compName(lb), rarity: lb.rarityType,
