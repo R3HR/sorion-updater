@@ -458,10 +458,10 @@
 - **Verifikation:** Tabelle von 190 auf 237 Leaderboard-Wochen und von 14 auf 17 Wettbewerbe gewachsen (MLS 15 Wochen, J1 League 14, K League 1 18). Kosten-Lauf: 4.550 Aufstellungen, 1.125 Spieler, 91 API-Calls, 80 % vollstaendig bepreist.
 - **Lektion:** Ausschlusslisten aus Slug-Bestandteilen bauen heisst raten. Jeder ausgeschlossene Marker gehoert einmal gegen die API geprueft (hat das Leaderboard Preisgeld und Rangstufen?), sonst verschwinden ganze Ligen lautlos. Zeichen dafuer war, dass Jonas die Luecke sah und nicht wir.
 
-## BUG-041 - super_rare in-season seit ~20 Tagen ohne Aktualisierung (07.09.) - OFFEN, manuelle Aktion
+## BUG-041 - super_rare in-season seit ~20 Tagen ohne Aktualisierung (08.09.) - OFFEN, manuelle Aktion
 
 **Symptom:** 5.225 Zeilen `card_prices` mit `scarcity = super_rare`, `eligibility = in_season`
-haben ein `updated_at` von rund 19,8 Tagen (Stand 07.09., 14:45 Berlin). Die FMV dieser
+haben ein `updated_at` von rund 19,8 Tagen (Stand 08.09., 13:45 Berlin). Die FMV dieser
 Karten sind eingefroren. super_rare **classic** (3.325 Zeilen) ist dagegen frisch
 (100 % innerhalb 24 h), ebenso limited und rare in beiden Auspraegungen.
 

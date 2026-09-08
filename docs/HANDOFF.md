@@ -203,6 +203,9 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 - **Befund 05.09. "Der Bot stand" - war Sorares API:** Cron und Function liefen luckenlos (pg_cron `succeeded`, HTTP 200 `ok:true` um 07:00, 07:10, 07:20, 07:30 UTC). Die Antworten enthielten aber **nur das alte Board** (R27-R30); das neue Board (Ziel 700) tauchte in `currentUser.boards(mode: SQUAD, ...)` erst um **07:40 UTC = 09:40 Berlin** auf - mit da schon 3 Aufstellungen. Die App zeigt ein neues Wochen-Board also frueher als die API. **Gemessene Wechselzeiten** (erstes Sehen des neuen Boards durch den 10-min-Cron, Berlin): 24.08. **09:10**, 29.08. **10:20**, 05.09. **09:40** - unregelmaessig, immer nach 09:00. `endDate` ist an allen Boards null, ein Cutover-Zeitpunkt ist nicht ablesbar. `nextMatchdayAt` (= 09:00 Berlin) gilt nur fuer Stages INNERHALB eines Boards; die sind als LOCKED-Steps schon vorher sichtbar und werden puenktlich erfasst. Betroffen ist ausschliesslich der Board-Wechsel nach einer verlorenen Stage. Folge: In diesem Fenster ist `first_seen` fuer alle bis dahin gesetzten Aufstellungen identisch - die Reihenfolge fuer den Cap-Streit ist dann nicht bestimmbar, es entscheidet faktisch der Bonus. Naechste Beobachtung 12.09. Beleg abrufbar ueber die neue Action **`cron_runs`** (pg_cron-Laeufe + pg_net-Antworten inkl. Body, ~6 h Vorhalt; RPCs `squad_cron_runs`, `squad_http_responses`, `squad_cron_jobs`).
 - **pg_net-Timeout 5 s -> 30 s (05.09.):** Die Function braucht 4-7 s; am 05.09. 07:40 UTC lief der Cron-Aufruf in den 5-s-Timeout (Function lief trotzdem zu Ende, darauf ist aber kein Verlass). Beide Jobs per `cron.alter_job` auf `timeout_milliseconds := 30000`, verifiziert.
 - **✅ Slug-Aliase (05.09., BUG-039):** Jonas hat sich bei Sorare umbenannt (JR3HR -> R3HR), Sorare vergab einen neuen Slug, der Bot sah einen elften Manager und zaehlte seine Spieler doppelt fuer den Cap. Jetzt `squad_slug_aliases` + Kanonisierung an der Eingangstuer. **Kanon ist auf Wunsch von Jonas `r3hr`** (Migration 20260905123000 zog alle Tabellen inkl. Notification-Schluessel um); `jr3hr` in aelteren Eintraegen = derselbe Manager. **Ablauf bei jeder Umbenennung:** Alias eintragen, `purge_manager all_steps`, Poll.
+- **✅ Neues Set geprueft (08.09.):** Alle 14 Actions laufen fehlerfrei am neuen Board (…c60874bcba98). Unveraendert: Board-Struktur (5 Stages, Ziele 700/980/1060/1140/1280), Cap 4, Kapitaenszuschlag +0.5 (an drei Karten nachgerechnet), Fristenlogik. Die Board-Abfrage ist **unabhaengig vom `rarity`-Parameter** - jeder Wert liefert dasselbe eine Board, das alte `rarity: limited` schadet also nicht.
+- **⚠️ Bonus-Spanne kollabiert (neues Set):** Gespielt wird jetzt mit **common**-Karten (vorher limited). Boni liegen bei **1-5 %** statt 5-70 %, Ausreisser nur ueber Skins (HOLO 23 %, Full Art 34 %). Laut `bonus_report` kommt praktisch der gesamte Bonus aus `collectionBasisPoints`. (Nicht wegen XP - Commons haben nie XP, Anmerkung Jonas.) **Folge:** Bonus-Gleichstaende sind der Normalfall - bei 7 von 10 Aufstellungen hatten bereits 4 von 7 mehrfach gesetzten Spielern identische Boni. Damit entscheidet fast jeden Cap-Streit die **Leaderboard-Position** (Regel 6.2), nicht mehr die Kartenqualitaet.
+- **❓ Offen, dringend:** Laeuft der Saisonstand ueber das neue Set weiter (aktuell 32 Runden, ParisBoemboem 238 P) oder wird geschnitten? Wegen der vielen Gleichstaende entscheidet der Tie-Break jetzt fast jeden Cap-Fall - mit Punkten aus dem alten Set waere das falsch. Ausserdem ist `_squad_snapshots\Rules New Set.txt` weiterhin **leer** (0 Byte): Aendern sich Cap-Hoehe, Strafen oder Blockregel mit dem neuen Set, arbeitet der Bot weiter nach dem alten Regelwerk.
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
 
 ## 🔴 AKUT (25.08.): DB-Totalausfall Nr. 2 — siehe [INCIDENTS.md](INCIDENTS.md) INC-006
@@ -266,7 +269,7 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
-## 🟡 FMV v3.5 GEBAUT, NOCH NICHT GEPUSHT (07.09.2026) — nur Manager-Verkäufe
+## 🟡 FMV v3.5 GEBAUT, NOCH NICHT GEPUSHT (08.09.2026) — nur Manager-Verkäufe
 
 **Vorgabe Jonas (bindend, zweimal bestätigt):** Auktion (`TokenAuction`) und Sofortkauf
 (`TokenPrimaryOffer`) sind KEINE Marktpreise. Auf beiden Sorare-Märkten gelten Gutscheine
@@ -304,12 +307,14 @@ niedrig, was die Begründung der Vorgabe bestätigt — die Sorare-Märkte zogen
 Manager-Daten, kein Wert ohne Manager-Verkäufe, Deckel greift weiter bei einzelnem oder
 altem Verkauf, Absicherung ohne `deal`-Feld).
 
-**Änderungssperre:** Es braucht **keine neue Migration**, WENN der Push heute vor 22:00 UTC
-erfolgt. v3.4 lief nur wenige Stunden und hat nie einen eigenen Tages-Snapshot erzeugt: die
-Updater sind Cron-Jobs (22:00–05:00 UTC), der letzte Lauf endete am 07.09. gegen 05:00 UTC
-noch mit v3.3. Die bereits gesetzte Kante **08.09.** trennt damit v3.3 von v3.5.
-**Erfolgt der Push später, muss eine Kante auf den ersten Snapshot mit v3.5-Werten gesetzt
-werden** (Vorlage: `migrations/2026-09-07_fmv_v34_change_guard.sql`).
+**Änderungssperre:** `migrations/2026-09-08_fmv_v35_change_guard.sql` (Kante **09.09.**,
+vierte nach 22.08., 26.08., 08.09.) liegt bereit und ist **noch nicht ausgeführt** — sie
+gehört unmittelbar VOR den Push. Grund für den 09.09.: die Updater sind Cron-Jobs
+(22:00–05:00 UTC), der Snapshot vom 08.09. entstand um 05:30 UTC und trägt bereits
+v3.4-Werte. Erst der Snapshot vom 09.09. enthält v3.5. **Wird später gepusht, muss das
+Datum in der Migration mitwandern**, sonst vergleicht der Chip v3.4 gegen v3.5.
+(Erste Fassung dieses Abschnitts nahm an, es sei noch der 07.09., und hielt eine neue
+Migration für entbehrlich — falsch, die Sitzung hatte Mitternacht überschritten.)
 
 **Zykluszeiten (gemessen 07.09.):** in-season limited/rare laufen täglich vollständig durch
 (100 % in 24 h). Classic braucht ~4–5 Tage (41 % in 48 h) — dort schmiert die Umstellung über
@@ -568,6 +573,7 @@ die Checkliste weiter unten.
 | Feature-Key | Was | Stufe | Wo |
 |---|---|---|---|
 | `leaderboard_cash` | Cash-Punkteschwelle UND Cash-Team-Kosten auf der Leaderboards-Seite | `pro` | rewards.html |
+| `portfolio_earnings` | "Earned in lineups": Gesamt-Kachel UND Ertrag je Karte im Modal | `pro` | portfolio.html |
 
 Frei bleiben dort bewusst: Essence-Schwelle, Essence-Team-Kosten, bezahlte Raenge, Top-Score,
 Lineup-Zahlen. Grund: Die Seite muss ohne Konto genug zeigen, um ueberhaupt zu ueberzeugen.
@@ -676,6 +682,34 @@ curl -X POST ".../rest/v1/rpc/has_feature" -d '{"p_feature":"leaderboard_cash"}'
 curl -X POST ".../rest/v1/rpc/set_user_tier" ... / set_my_tier / redeem_code / set_creator_key   # alle 401
 ```
 Stand 06.09.: alle Punkte geprueft und bestanden.
+
+### `portfolio_earnings` (08.09.2026) — was die Sperre kann und was nicht
+
+Migration `2026-09-08_portfolio_earnings_pro.sql`. Betroffen sind die zwei Kästen in
+portfolio.html: die Statistik-Kachel mit der Gesamtsumme und der Block "EARNED IN LINEUPS"
+im Karten-Modal.
+
+- **Tor:** `so5_earnings_by_card(p_manager)` liefert ohne `has_feature('portfolio_earnings')`
+  **keine Zeilen** (Rueckgabetyp unveraendert, deshalb kein 42P13).
+- **Tabellen gesperrt:** `so5_card_earnings` und `so5_lineups` — Policies entfernt, `select`
+  fuer anon/authenticated entzogen. Die Edge Function `so5-results` nutzt den Service-Key
+  und ist NICHT betroffen; die Gameweek-Seite laeuft unveraendert weiter (am 08.09. geprueft).
+- **`so5_known_fixtures` bleibt offen:** nennt nur erfasste Spieltage, keine Betraege.
+- **Frontend:** `rpcAuth()` schickt ein gueltiges Sitzungs-Token und erneuert es notfalls.
+  **Ohne das saehe ein zahlendes Pro-Konto nichts**, weil `has_feature()` ohne Anmeldung
+  immer false ist — `rpcJson()` hatte nie ein Token geschickt. Bei gesperrtem Zugang laedt
+  die Seite die Spieltage gar nicht erst nach (spart ~100 Aufrufe am API-Kontingent).
+
+**Ehrliche Grenze, bitte kennen:** Geschützt ist die fertige Lebenszeit-Auswertung, nicht
+das Rohmaterial. Die Gewinne je Spieler einer EINZELNEN Aufstellung bleiben über
+`so5-results` frei, weil die Gameweek-Seite genau das anzeigt. Wer alle ~119 Spieltage
+einzeln abruft, kann die Summe selbst bilden. Das dichtzumachen hiesse, den Manager-Modus
+von `so5-results` ebenfalls zu sperren — und damit die freie Gameweek-Ansicht zu treffen.
+**Entscheidung Jonas, offen.**
+
+**Noch nicht geprueft:** die Ansicht MIT Pro-Stufe. Das geht nur eingeloggt — im Profil den
+Creator-Schalter auf `pro` stellen, Portfolio neu laden: beide Kästen müssen echte Zahlen
+zeigen. Danach Schalter aus, Seite neu laden: beide zeigen Platzhalter mit Schloss.
 
 ### Offen
 
