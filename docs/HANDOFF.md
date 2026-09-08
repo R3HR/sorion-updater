@@ -937,6 +937,14 @@ Richtig ist eine Bestandsrechnung je Spieler und Spieltag:
 Ist das Ergebnis groesser null, braucht Jonas nichts zu kaufen. Ist es null, ist ein Kauf noetig,
 auch wenn er den Spieler bereits besitzt.
 
+**Zielgroesse ist nicht nur der Erwartungswert (Ansage Jonas 07.09.):** Jonas kaufte bewusst
+Edelman statt eines zweiten Tiknaz, "um ausreichend zu diversifizieren". Mehrere Aufstellungen
+mit derselben Karte sind korrelierte Wetten: Ein schwacher Tag dieses Spielers trifft alle
+gleichzeitig, und genau die Wochen, in denen man knapp an der Schwelle scheitert, sind dann
+gehaeuft. **Empfehlungen also nie allein nach erwarteten Punkten sortieren, sondern die
+Streuung ueber Spieler, Vereine und Anstosszeiten mitfuehren** und bei praktisch gleichwertigen
+Kandidaten den waehlen, der die Ueberschneidung mit den bestehenden Aufstellungen verringert.
+
 Naechster Ausbau von `pick-player.mjs`: Depot aus `manager_cards` je Spieler zaehlen, die im
 Zielspieltag gebundenen Karten mit dem OAuth-Token des Managers abziehen
 (`hasSo5LineupForFixture(so5FixtureSlug:)` sagt nur ja/nein je Spieler und reicht dafuer NICHT,
