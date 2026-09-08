@@ -925,11 +925,23 @@ Felder, die es nicht mehr gibt (`football.players(slugs:)`), und die neuen noch 
 
 **Offen (Jonas 07.09., nach dem ersten echten Kauf ueber diese Werkzeuge):** Die Kauf-Empfehlung
 kennt das eigene Depot nicht. Jonas entschied sich gegen den erstplatzierten Tiknaz, weil er ihn
-bereits besitzt UND in einer anderen Aufstellung dieses Spieltags einsetzt: **eine Karte zaehlt
-nur in EINER Aufstellung je Gameweek.** Naechster Ausbau von `pick-player.mjs`: mit dem
-OAuth-Token des Managers `hasSo5LineupForFixture(so5FixtureSlug:)` je Spieler abfragen und
-bereits aufgestellte Karten ausschliessen, besessene Karten als solche markieren
-(Depot steht in `manager_cards`). Damit wird aus der Kaufempfehlung eine Kaderplanung.
+bereits besitzt und in einer anderen Aufstellung dieses Spieltags einsetzt.
+
+**Die Regel dahinter, praezise (Korrektur Jonas 07.09.): gebunden ist die KARTE, nicht der
+SPIELER.** Wer fuenf Karten desselben Spielers besitzt, kann ihn in fuenf Aufstellungen
+einsetzen. Ein Spieler darf also NICHT ausgeschlossen werden, nur weil er schon irgendwo steht.
+Richtig ist eine Bestandsrechnung je Spieler und Spieltag:
+
+    freie Exemplare = besessene Karten (passende Rarity/Eligibility) - bereits aufgestellte Karten
+
+Ist das Ergebnis groesser null, braucht Jonas nichts zu kaufen. Ist es null, ist ein Kauf noetig,
+auch wenn er den Spieler bereits besitzt.
+
+Naechster Ausbau von `pick-player.mjs`: Depot aus `manager_cards` je Spieler zaehlen, die im
+Zielspieltag gebundenen Karten mit dem OAuth-Token des Managers abziehen
+(`hasSo5LineupForFixture(so5FixtureSlug:)` sagt nur ja/nein je Spieler und reicht dafuer NICHT,
+es braucht die Aufstellungen selbst) und drei Faelle ausweisen: freies Exemplar vorhanden,
+Kauf noetig, alle Exemplare gebunden. Damit wird aus der Kaufempfehlung eine Kaderplanung.
 
 **Werkzeuge dazu:** `tools/pick-player.mjs` (bester Kauf im Budget fuer einen Spieltag),
 `tools/cheapest-reliable-lineup.mjs` (billigste Elf, die im Rueckblick verlaesslich Cash holte),
