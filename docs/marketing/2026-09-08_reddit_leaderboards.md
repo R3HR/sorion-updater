@@ -1,24 +1,30 @@
-# Reddit-Post: Leaderboard-Tabelle (Entwurf 08.09.2026)
+# Reddit-Post: Leaderboard-Tabelle (Fassung 2, 08.09.2026)
 
 Ziel: r/Sorare. Nicht gepostet, wartet auf Jonas' Freigabe.
-Regeln beachtet: keine Gedankenstriche, keine Formel-Interna, Sorare-freundlich.
+Aenderungen gegenueber Fassung 1 (Ansage Jonas): Discord raus, Gutschein raus,
+nur noch ein Link auf die Tabelle. Der Gutschein-Hinweis steht jetzt auf der Seite selbst.
+Neu: die Tabelle wird Spieltag fuer Spieltag gepflegt.
+Regel 4 von r/Sorare beachten, Bewertung in 2026-09-08_reddit_regel4.md.
 
-## Titel (Vorschlag 1, empfohlen)
+## Titel (empfohlen)
 
-What does it actually take to win cash in each competition? I put this season's numbers into one table
+What it actually took to finish in the money this season, for all 17 competitions
 
-## Titel-Alternativen
+## Alternativen
 
-2. A Limited essence squad costs 14 EUR in the J1 League and 120 EUR in LALIGA. Full table for all 17 competitions
-3. How many points you need for cash or essence, and what that squad costs, for every competition this season
+2. A Limited essence squad costs 14 EUR in the J1 League and 120 EUR in LALIGA. Here is the full table
+3. How many points you need for cash or essence, and what that squad costs, gameweek by gameweek
 
 ## Body
 
-I got tired of guessing how many points I actually needed to finish in the money, so I pulled the reward tiers of every closed gameweek this season and put them into one table.
+I got tired of guessing how many points I actually needed to finish in the money, so I went
+through the reward tiers of every closed gameweek this season and wrote down the exact score
+of the last manager who still got paid. Then I priced the squads that finished in those ranks.
 
-Disclosure up front: sorion.pro is my own project. I am posting this because the table is free to read and I would rather get it torn apart by people who know the game than sit on it.
+Disclosure: the table is on my own site. It is free to read and there is nothing to buy.
 
-**One thing that surprised me.** The three winter leagues are dramatically cheaper to enter than anything in Europe:
+**The thing that surprised me most.** The winter leagues are in a different price class
+entirely:
 
 | Competition | Limited essence squad | Rare essence squad |
 |---|---|---|
@@ -30,27 +36,42 @@ Disclosure up front: sorion.pro is my own project. I am posting this because the
 | All Star * | 42 EUR | 128 EUR |
 | LALIGA EA SPORTS | 120 EUR | 200 EUR |
 
-\* All Star and Under 23 field seven cards instead of five, so only compare within a competition, never across.
+\* All Star and Under 23 field seven cards, everything else fields five, so compare only
+within a competition.
 
-A Limited essence squad in the J1 League costs about as much as a single mid table LALIGA card. And those three leagues keep running through the European winter break.
+A Limited essence squad in the J1 League costs about what one mid table LALIGA card costs.
+And those leagues keep playing through the European winter.
 
-**What the table shows,** per competition and rarity, for the 2026/27 season only:
+**Rarity changes the whole proposition, not just the price.** In J1 League Rare, 125 of
+roughly 420 lineups get paid, so almost every third entry sees money, and the bottom cash
+tier pays 20 USD. In Limited the same league pays only the top 5 out of about 1,400 lineups.
+Same competition, same weekend, completely different bet.
 
-* the average score the last paid manager actually posted, with the range across gameweeks
+**What is in the table,** per competition and rarity:
+
+* the average score of the last manager who still got cash, and the same for essence,
+  with the range across gameweeks
 * how many ranks got paid
-* what a winning squad costs to assemble at today's prices, separately for cash and for essence
+* what a squad in those ranks costs to assemble at today's prices
 * top score, number of lineups, and how the cash threshold moved week to week
 
-Currently 237 leaderboard weeks across 17 competitions, through Game Week 10.
+Currently 237 leaderboard weeks across 17 competitions, and **it is maintained gameweek by
+gameweek**: every Tuesday and Friday evening, once Sorare has paid out the rewards, the new
+gameweek is pulled in automatically. So the numbers stay current instead of aging into a
+snapshot.
 
-**How it is calculated.** For every closed gameweek I read the reward configuration of each competition leaderboard and the exact score of the last manager in each tier. For the squad cost I take real lineups from the paid ranks, price every card at today's market value, and report the median. Only fully priced lineups count, otherwise the number would be biased low. Nothing older than this season is included, because the mechanics change and old lineups are a bad yardstick.
+**How it is calculated.** For every closed gameweek I read the reward configuration of each
+competition leaderboard and the score of the last manager in each tier. Squad cost is the
+median of real lineups from the paid ranks, with every card valued at today's market price.
+Only fully priced lineups count, otherwise the number would be biased low. Nothing before
+this season, because the mechanics change and old lineups are a bad yardstick.
 
-**Caveats, because numbers without them are useless.** International breaks mean some competitions have fewer gameweeks than others, so a row built on two gameweeks is thinner evidence than one built on ten, and the table tells you which is which. Squad cost is what it would cost you now, not what the owner paid. And a median is a median: half the paid squads cost more.
+**Caveats, because numbers without them are useless.** International breaks mean some
+competitions have far fewer gameweeks than others, so one row may rest on two gameweeks and
+another on ten. The table shows you which. Squad cost is what it would cost you now, not
+what the owner paid. And a median means half the paid squads cost more.
 
-**On the paywall,** since someone will ask. Essence thresholds, paid ranks, top scores and lineup counts are free for everyone. The cash columns sit behind Pro. English League Players is open to everyone as a free sample so you can see exactly what you get before deciding anything.
+https://sorion.pro/rewards.html
 
-Pro is still being built out, so there is no reason to pay for it yet. There is a voucher code in my Discord that unlocks it for free while I work on it: https://discord.gg/mswgAbQbJ
-
-Table: https://sorion.pro/rewards.html
-
-Happy to add competitions, columns or breakdowns if you tell me what is missing. If you spot a number that looks wrong, say so and I will dig into it.
+Tell me what is missing and I will add it. If a number looks wrong to you, say so and I will
+dig into it.
