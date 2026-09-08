@@ -23,6 +23,20 @@ const PRUEFE = parseInt(arg('pruefe', '240'), 10);   // wie viele Kandidaten an 
 // Zielspieltag: nur Spieler, die in DIESEM Fenster ein Spiel haben, sind ueberhaupt
 // brauchbar. Sorares Marktplatz filtert genauso ("spielt in Game Week X").
 const FIXTURE = arg('fixture', '');
+// Altersgrenze fuer die U23-Wettbewerbe. Sorare hat kein Feld "ist U23-tauglich",
+// also filtern wir ueber das Alter aus der Spieler-Meta (player_age, kommt von
+// Sorares eigenem age-Feld). 23 ist die Grenze, das Alter steht in der Ausgabe,
+// damit Grenzfaelle sichtbar bleiben.
+const MAXALTER = arg('maxalter', '') ? parseInt(arg('maxalter'), 10) : null;
+// `eligibleSo5Competitions` (Hinweis Jonas 07.09.) listet NUR die Liga-Wettbewerbe
+// eines Spielers: MLS, Turkish League, Contender, Rest of the World. Die
+// Sonderwettbewerbe U23, All Star und Champion stehen dort NICHT drin, geprueft an
+// vier Spielern. Fuer die bleibt die Altersgrenze der einzige Weg.
+// Empirisch aus echten U23-Aufstellungen (GW10, 241 Spieler): eingesetzt wurden
+// 18- bis 24-Jaehrige, Schwerpunkt 22 und 23. Die Grenze haengt also am Stichtag zu
+// Saisonbeginn, nicht am heutigen Alter. --maxalter=23 trifft es fast immer,
+// --maxalter=24 nimmt die Grenzfaelle mit.
+const WETTBEWERB = arg('wettbewerb', '');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const APIKEY = process.env.SORARE_APIKEY;
@@ -45,9 +59,10 @@ async function gql(query, label) {
 // Kandidaten: guenstigste zulaessige Karte je Spieler im Budget.
 // All Star laeuft als "all_seasons", also zaehlt auch die Classic-Karte.
 let q = supabase.from('card_prices')
-  .select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name, league_name, gameplay_tier')
+  .select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name, league_name, gameplay_tier, player_age')
   .eq('scarcity', RARITY).eq('position', POS).limit(5000);
 if (LIGA) q = q.eq('league_name', LIGA);
+if (MAXALTER) q = q.lte('player_age', MAXALTER).not('player_age', 'is', null);
 const { data: cards, error } = await q;
 if (error) { console.error(error.message); process.exit(1); }
 
@@ -58,11 +73,13 @@ for (const c of cards ?? []) {
   const cur = cand.get(c.player_slug);
   if (!cur || Number(eur) < cur.eur)
     cand.set(c.player_slug, { slug: c.player_slug, name: c.player_name, team: c.team_name,
-      liga: c.league_name, tier: c.gameplay_tier, eur: Number(eur), elig: c.eligibility });
+      liga: c.league_name, tier: c.gameplay_tier, eur: Number(eur), elig: c.eligibility,
+      alter: c.player_age ?? null });
 }
 // Teuerste zuerst: im selben Budget ist der hoehere Preis das Marktsignal fuer Qualitaet.
 const list = [...cand.values()].sort((a, b) => b.eur - a.eur).slice(0, PRUEFE);
-console.log(`${cand.size} ${RARITY}-${POS} bis ${BUDGET} EUR${LIGA ? ` in ${LIGA}` : ''}; `
+console.log(`${cand.size} ${RARITY}-${POS} bis ${BUDGET} EUR${LIGA ? ` in ${LIGA}` : ''}`
+  + `${MAXALTER ? `, hoechstens ${MAXALTER} Jahre alt` : ''}; `
   + `geprueft werden die ${list.length} teuersten davon\n`);
 
 // Ein Aufruf je Spieler. Buendeln geht nicht: mehrere anyPlayer als Wurzel lehnt
@@ -75,10 +92,11 @@ const QUERY = slug => `{ anyPlayer(slug:"${slug}") {
   a5:  lastFiveSo5Appearances
   grade: nextClassicFixtureProjectedGrade { grade score reliabilityBasisPoints }
   daily: nextDailyFixtureProjectedGrade   { grade score reliabilityBasisPoints }
+  wettbewerbe: eligibleSo5Competitions { slug displayName }
   spiele: anyGamesForFixture(so5FixtureSlug: "${FIXTURE || 'x'}") { date homeTeam { name } awayTeam { name } }
   kommend: anyFutureGameStats(first: 4) {
-    game { date }
-    ... on PlayerGameStats { footballPlayingStatusOdds { starterOddsBasisPoints substituteOddsBasisPoints nonPlayingOddsBasisPoints reliability } } }
+    ... on PlayerGameStats { game { date }
+      footballPlayingStatusOdds { starterOddsBasisPoints substituteOddsBasisPoints nonPlayingOddsBasisPoints reliability } } }
   angebotIn: lowestPriceAnyCard(inSeason: true, rarity: ${RARITY}) {
     liveSingleSaleOffer { receiverSide { amounts { eurCents } } } }
   angebotCl: lowestPriceAnyCard(inSeason: false, rarity: ${RARITY}) {
@@ -129,6 +147,7 @@ for (const [i, c] of list.entries()) {
     rows.push({ ...c, name: p.displayName || c.name, tier: p.gameplayTier ?? c.tier,
       l5: p.l5 ?? null, l15: p.l15 ?? null, a5: p.a5 ?? null,
       next: spiel?.date ?? null, bank,
+      comps: (p.wettbewerbe ?? []).map(w => w.displayName || w.slug),
       gegner: spiel ? `${spiel.homeTeam?.name ?? '?'} - ${spiel.awayTeam?.name ?? '?'}` : null,
       spieltIm: (p.spiele ?? []).length > 0,
       status: p.playingStatus ?? null, grade, proj, starter,
@@ -162,15 +181,23 @@ rows.splice(0, rows.length, ...rows.filter(imFenster));
 //   - kein Angebot  = die Karte ist nicht kaufbar, der FMV ist dann eine Fata Morgana
 //   - Budget        = das Angebot zaehlt, nicht unsere Schaetzung
 //   - Startelf 0 %  = verletzt oder gesperrt, Sorare sagt es, man muss nur hinsehen
-const raus = { kein_angebot: 0, zu_teuer: 0, faellt_aus: 0 };
+const raus = { kein_angebot: 0, zu_teuer: 0, faellt_aus: 0, falscher_wettbewerb: 0 };
+const passtZumWettbewerb = r => !WETTBEWERB
+  || (r.comps ?? []).some(c => c.toLowerCase().includes(WETTBEWERB.toLowerCase()));
 const brauchbar = rows.filter(r => {
+  if (!passtZumWettbewerb(r)) { raus.falscher_wettbewerb++; return false; }
   if (r.kauf == null)        { raus.kein_angebot++; return false; }
   if (r.kauf > BUDGET)       { raus.zu_teuer++;     return false; }
   if (r.starter != null && r.starter < 0.4) { raus.faellt_aus++; return false; }
   if (r.status && /injur|suspend|out/i.test(r.status)) { raus.faellt_aus++; return false; }
   return true;
 });
-console.log(`Aussortiert: ${raus.kein_angebot} ohne Angebot, ${raus.zu_teuer} ueber Budget `
+if (WETTBEWERB && raus.falscher_wettbewerb === rows.length)
+  console.log(`WARNUNG: kein einziger Kandidat ist fuer "${WETTBEWERB}" gelistet. `
+    + `eligibleSo5Competitions kennt nur Liga-Wettbewerbe (MLS, Turkish League, Contender, `
+    + `Rest of the World). Fuer U23, All Star und Champion stattdessen --maxalter benutzen.`);
+console.log(`Aussortiert: ${WETTBEWERB ? `${raus.falscher_wettbewerb} nicht fuer "${WETTBEWERB}" zugelassen, ` : ''}`
+  + `${raus.kein_angebot} ohne Angebot, ${raus.zu_teuer} ueber Budget `
   + `(Angebot teurer als unser FMV), ${raus.faellt_aus} verletzt/gesperrt/0 % Startelf.`);
 console.log(`Bleiben ${brauchbar.length} kaufbare Kandidaten.
 `);
