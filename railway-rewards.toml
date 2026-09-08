@@ -4,9 +4,9 @@ builder = "nixpacks"
 [deploy]
 # Leaderboards-Seite: taeglicher Nachlauf in ZWEI Schritten.
 #
-#   1. sync-reward-thresholds.mjs — Preisstufen und Punkte-Schwellen je
+#   1. sync-reward-thresholds.mjs: Preisstufen und Punkte-Schwellen je
 #      abgeschlossenem Spieltag (Cash-/Essence-Grenze, Top-Score, Lineups).
-#   2. sync-lineup-costs.mjs      — was die Gewinner-Aufstellungen kosten.
+#   2. sync-lineup-costs.mjs:      was die Gewinner-Aufstellungen kosten.
 #      Liest die Grenzen aus Schritt 1, MUSS also danach laufen. Deshalb "&&":
 #      scheitert Schritt 1, laeuft Schritt 2 gar nicht erst auf veralteten
 #      Grenzen.
@@ -16,14 +16,24 @@ builder = "nixpacks"
 # nur wenige Abfragen; nach einem Spieltag-Ende rund 40 + 120 Aufrufe (~3 min).
 #
 # NOETIGE VARIABLEN AUF DIESEM DIENST:
-#   SUPABASE_URL, SUPABASE_SERVICE_KEY  — beide Skripte
-#   SORARE_APIKEY                       — NUR sync-lineup-costs (Query-Tiefe 8;
+#   SUPABASE_URL, SUPABASE_SERVICE_KEY: beide Skripte
+#   SORARE_APIKEY: NUR sync-lineup-costs (Query-Tiefe 8;
 #                                         anonym sind nur 7 erlaubt). Ohne den
 #                                         Schluessel bricht Schritt 2 sauber ab.
 #
-# 09:00 UTC ist eine freie Stunde: Updater-Fenster sind 22-04 und 16-20,
-# Harvester 05:30, Kader-Abgleich 07:00. Das Sorare-Kontingent von 200
-# Anfragen/Minute teilen sich ALLE Dienste (siehe HANDOFF).
-cronSchedule = "0 9 * * *"
+# ZEITPLAN (Ansage Jonas 08.09.2026): Dienstag und Freitag abends 21:00 Berliner
+# Zeit, also nach dem jeweiligen Spieltagsende.
+#
+# ACHTUNG ZEITZONE: Railway-Cron laeuft in UTC, Berlin nicht.
+#   Sommerzeit (CEST, UTC+2, bis 25.10.2026): 21:00 Berlin = 19:00 UTC  <== aktuell
+#   Winterzeit (CET,  UTC+1, ab  25.10.2026): 21:00 Berlin = 20:00 UTC
+# Nach der Zeitumstellung diesen Wert auf "0 20 * * 2,5" ziehen, sonst laeuft der
+# Nachtrag ab Ende Oktober eine Stunde zu frueh.
+#
+# ANMERKUNG ZUR LAST: 19:00 UTC liegt IM Updater-Fenster 16-20 UTC. Das Sorare-
+# Kontingent von 200 Anfragen/Minute teilen sich ALLE Dienste (siehe HANDOFF).
+# Der Lauf braucht nach einem Spieltag rund 160 Aufrufe in etwa 3 Minuten, das
+# passt daneben. Bei 429-Fehlern im Log zuerst hier eine Stunde verschieben.
+cronSchedule = "0 19 * * 2,5"
 startCommand = "node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs"
 restartPolicyType = "never"
