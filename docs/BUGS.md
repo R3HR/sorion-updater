@@ -478,3 +478,24 @@ SUPABASE_URL, SUPABASE_SERVICE_KEY, SORARE_APIKEY setzen. Nur Jonas kann das kli
 
 **Status:** OFFEN. Bis dahin sind super_rare-in-season-Werte veraltet und auch von
 FMV v3.5 nicht betroffen, weil dort gar nichts neu berechnet wird.
+
+## BUG-041 - FMV fuer Karten, die es gar nicht gibt (07.09.) - ANALYSIERT, FIX OFFEN
+
+- **Symptom (Jonas):** "Skriniar gibt es nur als classic fuer 3,79 EUR." Unsere Empfehlung nannte ihn mit 1,78 EUR als In-Season-Limited.
+- **Befund:** `lowestPriceAnyCard(inSeason: true, rarity: limited)` liefert fuer Skriniar KEIN Angebot, die Classic-Karte kostet live 3,79 EUR. Wir fuehren trotzdem eine In-Season-Zeile mit FMV. Der Wert stammt aus alten Verkaeufen einer Karte, die im aktuellen Markt nicht existiert oder nicht angeboten wird. Gegenprobe Bensebaini: unser FMV 1,07 EUR, echtes Angebot 0,80 EUR.
+- **Warum das schadet:** Der FMV ist als Schaetzwert richtig, aber die Seite beantwortet damit stillschweigend die Frage "was kostet mich das", und darauf ist er keine Antwort. Wer nach Budget filtert, bekommt Karten angezeigt, die er nicht kaufen kann.
+- **Sofortmassnahme:** `tools/pick-player.mjs` rechnet nicht mehr mit dem FMV, sondern holt je Spieler das echte guenstigste Angebot ueber `lowestPriceAnyCard` und wirft alles ohne Angebot raus.
+- **Offen:** Auf der Marktseite fehlt dieselbe Unterscheidung. Vorschlag: Zeilen ohne aktuelles Angebot als solche kennzeichnen (Supply/Angebot getrennt vom FMV ausweisen), statt einen Preis zu zeigen, zu dem nichts zu haben ist. Erst pruefen, wie viele Zeilen betroffen sind.
+
+## BUG-042 - Verletzte Spieler als Kauftipp empfohlen (07.09.) - BEHOBEN
+
+- **Symptom (Jonas):** "Bensebaini hat 0 % Aufstellungswahrscheinlichkeit weil er verletzt ist", kurz darauf "foyth auch verletzt". Beide standen in meiner Empfehlungsliste fuer Game Week 12.
+- **Ursache, drei Schichten:**
+  1. `nextClassicFixturePlayingStatusOdds` ist bei MIDWEEK-Spieltagen immer null. GW12 (8.-11.9.) ist ein Midweek-Spieltag, also gab es fuer alle 751 Kandidaten keine Quote, und der Filter "Startelf 0 %" lief ins Leere. `playingStatus` half auch nicht: Bensebaini stand dort auf REGULAR, `news` war leer.
+  2. Die Zugehoerigkeit zum Spieltag lief ueber `nextGame` plus Datumsvergleich. Dadurch rutschte das Testspiel Dortmund gegen Villarreal am 8.9. als "GW12-Spiel" durch und brachte genau die beiden Verletzten in die Liste.
+  3. Das lokale `reference/schema.graphql` war veraltet (kannte `football.players(slugs:)`, das es live nicht mehr gibt) und enthielt die richtigen Felder noch nicht.
+- **Fix:** Schema neu gezogen (`https://api.sorare.com/graphql/schema`, Sicherung als `schema.graphql.bak`). Zwei bessere Felder gefunden und eingebaut:
+  - `anyGamesForFixture(so5FixtureSlug:)` beantwortet "spielt dieser Spieler in Game Week X?" direkt. Das ist derselbe Filter, den auch der Sorare-Marktplatz anbietet (Hinweis Jonas).
+  - `anyFutureGameStats(first:) { ... on PlayerGameStats { footballPlayingStatusOdds } }` liefert die Startelf-Quote JE SPIEL, also auch unter der Woche.
+  Kandidaten unter 40 % Startelf-Quote fliegen raus.
+- **Lektion:** Ich hatte `playingStatus` abgefragt und nicht ausgewertet. Ein Feld zu holen und im Ranking zu ignorieren ist schlimmer, als es nicht zu haben: Es erzeugt den Eindruck, der Punkt sei geprueft. **Vor jeder Empfehlung an Jonas: kann der Spieler ueberhaupt spielen, und ist die Karte ueberhaupt kaufbar?** Und: Ein veraltetes Schema fuehrt lautlos zu schlechteren Antworten, nicht zu Fehlern.

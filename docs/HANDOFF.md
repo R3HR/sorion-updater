@@ -899,6 +899,34 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
 
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 
+**Schema am 07.09.2026 neu gezogen** (`Invoke-WebRequest https://api.sorare.com/graphql/schema -OutFile
+C:\craft-logeference\schema.graphql`, Sicherung `.bak`). Das alte war Monate alt und kannte
+Felder, die es nicht mehr gibt (`football.players(slugs:)`), und die neuen noch nicht. **Bei jedem
+"Feld existiert nicht" zuerst das Schema erneuern, nicht raten.**
+
+**Spieler fuer einen bestimmten Spieltag beurteilen (Stand 07.09.2026):**
+- `anyGamesForFixture(so5FixtureSlug:)` sagt direkt, ob ein Spieler in diesem Spieltag spielt.
+  Das ist der Filter, den auch der Sorare-Marktplatz anbietet. **Nicht** ueber `nextGame` plus
+  Datumsvergleich behelfen: da rutschen Testspiele durch (BUG-042).
+- Startelf-Quote je SPIEL: `anyFutureGameStats(first:) { game { date }
+  ... on PlayerGameStats { footballPlayingStatusOdds { starterOddsBasisPoints ... } } }`.
+  `nextClassicFixturePlayingStatusOdds` gibt es NUR fuer Wochenend-Spieltage und ist unter der
+  Woche immer null. `playingStatus` ist unbrauchbar als Verletzungsanzeige (stand bei einem
+  verletzten Spieler auf REGULAR), `news` war leer.
+- Punkte-Prognose: `nextClassicFixtureProjectedGrade` (Wochenende), `nextDailyFixtureProjectedGrade`
+  (unter der Woche, war bei allen 751 geprueften Spielern leer). Beide kommen von Sorare Inside
+  und existieren erst wenige Tage vor dem Spieltag.
+- Echter Kaufpreis statt Schaetzwert: `lowestPriceAnyCard(inSeason:, rarity:)
+  { liveSingleSaleOffer { receiverSide { amounts { eurCents } } } }`. Kein Angebot heisst:
+  die Karte ist nicht zu haben, egal was unser FMV sagt (BUG-041).
+- Mehrere `anyPlayer` in EINER Query lehnt Sorare ab ("Duplicated root field"), auch mit Aliassen.
+  Also ein Aufruf je Spieler, oder ueber `football.club { activePlayers }` buendeln.
+
+**Werkzeuge dazu:** `tools/pick-player.mjs` (bester Kauf im Budget fuer einen Spieltag),
+`tools/cheapest-reliable-lineup.mjs` (billigste Elf, die im Rueckblick verlaesslich Cash holte),
+`tools/show-lineup.mjs` (eine konkrete Aufstellung samt Karten und Preisen).
+
+
 Diese Liste existiert, weil ich am 06.09. zweimal in Limits gelaufen bin, die bereits
 dokumentiert waren. **Regel: Bei jeder Sorare-API-Frage erst diesen Abschnitt und die
 Suche in HANDOFF.md, dann das Schema.**

@@ -75,7 +75,14 @@ const QUERY = slug => `{ anyPlayer(slug:"${slug}") {
   a5:  lastFiveSo5Appearances
   grade: nextClassicFixtureProjectedGrade { grade score reliabilityBasisPoints }
   daily: nextDailyFixtureProjectedGrade   { grade score reliabilityBasisPoints }
-  nextGame(so5FixtureEligible: true) { date homeTeam { name } awayTeam { name } }
+  spiele: anyGamesForFixture(so5FixtureSlug: "${FIXTURE || 'x'}") { date homeTeam { name } awayTeam { name } }
+  kommend: anyFutureGameStats(first: 4) {
+    game { date }
+    ... on PlayerGameStats { footballPlayingStatusOdds { starterOddsBasisPoints substituteOddsBasisPoints nonPlayingOddsBasisPoints reliability } } }
+  angebotIn: lowestPriceAnyCard(inSeason: true, rarity: ${RARITY}) {
+    liveSingleSaleOffer { receiverSide { amounts { eurCents } } } }
+  angebotCl: lowestPriceAnyCard(inSeason: false, rarity: ${RARITY}) {
+    liveSingleSaleOffer { receiverSide { amounts { eurCents } } } }
   ... on Player { playingStatus
     odds: nextClassicFixturePlayingStatusOdds { starterOddsBasisPoints substituteOddsBasisPoints reliability } }
 } }`;
@@ -100,14 +107,33 @@ for (const [i, c] of list.entries()) {
   const d = await gql(QUERY(c.slug), c.slug);
   const p = d?.anyPlayer;
   if (p) {
-    const starter = typeof p.odds?.starterOddsBasisPoints === 'number' ? p.odds.starterOddsBasisPoints / 10000 : null;
+    // Startelf-Quote JE SPIEL statt nur fuer den Wochenend-Spieltag: die Odds haengen
+    // an den Spielstatistiken des jeweiligen Spiels (footballPlayingStatusOdds).
+    // nextClassicFixturePlayingStatusOdds ist bei Midweek-Spieltagen immer null und
+    // hat deshalb Verletzte durchgelassen (Fehlgriff 07.09.: Bensebaini, Foyth).
+    const spiel = (p.spiele ?? [])[0] ?? null;
+    const statsFuerSpiel = (p.kommend ?? []).find(g => spiel && g.game?.date === spiel.date)
+      ?? (p.kommend ?? [])[0] ?? null;
+    const o = statsFuerSpiel?.footballPlayingStatusOdds ?? p.odds ?? null;
+    const starter = typeof o?.starterOddsBasisPoints === 'number' ? o.starterOddsBasisPoints / 10000 : null;
+    const bank    = typeof o?.substituteOddsBasisPoints === 'number' ? o.substituteOddsBasisPoints / 10000 : null;
+    // Der FMV ist ein Schaetzwert und sagt NICHT, ob die Karte gerade zu haben ist.
+    // Wer kaufen will, braucht das echte Angebot. Fehlt es, gibt es die Karte nicht.
+    const cent = x => x?.liveSingleSaleOffer?.receiverSide?.amounts?.eurCents ?? null;
+    const angebote = [];
+    if (cent(p.angebotIn) != null) angebote.push({ elig: 'in_season', eur: cent(p.angebotIn) / 100 });
+    if (cent(p.angebotCl) != null) angebote.push({ elig: 'classic',   eur: cent(p.angebotCl) / 100 });
+    angebote.sort((a, b) => a.eur - b.eur);
     const proj = (MIDWEEK ? p.daily?.score : p.grade?.score) ?? null;
     const grade = (MIDWEEK ? p.daily?.grade : p.grade?.grade) ?? null;
     rows.push({ ...c, name: p.displayName || c.name, tier: p.gameplayTier ?? c.tier,
       l5: p.l5 ?? null, l15: p.l15 ?? null, a5: p.a5 ?? null,
-      next: p.nextGame?.date ?? null,
-      gegner: p.nextGame ? `${p.nextGame.homeTeam?.name ?? '?'} - ${p.nextGame.awayTeam?.name ?? '?'}` : null,
+      next: spiel?.date ?? null, bank,
+      gegner: spiel ? `${spiel.homeTeam?.name ?? '?'} - ${spiel.awayTeam?.name ?? '?'}` : null,
+      spieltIm: (p.spiele ?? []).length > 0,
       status: p.playingStatus ?? null, grade, proj, starter,
+      kauf: angebote[0]?.eur ?? null, kaufElig: angebote[0]?.elig ?? null,
+      angebote,
       // Ohne Startelf-Quote (Midweek) zaehlt die Prognose allein; sie enthaelt die
       // Einsatzwahrscheinlichkeit bereits teilweise.
       erwartet: proj == null ? null : (starter != null ? proj * starter : proj) });
@@ -120,7 +146,10 @@ console.log('\n');
 
 // Wer im Zielfenster kein Spiel hat, faellt raus. Das ist kein Feinschliff, sondern
 // die wichtigste Bedingung: eine Karte ohne Spiel bringt sicher null Punkte.
-const imFenster = r => !fenster || (r.next && new Date(r.next) >= fenster.von && new Date(r.next) <= fenster.bis);
+// Sorare beantwortet die Frage "spielt dieser Spieler in Game Week X?" selbst
+// (anyGamesForFixture) — genau der Filter, den auch der Marktplatz anbietet.
+// Der frueherer Datumsvergleich ueber nextGame liess Testspiele durch.
+const imFenster = r => !fenster || r.spieltIm;
 const vorAuswahl = rows.length;
 if (fenster) {
   const raus = rows.filter(r => !imFenster(r)).length;
@@ -128,6 +157,24 @@ if (fenster) {
 `);
 }
 rows.splice(0, rows.length, ...rows.filter(imFenster));
+
+// Drei harte Ausschluesse, alle drei aus echten Fehlgriffen gelernt (07.09.):
+//   - kein Angebot  = die Karte ist nicht kaufbar, der FMV ist dann eine Fata Morgana
+//   - Budget        = das Angebot zaehlt, nicht unsere Schaetzung
+//   - Startelf 0 %  = verletzt oder gesperrt, Sorare sagt es, man muss nur hinsehen
+const raus = { kein_angebot: 0, zu_teuer: 0, faellt_aus: 0 };
+const brauchbar = rows.filter(r => {
+  if (r.kauf == null)        { raus.kein_angebot++; return false; }
+  if (r.kauf > BUDGET)       { raus.zu_teuer++;     return false; }
+  if (r.starter != null && r.starter < 0.4) { raus.faellt_aus++; return false; }
+  if (r.status && /injur|suspend|out/i.test(r.status)) { raus.faellt_aus++; return false; }
+  return true;
+});
+console.log(`Aussortiert: ${raus.kein_angebot} ohne Angebot, ${raus.zu_teuer} ueber Budget `
+  + `(Angebot teurer als unser FMV), ${raus.faellt_aus} verletzt/gesperrt/0 % Startelf.`);
+console.log(`Bleiben ${brauchbar.length} kaufbare Kandidaten.
+`);
+rows.splice(0, rows.length, ...brauchbar);
 
 const ok = rows.filter(r => r.erwartet != null);
 if (!ok.length) {
