@@ -119,9 +119,20 @@ async function main() {
     if (lb.fixture_state === 'closed' && done.has(lb.fixture_slug + '|' + lb.leaderboard_slug)) continue;
     const maxRank = lb.essence_rank || lb.cash_rank;
     if (!maxRank) continue;                       // Leaderboard ohne Geld/Essence
-    // Spitzenfeld + die Seiten an den beiden Preisgrenzen
-    const pages = [...new Set([0, lb.cash_rank ? pageOf(lb.cash_rank) : null, pageOf(maxRank)]
-      .filter(x => x != null))].slice(0, 3);
+    // CASH: VOLLERHEBUNG, jede Seite bis zum letzten bezahlten Rang.
+    //   Grund (Einwand Jonas 09.09.): Die alte Stichprobe nahm nur das Spitzenfeld und
+    //   die Seite an der Grenze. Bei einem Leaderboard mit 250 bezahlten Raengen fehlte
+    //   die ganze Mitte, und genau dort kann das billigste Gewinner-Team stehen. Der
+    //   Median war dadurch der einer Mischung aus Spitze und Rand, nicht der aller Gewinner.
+    //   Kostet WENIGER als vorher: der groesste Cash-Rang der Saison ist 250 (5 Seiten),
+    //   waehrend der alte Sprung an die Essence-Grenze allein bis Seite 59 ging.
+    //   Ganze Saison: 316 Seiten gegenueber 546 mit der alten Logik.
+    // ESSENCE: weiter Stichprobe. Vollerhebung waere 7.209 Seiten statt 316, dafuer ist
+    //   die Zahl den Aufwand nicht wert.
+    const cashPages = lb.cash_rank
+      ? Array.from({ length: pageOf(lb.cash_rank) + 1 }, (_, i) => i)
+      : [];
+    const pages = [...new Set([...cashPages, 0, pageOf(maxRank)])].sort((a, b) => a - b);
     let got = 0;
     for (const p of pages) {
       await sleep(DELAY_MS);
@@ -139,7 +150,9 @@ async function main() {
         got++;
       }
     }
-    console.log(`  ${lb.fixture_name} · ${lb.competition} ${lb.rarity}: ${got} Aufstellungen (Seiten ${pages.join(',')})`);
+    const wie = lb.cash_rank ? `Cash 1-${lb.cash_rank} vollstaendig` : 'nur Stichprobe';
+    console.log(`  ${lb.fixture_name} · ${lb.competition} ${lb.rarity}: ${got} Aufstellungen, `
+      + `${pages.length} Seiten (${wie})`);
   }
   console.log(`Gesammelt: ${raw.length} Aufstellungen, ${slugSet.size} verschiedene Spieler, ${calls} API-Calls`);
   if (!raw.length) { console.log('Nichts zu tun.'); return; }

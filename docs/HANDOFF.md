@@ -206,6 +206,22 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 - **✅ Neues Set geprueft (08.09.):** Alle 14 Actions laufen fehlerfrei am neuen Board (…c60874bcba98). Unveraendert: Board-Struktur (5 Stages, Ziele 700/980/1060/1140/1280), Cap 4, Kapitaenszuschlag +0.5 (an drei Karten nachgerechnet), Fristenlogik. Die Board-Abfrage ist **unabhaengig vom `rarity`-Parameter** - jeder Wert liefert dasselbe eine Board, das alte `rarity: limited` schadet also nicht.
 - **⚠️ Bonus-Spanne kollabiert (neues Set):** Gespielt wird jetzt mit **common**-Karten (vorher limited). Boni liegen bei **1-5 %** statt 5-70 %, Ausreisser nur ueber Skins (HOLO 23 %, Full Art 34 %). Laut `bonus_report` kommt praktisch der gesamte Bonus aus `collectionBasisPoints`. (Nicht wegen XP - Commons haben nie XP, Anmerkung Jonas.) **Folge:** Bonus-Gleichstaende sind der Normalfall - bei 7 von 10 Aufstellungen hatten bereits 4 von 7 mehrfach gesetzten Spielern identische Boni. Damit entscheidet fast jeden Cap-Streit die **Leaderboard-Position** (Regel 6.2), nicht mehr die Kartenqualitaet.
 - **❓ Offen, dringend:** Laeuft der Saisonstand ueber das neue Set weiter (aktuell 32 Runden, ParisBoemboem 238 P) oder wird geschnitten? Wegen der vielen Gleichstaende entscheidet der Tie-Break jetzt fast jeden Cap-Fall - mit Punkten aus dem alten Set waere das falsch. Ausserdem ist `_squad_snapshots\Rules New Set.txt` weiterhin **leer** (0 Byte): Aendern sich Cap-Hoehe, Strafen oder Blockregel mit dem neuen Set, arbeitet der Bot weiter nach dem alten Regelwerk.
+### Auftrag Cowork-Bot vom 08.09.2026 — abgearbeitet (Squad-Bot)
+
+- **P0.1 Sets als eigenes Konzept.** Tabelle `squad_sets` (id, name, board_id, started_on, ended_on, set_start_monday); `set_id` + `set_round_no` in `squad_history_rounds`/`squad_step_rounds`, `set_id` in `squad_penalties`. `round_no` bleibt **global** fortlaufend (Strafen, Dedup-Schluessel, Historie haengen daran), `set_round_no` zaehlt je Set ab 1. Set 1 = R1-R32 (21.07.-07.09.), Set 2 "Hyperglitch" ab R33 (08.09.). `computeStandings()` filtert nach Set; `assignRound()` schreibt Set und Set-Rundennummer mit. **Ein Boardwechsel legt KEIN Set an** - in Set 1 wechselte die board_id dreimal mitten im Set; Sets nur ueber `set_admin` (op open/close).
+- **P0.2 Lese-Freigabe.** Die 403er kamen NICHT vom Token: `standings` und `blocks` existierten als Actions gar nicht, `rounds` war seit 05.09. frei. Neu gebaut und freigegeben: `report, standings, season, blocks, rounds, sets, leaderboard, live, availability, steps, strikes, cap_instructions`.
+- **P0.3 Zwei Cap-Strafen R32 nachgetragen** (namiunk_022 -5 "Cap: Joan García", sorare-ma -5 "Cap: Lamine Yamal", beide set_id 1). Set-1-Endstand jetzt deckungsgleich mit dem veroeffentlichten Stand: ParisBoemboem 238 (Ø 370,86), Namiunk 145, Sorare | MA 156, 32 Runden. **Einzige Abweichung: Squad-Ø 1201,96 statt 1201,95** (0,01 Rundung).
+- **P1.4 Blockanker aus der Datenbank**, nicht aus der Umgebung: `blocks` liest `squad_sets.set_start_monday` (Set 2 = 2026-09-07, Set 1 = 2026-07-20). Damit stimmt der Anker auch fuer Altsets.
+- **P1.5 Strikes persistent.** Tabelle `squad_strikes` (set_id, manager_slug, block_index, kind, reason, expires_after_clean_block); `carry` als Aufrufparameter entfaellt. Eingetragen: enexxx, Set 2, block_index 0, kind `probation`, Uebertrag aus Set 1. Pflege ueber `action=strikes` (op add/list/remove) - **Buchung nur durch den Captain**, `blocks` liefert lediglich `proposedStrikes`.
+- **P1.6 Cap-Zaehler je Set.** Neue Spalte `squad_penalties.kind` ('cap' | 'missed_lineup' | 'other'); `standings[].capViolations` zaehlt nur Strafen mit `kind='cap'` **des laufenden Sets**. Set 2 startet fuer alle bei 0 (Captain-Entscheidung 08.09.).
+- **P1.7 Blockregel vollstaendig.** `blocks` weist je Manager alle drei Bedingungen **einzeln** aus (`conditions.blockPointsBelowLine`, `.seasonPointsBelowLine`, `.stageCapableUnderHalf` mit Wert, Linie und `failed`), dazu `strikeEarned` als Und-Verknuepfung. Stage-faehig = eigener Score >= `round.target / 3`. Gegenprobe Set 1: Saison-Ø **167,3**, Linie **133,8** - exakt die Werte aus der Strike-Begruendung fuer enexxx.
+- **P2.8 overCap nach Bonus statt Zeitstempel.** `managers` absteigend nach Bonus sortiert (bei Gleichstand Leaderboard-Platz), `bonusPct` ist eine **Zahl** (5 statt "5%"), zusaetzlich `bonusLabel`, `captain`, `leaderboardRank` und `suggestedPenalty { manager, reason, explain }` mit `lowest_rarity` bzw. `rarity_tie_higher_rank`. **Wichtig:** Der Punktestand wird jetzt VOR `overCap` berechnet - sonst stand der Tie-Break auf 999.
+- **P2.9 `squad_cap_instructions` wird befuellt.** Beim Senden einer Tauschanweisung entsteht eine Zeile (round_number = Set-Runde, round_no global, set_id, step_id, player_name, told_manager, sent_at, deadline_at); `resolved` wird gesetzt, sobald der Spieler tatsaechlich getauscht wurde. Nur fuer **neue** Anweisungen - bereits gesendete lassen sich nicht rueckwirkend belegen.
+
+**Antwort-Vertrag (ab 08.09.):** `schemaVersion` und `generatedAt` stecken in **jeder** Antwort (zentral im `json()`-Helfer). **schemaVersion 2** = standings/report sind set-bezogen, neues Feld `set`, `bonusPct` numerisch, `overCap.managers` nach Bonus sortiert. Version 1 = implizit alles davor. Stabil laut Vertrag: `generatedAt`, `round.final`, `openRound`, `set`, `standings[]`. `season` bleibt als Alias von `standings` bestehen. Jeder Pfad unterhalb des Function-Namens routet weiterhin auf dieselbe Function (`/v9`, `/v10`, ...).
+
+**Korrektur 09.09. — abgeschlossene Sets erzeugen keine Strikes mehr:** `blocks&set=1` schlug zunaechst rueckwirkend zwei Strikes fuer enexxx vor (Blocksplit in 4 Bloecke). Falsch: Set 1 ist abgerechnet, und der Captain hat es als **einen** Block gewertet. **enexxx hat genau EINEN Strike auf Bewaehrung, und daran aendert sich nichts** (Vorgabe Jonas). `proposedStrikes` ist bei `ended_on IS NOT NULL` jetzt immer leer, die Antwort traegt `closed: true` und einen entsprechenden Hinweistext. `strikeEarned` je Manager bleibt zur Nachvollziehbarkeit sichtbar, ist dort aber ohne Wirkung. Massgeblich sind ausschliesslich die gespeicherten Strikes in `squad_strikes`.
+
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
 
 ## 🔴 AKUT (25.08.): DB-Totalausfall Nr. 2 — siehe [INCIDENTS.md](INCIDENTS.md) INC-006
@@ -878,9 +894,16 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
 - **Quelle:** `so5Leaderboard.so5RankingsPaginated(page, pageSize)` -> `so5Lineup.so5Appearances`
   mit `anyPlayer{slug}` + `anyCard{rarityTyped inSeasonEligible}`. **Braucht den APIKEY**
   (Tiefe 8 noetig, anonym nur 7). Gemessen: 50 Aufstellungen je Aufruf in ~0,4 s.
-- **Stichprobe statt Vollerhebung:** je Leaderboard drei gezielte SEITEN — Spitzenfeld, die
-  Seite an der Cash-Grenze, die Seite an der Essence-Grenze. Seitennummern erlauben den
-  direkten Sprung, kein Durchblaettern. Ergebnis GW10: 1.160 Aufstellungen aus 26 Aufrufen.
+- **Cash: VOLLERHEBUNG (seit 09.09., Einwand Jonas), Essence: Stichprobe.**
+  Alle Seiten bis zum letzten bezahlten Cash-Rang werden geholt, fuer Essence weiterhin nur
+  Spitzenfeld und Grenzseite. Grund: Die alte Stichprobe nahm bei Cash nur Seite 0 und die
+  Grenzseite. Bei einem Leaderboard mit 250 bezahlten Raengen fehlte die ganze Mitte, und
+  genau dort kann das billigste Gewinner-Team stehen. Der Median war der einer Mischung aus
+  Spitze und Rand, nicht der aller Gewinner.
+  **Kostet weniger als vorher, nicht mehr:** groesster Cash-Rang der Saison ist 250, also
+  hoechstens 5 Seiten, waehrend der alte Sprung an die Essence-Grenze allein bis Seite 59
+  ging (All Star). Ganze Saison: 316 Seiten gegenueber 546 mit der alten Logik.
+  Vollerhebung auch fuer Essence waere 7.209 Seiten und 358.165 Aufstellungen: nicht wert.
 - **Bepreisung:** Karten gegen `card_prices` (player_slug + scarcity + eligibility) zu
   HEUTIGEN FMV. Bewusst nicht historisch: die nuetzliche Frage ist "was kostet so ein Team
   jetzt". Nur vollstaendig bepreiste Aufstellungen zaehlen (5/5), sonst waere die Summe
