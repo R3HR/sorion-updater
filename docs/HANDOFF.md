@@ -313,7 +313,7 @@ Angebot bei 358 EUR lag.
 
 **Folge fuer die Formel-Historie:** Alle heute angezeigten Werte stammen aus **v3.3**.
 Die Deploys von v3.4 (07.09.) und v3.5 (08.09.) haben nie eine Karte berechnet. Die frueher
-geplante Kante 08.09. ist damit gegenstandslos; gesetzt ist stattdessen **12.09.**
+geplante Kante 08.09. ist damit gegenstandslos; gesetzt ist stattdessen **12.09.** (gilt unveraendert fuer v3.6)
 (`migrations/2026-09-08_fmv_v35_change_guard.sql`, am 11.09. ausgefuehrt, 3 Kanten aktiv:
 22.08., 26.08., 12.09.).
 
@@ -325,13 +325,39 @@ Dauerausfall verstecken. Noetig ist ein Alarm, wenn ein Lauf fast nur Fehlschlae
 `price_history` einen Tag lang leer bleibt. Heute wuerde derselbe Fehler wieder 5 Tage lang
 unbemerkt bleiben.
 
-**OFFEN, zeitkritisch — Vorgabe Jonas vom 11.09.:** *"bei so wenig verkaeufen muessen wir
+**✅ ERLEDIGT (11.09.) — FMV v3.6, Prinzip 7 (Rueckfallebene).** Vorgabe Jonas: *"bei so wenig verkaeufen muessen wir
 zwangslaeufig die Auktionen und Sofortkaeufe mit einbeziehen"*. Beispiel Aleix Garcia
 (rare/in-season): **ein** Manager-Verkauf in 25 Tagen, dazu 17 Auktionen und 2 Sofortkaeufe.
 v3.5 liefert solchen Karten gar keinen Wert. Sobald der Fix laeuft, betrifft das viele Karten
-auf einmal. Geplant als v3.6: Rangfolge statt Entweder-oder — erst Manager-Verkaeufe,
-reichen sie nicht, kommen die anderen Arten dazu, korrigiert um ihren gemessenen Abstand.
-Messgrundlage liegt bereit (`tools/analysis-out/2026-09-07_deal-type-data.json`).
+auf einmal. Umgesetzt als **v3.6**: Die Rueckfallebene greift NUR, wenn sich kein einziger
+Manager-Verkauf findet, auch im gedehnten Fenster nicht. Dann zaehlen Auktion und Sofortkauf,
+umgerechnet mit **0,85 bzw. 0,70** (`FALLBACK_FACTOR`). Sobald EIN Manager-Verkauf vorliegt,
+bleibt es bei ihm allein.
+
+**Warum umgerechnet:** Fremde Arten sind oft andere Ware, nicht nur anderer Preis. Sorare
+versteigert frische Karten, Manager geben aeltere ab. Gemessen ueber 798 Karten liegen
+Auktionen im Median **70 %** ueber dem Manager-Preis DERSELBEN Karte, Sofortkaeufe ueber
+**130 %**. Roh beigemischt heben sie den FMV also an — genau Jonas' Ausgangsbeschwerde.
+Die Faktoren sind aber bewusst NICHT der Kehrwert (0,59/0,42): voll umgerechnet kippt die
+Schaetzung ins Gegenteil (Bias +37 %, Median ±47 % in den Rettungsfaellen).
+
+**Backtest** (`docs/2026-09-11_FALLBACK_BACKTEST.md`, 7.302 Ziele, Ziel immer ein
+Manager-Verkauf) und Gegencheck mit der fertigen Bibliothek (7.029 Ziele) gegen das,
+was HEUTE live rechnet (v3.3):
+
+| Segment | v3.3 (live) | v3.6 | Bias | ohne Wert |
+|---|---|---|---|---|
+| limited/classic | ±23,6 % | **±22,4 %** | +0,1 % | 0 % |
+| limited/in_season | ±32,3 % | **±25,8 %** | +3,0 % | 0 % |
+| rare/in_season | ±25,0 % | **±23,3 %** | +2,8 % | 0 % |
+| **ALLE** | ±27,4 % | **±24,2 %** | +2,0 % | **0 %** |
+
+Besser in jedem Segment, und **keine Karte ohne Wert** (v3.5 haette 3 % gesamt und 14 % bei
+rare in-season leer gelassen). Probe an Aleix Garcia (Floor 358, angezeigt 450,67):
+v3.6 liefert 375,01 mit dem Manager-Verkauf von gestern, und 359,97 ohne ihn.
+
+Smoke-Test: 8 Faelle, alle bestanden (u. a. unveraendert bei vorhandenen Manager-Verkaeufen,
+ein einzelner Manager-Verkauf schlaegt jede Auktion, Deckel greift auch im Rueckfall).
 
 ## 🟡 FMV v3.5 (08.09.2026, rechnet erst ab 12.09.) — nur Manager-Verkäufe
 
