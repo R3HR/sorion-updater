@@ -49,6 +49,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function fetchData(playerSlug, eligibility) {
   const seasonElig = eligibility === 'classic' ? 'CLASSIC' : 'IN_SEASON';
   const inSeason   = eligibility === 'classic' ? 'false' : 'true';
+  // cardSupply: tatsaechliche Stueckzahl je Saison und Rarity (IDEA-006). Grundlage
+  // fuer "212 von 1.000 gepraegt", Marktkapitalisierung und die Pruefung, ob
+  // Knappheit den FMV verbessert. Kostet keinen eigenen API-Aufruf.
+  //
+  // ACHTUNG: In diesem Template stehen GraphQL-Kommentare mit '#', NICHT mit '//'.
+  // Ein '//' im Query-String macht die GANZE Abfrage ungueltig; der Updater wertet
+  // das als API-Fehlschlag, setzt nur updated_at und laesst alle Preise stehen.
+  // Genau so lag die Preisaktualisierung vom 06. bis 11.09.2026 still (INC-009).
   const query = `{
     player: anyPlayer(slug: "${playerSlug}") {
       anyPositions
@@ -56,9 +64,6 @@ async function fetchData(playerSlug, eligibility) {
       age
       gameplayTier
       activeClub { name country { code } domesticLeague { name country { code } } }
-      // Tatsaechliche Stueckzahl je Saison und Rarity (IDEA-006). Grundlage fuer
-      // "212 von 1.000 gepraegt", Marktkapitalisierung und die Pruefung, ob
-      // Knappheit den FMV verbessert. Kostet keinen eigenen API-Aufruf.
       cardSupply { season { startYear } limited rare superRare unique }
       lowestPriceAnyCard(inSeason: ${inSeason}, rarity: ${SCARCITY}) {
         pictureUrl

@@ -207,3 +207,36 @@
 - **Lektion:** Ein Dienst, der bei jedem Push crasht, war zwei Tage lang als "Jonas muss noch
   einen Haken setzen" abgelegt. Der Haken existierte nicht mehr. Wenn eine Handaktion zweimal
   nicht klappt, ist die Annahme ueber den Mechanismus zu pruefen, nicht die Erinnerung an ihn.
+
+## INC-009 - Preisaktualisierung stand 5 Tage still, Werte blieben unbemerkt stehen (06.-11.09.2026) - BEHOBEN
+
+**Symptom:** Jonas meldet am 11.09., dass eine Karte mit FMV 450,67 EUR gefuehrt wird,
+waehrend das guenstigste Angebot bei 358 EUR liegt. Pruefung: Der FMV stammte vom 06.09.
+Seit diesem Tag gab es **fuer keine einzige Karte** einen neuen Eintrag in `price_history`
+(letzte Zeilen 06.09.) und keinen neuen Verkauf in `fmv_accuracy`. Betroffen waren alle
+46.407 bewerteten Zeilen, also die gesamte Seite.
+
+**Warum es niemandem auffiel:** `card_prices.updated_at` wurde weiterhin stuendlich
+gesetzt und sah frisch aus (11.09. 04:41). Genau das tut der Updater im Fehlerzweig:
+bei einem gescheiterten Abruf schreibt er NUR `updated_at` und laesst alle Werte stehen
+(bewusst so, damit ein API-Aussetzer keine Preise loescht). Ein Totalausfall sieht damit
+aus wie Normalbetrieb. Die Seite zeigte 5 Tage alte Preise ohne jeden Hinweis.
+
+**Ursache:** Beim Einbau von `cardSupply` am 06.09. (IDEA-006) sind drei Kommentarzeilen
+mit `//` INNERHALB des GraphQL-Query-Strings gelandet. GraphQL kennt nur `#`. Die Abfrage
+war damit syntaktisch ungueltig, Sorare antwortete mit `errors`, `fetchData` gab `null`
+zurueck, und jede Karte lief in den Fehlerzweig. Der Fehler wurde zwar geloggt
+(`GraphQL error for ...`), aber niemand las die Railway-Logs.
+
+**Fix (11.09.):** Kommentare aus dem Query-String heraus vor die Deklaration verschoben,
+mit ausdruecklicher Warnung an der Stelle. Gegenprobe: dieselbe Query, direkt aus der
+Datei gelesen und live abgefeuert, liefert wieder Floor, cardSupply und 20 Verkaeufe.
+
+**Lehren:**
+1. **Ein Aussetzer-Schutz darf keinen Dauerausfall verstecken.** Noetig ist eine Wache, die
+   Alarm schlaegt, wenn ueber mehrere Laeufe hinweg fast nur Fehlschlaege auftreten oder
+   `price_history` einen Tag lang leer bleibt. OFFEN, siehe HANDOFF.
+2. **Kommentare gehoeren nie in einen Query-String.** Der Scanner dafuer ist drei Zeilen
+   Python und laeuft jetzt im Kopf jeder Aenderung an einer Query.
+3. Nach jeder Aenderung an der Abfrage EINEN echten Abruf gegenpruefen, nicht nur
+   `node --check`. Syntaktisch gueltiges JavaScript kann eine ungueltige Query enthalten.
