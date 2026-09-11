@@ -220,6 +220,22 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 
 **Antwort-Vertrag (ab 08.09.):** `schemaVersion` und `generatedAt` stecken in **jeder** Antwort (zentral im `json()`-Helfer). **schemaVersion 2** = standings/report sind set-bezogen, neues Feld `set`, `bonusPct` numerisch, `overCap.managers` nach Bonus sortiert. Version 1 = implizit alles davor. Stabil laut Vertrag: `generatedAt`, `round.final`, `openRound`, `set`, `standings[]`. `season` bleibt als Alias von `standings` bestehen. Jeder Pfad unterhalb des Function-Namens routet weiterhin auf dieselbe Function (`/v9`, `/v10`, ...).
 
+**11.09. — geplantes Setende (`planned_end_on`), NICHT `ended_on`:** Hinweis des Cowork-Bots, dass Set 2 am 29.10. endet und die Ankerlogik den letzten Block sonst bis zum 01.11. durchrechnet. Sein Vorschlag `sets.ended_on = 2026-10-29` waere aber schaedlich gewesen: An `ended_on` haengt, welches Set **aktiv** ist. Heute gesetzt haette es (1) `activeSet` auf NULL gezogen, wodurch `report`/`standings` wieder ueber **alle** Sets aggregiert haetten - der Fehler aus P0.1; (2) `assignRound` haette neue Runden mit `set_id = NULL` geschrieben; (3) `proposedStrikes` waere leer geblieben, die Blockauswertung am 21.09. haette nichts vorgeschlagen.
+- Neue Spalte **`squad_sets.planned_end_on`** (Set 2 = 2026-10-29, Set 1 = 2026-09-07). Sie begrenzt den letzten Block, schliesst das Set aber nicht.
+- Blockende ist jetzt `min(Raster-Ende, planned_end_on)`. Damit endet Block 3 am **29.10.** statt am 01.11., und `complete` kippt puenktlich statt drei Tage zu spaet.
+- Neu je Block: `truncated` und `plannedDays`. **Offen fuer den Captain:** Block 3 hat nur 11 statt 14 Tage - ob ein verkuerzter Schlussblock als voller Block fuer Strikes und Bewaehrungsverfall zaehlt, ist eine Regelfrage, keine Rechenfrage.
+- Antwort traegt `plannedEndOn` (oben und in `set`). Verifiziert: aktives Set weiterhin Hyperglitch, `closed: false`, Strike-Vorschlaege weiter moeglich.
+
+**Korrektur 10.09. — Strike-Konto (kritischer Befund Cowork-Bot):** `blocks` hatte gar keine Strike-Fuehrung; `unmatchedStoredStrikes: 1` war ein halbgarer Diagnosezaehler von mir. enexxx' Bewaehrung lag zwar in der DB, wurde aber keinem Block zugerechnet - ein Strike in Block 0 waere als **erster** statt als **zweiter** gezaehlt worden, die Bewaehrung waere wirkungslos gewesen. Neu:
+- `strikeAccounts[]` je Manager: `activeStrikes`, `nextStrikeNumber`, und je Strike `wouldExpireAfterBlock`.
+- Je Block und Manager: `strikesBefore`, `nextStrikeNumber`, `strikesAfter`.
+- `orphanStrikes` (+ `orphanStrikeIds`) statt des alten Zaehlers: muss **0** sein, sonst zeigt ein gespeicherter Strike auf einen Block ausserhalb der Rechnung.
+- `blocks[].roundNumbers` zaehlt jetzt **je Set ab 1**; die globale Nummer steht daneben als `globalRoundNumbers`. Dazu `blocks[].complete`.
+- **Semantik `block_index`** (Migration 20260910090000): Block, in dem der Strike **erworben** wurde; **-1 = Uebertrag aus dem Vorset**. enexxx' Bewaehrung von 0 auf -1 umgestellt - mit 0 haette sie einen sauberen Block 0 ueberlebt und waere nie verfallen, weil ein Strike nicht von seinem eigenen Erwerbsblock getilgt wird.
+- **Zwei Fehler dabei gefunden und behoben:** (a) ein verfallener Strike wurde im naechsten Block erneut eingesammelt (`block_index <= b.index` greift in jedem Block) - jetzt wird jeder Strike genau einmal aufgenommen; (b) Verfallsbedingung von `>= b.index` auf `< b.index` korrigiert.
+- **Verifiziert** an Set 1 (4 abgeschlossene Bloecke) mit temporaeren Eintraegen, danach entfernt: Bewaehrung mit Verfall -> 0 aktiv nach sauberem Block; Strike ohne Verfall -> bleibt 1. Stand fuer den 21.09.: **enexxx 1 aktiv, naechster waere Nr. 2, verfaellt nach sauberem Block 0.**
+- `strikeAccounts` zaehlt ausschliesslich **gebuchte** Strikes; `proposedStrikes` wirken erst nach Buchung durch den Captain (`accountNote` in der Antwort).
+
 **Korrektur 09.09. — abgeschlossene Sets erzeugen keine Strikes mehr:** `blocks&set=1` schlug zunaechst rueckwirkend zwei Strikes fuer enexxx vor (Blocksplit in 4 Bloecke). Falsch: Set 1 ist abgerechnet, und der Captain hat es als **einen** Block gewertet. **enexxx hat genau EINEN Strike auf Bewaehrung, und daran aendert sich nichts** (Vorgabe Jonas). `proposedStrikes` ist bei `ended_on IS NOT NULL` jetzt immer leer, die Antwort traegt `closed: true` und einen entsprechenden Hinweistext. `strikeEarned` je Manager bleibt zur Nachvollziehbarkeit sichtbar, ist dort aber ohne Wirkung. Massgeblich sind ausschliesslich die gespeicherten Strikes in `squad_strikes`.
 
 - **Offen:** (1) UI-Seite auf sorion.pro (Leaderboard Ø-Punkte aus `squad_step_scores`, Cap-Ampel + Timeline aus `squad_lineup_log`/`cap_report`; Zugriff via neuer Function/RPC). (2) Langfristig: Token-Bindung an Jonas' Account — bei Sorare-Re-Login/Widerruf muss `seed_tokens` neu befüllt werden (Ablauf dokumentieren).
@@ -285,7 +301,39 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
-## 🟡 FMV v3.5 GEBAUT, NOCH NICHT GEPUSHT (08.09.2026) — nur Manager-Verkäufe
+## 🔴 ZUERST LESEN (11.09.2026): v3.4 und v3.5 haben NIE gerechnet — INC-009
+
+Die Preisaktualisierung stand vom **06. bis 11.09.** still. Ursache: drei `//`-Kommentare
+im GraphQL-Query-String (GraphQL kennt nur `#`), eingebaut beim `cardSupply`-Patch am 06.09.
+Jede Abfrage war ungueltig, jede Karte lief in den Fehlerzweig, der bewusst nur `updated_at`
+setzt und die Werte stehen laesst. Deshalb sah alles frisch aus, waehrend fuenf Tage lang
+**keine einzige** Zeile in `price_history` und kein Verkauf in `fmv_accuracy` geschrieben wurde.
+Aufgefallen ist es erst, weil Jonas eine Karte mit FMV 450,67 EUR meldete, deren guenstigstes
+Angebot bei 358 EUR lag.
+
+**Folge fuer die Formel-Historie:** Alle heute angezeigten Werte stammen aus **v3.3**.
+Die Deploys von v3.4 (07.09.) und v3.5 (08.09.) haben nie eine Karte berechnet. Die frueher
+geplante Kante 08.09. ist damit gegenstandslos; gesetzt ist stattdessen **12.09.**
+(`migrations/2026-09-08_fmv_v35_change_guard.sql`, am 11.09. ausgefuehrt, 3 Kanten aktiv:
+22.08., 26.08., 12.09.).
+
+**Der Fix ist committet (`ae55ca3`), aber NOCH NICHT GEPUSHT** — der Push war in der Sitzung
+gesperrt. Ohne ihn faellt auch die Nacht auf den 12.09. aus. Mit ihm rechnet v3.5 erstmals.
+
+**OFFEN, dringend — Wache gegen stille Ausfaelle:** Ein Aussetzer-Schutz darf keinen
+Dauerausfall verstecken. Noetig ist ein Alarm, wenn ein Lauf fast nur Fehlschlaege hat oder
+`price_history` einen Tag lang leer bleibt. Heute wuerde derselbe Fehler wieder 5 Tage lang
+unbemerkt bleiben.
+
+**OFFEN, zeitkritisch — Vorgabe Jonas vom 11.09.:** *"bei so wenig verkaeufen muessen wir
+zwangslaeufig die Auktionen und Sofortkaeufe mit einbeziehen"*. Beispiel Aleix Garcia
+(rare/in-season): **ein** Manager-Verkauf in 25 Tagen, dazu 17 Auktionen und 2 Sofortkaeufe.
+v3.5 liefert solchen Karten gar keinen Wert. Sobald der Fix laeuft, betrifft das viele Karten
+auf einmal. Geplant als v3.6: Rangfolge statt Entweder-oder — erst Manager-Verkaeufe,
+reichen sie nicht, kommen die anderen Arten dazu, korrigiert um ihren gemessenen Abstand.
+Messgrundlage liegt bereit (`tools/analysis-out/2026-09-07_deal-type-data.json`).
+
+## 🟡 FMV v3.5 (08.09.2026, rechnet erst ab 12.09.) — nur Manager-Verkäufe
 
 **Vorgabe Jonas (bindend, zweimal bestätigt):** Auktion (`TokenAuction`) und Sofortkauf
 (`TokenPrimaryOffer`) sind KEINE Marktpreise. Auf beiden Sorare-Märkten gelten Gutscheine
