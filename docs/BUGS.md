@@ -588,3 +588,13 @@ Zeitueberschreitungen und Drosselung.
 - Platzhalter "username or sorare.com profile link", Gedankenstrich im Modal-Untertitel entfernt.
 
 **Offen (Entscheidung Jonas):** echte Nickname-Suche nur mit eingeloggtem Sorare-Konto moeglich.
+
+**KORREKTUR der Ursache 1 (12.09., Hinweis Jonas "ich heisse mittlerweile R3HR"):** Die erste
+Fassung vermutete, nach einer Umbenennung bleibe der alte Slug einfach bestehen. Tatsaechlich
+vergibt Sorare beim Umbenennen einen NEUEN Slug aus Nickname plus UUID, und der alte leitet
+weiter. Gemessen: `user(slug:"jr3hr")` liefert `slug = r3hr-7625d620-89dc-4c09-86b1-d1b3a7f21c50`,
+`nickname = R3HR`; `user(slug:"r3hr")` ist "not found". **Der Nickname allein ist nach einer
+Umbenennung also nie ein gueltiger Slug**, weil die UUID fehlt. Genau deshalb ist KalleAusSuelz
+nicht erratbar, und genau deshalb hilft der Profillink: Er enthaelt den vollstaendigen Slug samt
+UUID. Die Link-Erkennung verarbeitet solche Slugs korrekt (gegengeprueft mit dem eigenen Link).
+Fuer bereits bekannte Manager loest `resolve_manager` den Nickname weiterhin auf.
