@@ -124,3 +124,65 @@ ein weiteres Feld holen und speichern, und die Formel bekaeme eine weitere Fallu
 (siehe oben). Er scheitert heute nicht an der Formel, sondern daran, dass `manager_cards`
 keine Kartenmerkmale speichert. Wer das angeht, misst zuerst die Seriennummer: niedrige
 Nummern gelten als gesucht, und anders als Level und Edition ist dieser Effekt noch ungeprueft.
+
+---
+
+## Seriennummer (12.09., Messung auf Wunsch Jonas)
+
+Gleiche Methode, zusaetzlich kontrolliert um Level UND Edition: 17.217 Paare gesamt,
+davon 7.820 mit identischem Level und identischer Edition. Beide Datensaetze zusammen
+(6.703 Verkaeufe). Normiert, "positiv" heisst also immer: die NIEDRIGERE Nummer ist teurer.
+
+**Die Seriennummer als solche: kein Effekt.** Eine Verdopplung der Nummer aendert den Preis
+um 0,0 % (limited, n=1.293 Paare) und 0,0 % (rare, n=1.082).
+
+| Rarity | Vergleich | Paare | Aufschlag der niedrigeren Nummer |
+|---|---|---|---|
+| limited | 1-10 gegen 11-50 | 78 | 0,0 % |
+| limited | 11-50 gegen 51-200 | 539 | 0,0 % |
+| limited | 51-200 gegen 201+ | 271 | +1,1 % |
+| rare | 1-3 gegen 4-10 | 107 | 0,0 % |
+| rare | 4-10 gegen 11-30 | 407 | +1,4 % |
+| rare | 11-30 gegen 31+ | 352 | −0,4 % |
+
+**Eine Ausnahme, und zwar eine deutliche: die Nummer 1.**
+
+| Rarity | Aufschlag | Paare |
+|---|---|---|
+| limited | **+9,7 %** | 26 |
+| rare | **+15,7 %** | 68 |
+
+In beiden Raritaeten dieselbe Richtung und eine Groessenordnung, die kein Rauschen mehr ist.
+Das ist ein Sammlereffekt: Die #1 einer Auflage ist begehrt, die #2 schon nicht mehr.
+
+**Fuer den FMV trotzdem irrelevant.** Die Nummer 1 macht 0,56 % (meistgehandelt) bis 1,17 %
+(duenn gehandelt) der Verkaeufe aus. Backtest mit Abwertung um 12 %:
+
+| Datensatz | Korrektur | Ziel normal | Basis enthielt Nummer 1 |
+|---|---|---|---|
+| meistgehandelt | aus | ±11,5 % (+0,5 %) | ±20,0 % (n=57) |
+| meistgehandelt | an | ±11,5 % (+0,5 %) | ±20,5 % (n=57) |
+| duenn | aus | ±25,3 % (−0,8 %) | ±36,7 % (n=40) |
+| duenn | an | ±25,3 % (−0,7 %) | ±35,3 % (n=40) |
+
+Der Median bewegt sich auf zwei Nachkommastellen nicht. Die Fallzahlen bei "Basis enthielt
+Nummer 1" sind zweistellig und die Bias-Werte dort extrem (+13,5 % / −25,3 %), das ist Rauschen.
+
+## Gesamtbild aller drei Merkmale
+
+| Merkmal | Preiseffekt | In den FMV? | Warum |
+|---|---|---|---|
+| Level (grade) | ~0 | **nein** | XP wird beim Transfer halbiert, der Kaeufer bekommt das Level nicht |
+| Spezialedition | +6,3 % | **nein** | Backtest zeigt keinen Gewinn, das Trimmen raeumt es ohnehin weg |
+| Seriennummer allgemein | ~0 | **nein** | kein Effekt vorhanden |
+| Seriennummer 1 | +10 bis +16 % | **nein** | real, aber unter 1,2 % der Verkaeufe |
+
+**Die Formel bleibt bei v3.6.** Alle drei Merkmale sind fuer einen Durchschnitt ueber Exemplare
+bedeutungslos. Das ist ein Ergebnis, kein Rueckschlag: Es haelt die Formel schlank und ist
+jetzt belegt statt vermutet.
+
+**Wo die Merkmale SEHR WOHL hingehoeren: der Wert je Exemplar.** Wer eine #1 besitzt, haelt
+10 bis 16 % mehr Wert in der Hand, als das Portfolio heute anzeigt. Dafuer muesste
+`manager_cards` die Merkmale mitschreiben (heute: nur card_slug, rarity, in_season, Kaufdaten).
+Die Seriennummer steckt bereits im `card_slug` (`<spieler>-<jahr>-<rarity>-<serial>`), waere
+also ohne neue Abfrage zu haben. Die Edition braeuchte ein Feld mehr im Portfolio-Sync.
