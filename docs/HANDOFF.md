@@ -359,6 +359,25 @@ v3.6 liefert 375,01 mit dem Manager-Verkauf von gestern, und 359,97 ohne ihn.
 Smoke-Test: 8 Faelle, alle bestanden (u. a. unveraendert bei vorhandenen Manager-Verkaeufen,
 ein einzelner Manager-Verkauf schlaegt jede Auktion, Deckel greift auch im Rueckfall).
 
+**✅ Nachkontrolle 12.09. (erster Lauf mit v3.6):** Updater rechnet wieder — 14.691 neue
+FMV-Zeilen, 19.537 erfasste Verkaeufe, **erstmals alle mit Verkaufsart**. Live-Abgleich von
+40 frisch berechneten, aktiv gehandelten Karten gegen Sorare:
+
+- FMV gegen den Median der Manager-Verkaeufe: **−1,2 %** (n=37) — praktisch auf dem Marktpreis
+- FMV gegen das guenstigste aktive Angebot: **+2,3 %** (n=23), 57 % liegen darueber. Das ist
+  erwartbar: `lowestPriceAnyCard` ist EIN Einzelangebot, oft eine hohe Seriennummer, waehrend
+  der FMV ueber alle Exemplare mittelt.
+- Aleix Garcia rare/in-season: **375,01** statt der eingefrorenen 450,67 bei Floor 342.
+
+**Nicht verwechseln:** `fmv_accuracy` zeigt fuer den 12.09. noch schlechte Werte (Bias −15
+bis −34 %). Diese Zeilen vergleichen die Verkaufe von heute Nacht mit dem FMV, der VORHER
+gespeichert war — also mit den eingefrorenen v3.3-Werten vom 06.09. Sie messen den Ausfall,
+nicht v3.6. Die erste echte v3.6-Messung ist ab dem 13.09. moeglich.
+
+**Weiter offen:** `super_rare / in_season` wurde auch in diesem Lauf **nicht** gerechnet
+(0 von 21.115 Zeilen), siehe BUG-041 — der Railway-Dienst fehlt. Die classic-Segmente sind
+erst zu rund einem Viertel durch, sie brauchen wie immer mehrere Tage fuer einen vollen Lauf.
+
 ## 🟡 FMV v3.5 (08.09.2026, rechnet erst ab 12.09.) — nur Manager-Verkäufe
 
 **Vorgabe Jonas (bindend, zweimal bestätigt):** Auktion (`TokenAuction`) und Sofortkauf
