@@ -554,3 +554,37 @@ Aleix García vor (0,43), "belingham" -> Bellingham, "halland" -> Haaland, "mbap
 **Bekannte Grenze:** Sorares Slug ist nicht immer eine saubere Umschrift. Ciprian Tătărușanu
 heisst dort `anton-ciprian-tataru-anu`; die Suche nach "tatarusanu" findet ihn deshalb nicht
 exakt, die Aehnlichkeitssuche faengt ihn aber ab.
+
+## BUG-043 - Manager Search fand "KalleAusSülz" nicht, auf der Portfolio-Seite auch keine Umbenannten (12.09.) - BEHOBEN
+
+**Symptom:** Jonas sucht "KalleAusSülz" in mehreren Schreibweisen, immer "manager not found".
+
+**Befund:** Die Suche selbst war nicht kaputt (`jr3hr` lieferte weiter Karten). Zwei getrennte
+Ursachen:
+1. **Nickname ist nicht Slug.** Sorare bestaetigt den Namen als vergeben
+   (`isNicknameAvailable("KalleAusSülz")` = false), aber `user(slug:)` braucht den Slug, und der
+   laesst sich nicht ableiten: kalleaussulz, kalleaussuelz, kalle-aus-sulz und weitere Varianten
+   liefern alle "not found", Grossschreibung ebenso. Bei uns war er unbekannt (`manager_sync`,
+   `manager_cards`, `so5_lineups` ohne Treffer), also konnte auch `resolve_manager` nicht helfen.
+   Die einzige Freitext-Nutzersuche der API, `usersPaginated(query:)`, verlangt einen
+   **eingeloggten** Nutzer ("You should log in") und geht mit dem API-Schluessel nicht. Das
+   OAuth-Token eines Managers fuer alle Besucher zu verwenden, beruehrt Sorares Bedingungen und
+   bleibt eine Entscheidung fuer Jonas. **Das war also nie anders**, keine Regression.
+2. **Echte Regression-Luecke auf portfolio.html:** `msSearch` rief `resolveManagerSlug` nicht auf,
+   index.html schon (seit BUG-039). Umbenannte Manager und Nicknames bekannter Manager waren
+   auf der Portfolio-Seite deshalb nie aufloesbar.
+
+Dazu kam, dass JEDER Fehler der Edge Function als "manager not found" erschien, auch
+Zeitueberschreitungen und Drosselung.
+
+**Fix (index.html und portfolio.html gleich):**
+- `msNormalizeInput()`: nimmt auch einen eingefuegten Sorare-Profillink an und zieht den Slug
+  heraus (`/football/my-club/<slug>`, `/gallery/<slug>`, mit Sprachpraefix, Query und Unterseiten),
+  ausserdem `@` und Grossschreibung. 8 Eingabefaelle getestet.
+- portfolio.html loest jetzt wie index.html ueber `resolve_manager` auf.
+- Fehlermeldung unterscheidet: echtes "not found" erklaert, dass Anzeigename und Username
+  verschieden sein koennen, und bittet um den Profillink; alles andere heisst "Sorare did not
+  respond".
+- Platzhalter "username or sorare.com profile link", Gedankenstrich im Modal-Untertitel entfernt.
+
+**Offen (Entscheidung Jonas):** echte Nickname-Suche nur mit eingeloggtem Sorare-Konto moeglich.
