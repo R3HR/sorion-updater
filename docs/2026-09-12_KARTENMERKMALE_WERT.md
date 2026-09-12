@@ -74,3 +74,53 @@ Exemplare. Im Portfolio sieht Jonas damit fuer SEINE konkrete Karte den Durchsch
 Sobald Kartenmerkmale mitlaufen, liesse sich daraus ein Wert je Exemplar machen. Die
 Spezialedition waere der erste Baustein, die Seriennummer (niedrige Nummern sind gesucht)
 der naechste Kandidat fuer eine Messung.
+
+---
+
+## NACHTRAG (12.09., nach dem Backtest): Der Einbau lohnt NICHT
+
+Oben stand die Empfehlung, die Spezialedition einzubauen. **Der Backtest widerlegt das.**
+Der paarweise Vergleich (+6,3 %) misst den Aufschlag bei sonst gleichen Bedingungen. Ob eine
+Korrektur die SCHAETZUNG verbessert, ist eine andere Frage, und die Antwort ist nein.
+
+Gemessen auf zwei Datensaetzen, Walk-Forward wie immer, Ziel ist ein Manager-Verkauf:
+160 meistgehandelte Karten (3.188 Verkaeufe) und 180 duenn gehandelte (3.515 Verkaeufe,
+555 Spezialeditionen).
+
+**Meistgehandelte Karten** (Median, in Klammern der Bias):
+
+| Korrektur | Ziel normal | Basis MIT Spezialedition | Ziel Spezialedition |
+|---|---|---|---|
+| aus | ±11,6 % (+0,4 %) | **±14,6 % (+0,4 %)** | ±9,9 % (+2,1 %) |
+| immer | ±12,1 % (+1,0 %) | ±16,2 % (+2,7 %) | ±10,0 % (+3,8 %) |
+| nur bei duenner Basis | ±11,6 % (+0,9 %) | ±15,7 % (+2,3 %) | ±9,7 % (+3,2 %) |
+
+**Duenn gehandelte Karten:**
+
+| Korrektur | Ziel normal | Basis MIT Spezialedition | Ziel Spezialedition |
+|---|---|---|---|
+| aus | ±26,0 % (−1,5 %) | ±28,6 % (**−4,1 %**) | ±23,7 % (+0,8 %) |
+| immer | ±26,4 % (−0,8 %) | ±28,4 % (**−1,0 %**) | ±23,1 % (+2,6 %) |
+| nur bei duenner Basis | ±26,2 % (−1,1 %) | ±28,5 % (−1,8 %) | ±23,7 % (+1,2 %) |
+
+**Lesart:**
+- Der **Median**, unser Hauptmassstab, verbessert sich NIRGENDS nennenswert. Bei den
+  meistgehandelten Karten wird er sogar schlechter.
+- Nur der **Bias** bei duenner Basis mit Spezialedition profitiert deutlich (−4,1 auf −1,0 %).
+  Genau dort greift das Ausreisser-Trimmen nicht, das erst ab 5 Verkaeufen einsetzt: Bei
+  liquider Basis raeumt das Trimmen den Editionsaufschlag ohnehin weg.
+- Dieser Gewinn wird aber durch den Bias-VERLUST bei liquiden Karten aufgehoben
+  (+0,4 auf +2,3 %). Auch die Variante "nur bei duenner Basis" loest das nicht, weil auch
+  liquide Karten Phasen mit duenner Basis haben.
+- Ein Aufschlag beim ANZEIGEN einer Spezialedition lohnt ebenfalls nicht: Der Bias bei
+  Spezialeditions-Zielen ist mit +2,1 % / +0,8 % schon klein. Der Aufschlag steckt
+  groesstenteils bereits im FMV, weil die Basis selbst Spezialeditionen enthaelt.
+
+**Entscheidung: kein v3.7.** Die Formel bleibt bei v3.6. Der Effekt ist real, aber zu klein
+und zu uneinheitlich, um die Mehrkomplexitaet zu rechtfertigen: Der Updater muesste je Verkauf
+ein weiteres Feld holen und speichern, und die Formel bekaeme eine weitere Fallunterscheidung.
+
+**Was dadurch NICHT erledigt ist:** Der Wert je Exemplar bleibt eine offene, lohnende Idee
+(siehe oben). Er scheitert heute nicht an der Formel, sondern daran, dass `manager_cards`
+keine Kartenmerkmale speichert. Wer das angeht, misst zuerst die Seriennummer: niedrige
+Nummern gelten als gesucht, und anders als Level und Edition ist dieser Effekt noch ungeprueft.
