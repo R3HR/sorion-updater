@@ -516,3 +516,41 @@ FMV v3.5 nicht betroffen, weil dort gar nichts neu berechnet wird.
 - **Lektion:** `no-start.mjs` mit Exit 1 war als sichtbarer Hinweis gedacht und hat genau das
   geleistet. Der Fehler lag nicht im Exit-Code, sondern darin, dass die fehlende Einstellung
   zwei Tage als Handaktion abgelegt war, statt sie beim ersten Fehlschlag zu pruefen.
+
+---
+
+## BUG-043 - Gespeicherte Strikes zaehlten nicht mit (10.09.) - BEHOBEN
+
+- **Symptom (Cowork-Bot):** `blocks` meldete `unmatchedStoredStrikes: 1`. enexxx' Bewaehrungsstrike lag in der Datenbank, wurde dem laufenden Block aber nicht zugeordnet. Folge: Ein Strike in Block 0 waere als **erster** gezaehlt worden statt als **zweiter** - die Bewaehrung liefe ins Leere, die Regel waere wirkungslos.
+- **Ursache:** `blocks` hatte ueberhaupt keine Strike-Fuehrung. `unmatchedStoredStrikes` war ein halbgarer Diagnosezaehler ohne Aussage; es gab keine Stelle, die gespeicherte Strikes mit der Blockrechnung verband.
+- **Fix:** `strikeAccounts[]` je Manager (aktive Strikes, `nextStrikeNumber`, `wouldExpireAfterBlock`) und je Block/Manager `strikesBefore`/`nextStrikeNumber`/`strikesAfter`. `orphanStrikes` ersetzt den alten Zaehler und muss 0 sein.
+- **Zwei Folgefehler beim Verifizieren gefunden:** (a) `block_index = 0` fuer den Uebertrag war falsch - ein Strike wird nicht von seinem eigenen Erwerbsblock getilgt, die Bewaehrung haette einen sauberen Block 0 ueberlebt und waere **nie** verfallen; Semantik jetzt "-1 = Uebertrag aus dem Vorset". (b) Ein verfallener Strike wurde im naechsten Block wieder eingesammelt, weil die Aufnahmebedingung in jedem Block erneut griff - er verfiel und lebte sofort wieder auf. Jetzt wird jeder Strike genau einmal aufgenommen.
+- **Verifiziert** mit temporaeren Eintraegen in Set 1 (4 abgeschlossene Bloecke), danach entfernt: mit Verfall -> 0, ohne Verfall -> 1.
+- **Lektion:** Ein Diagnosezaehler, der eine Abweichung nur *benennt*, ohne dass die Rechnung dahinter existiert, taeuscht Kontrolle vor. Und eine Verfallsregel muss man in beide Richtungen testen - "verfaellt" und "verfaellt nicht" -, sonst faellt der Fall nicht auf, in dem beides gleichzeitig passiert.
+
+## BUG-042 - Suche fand keinen Spieler, dessen Name einen Akzent traegt (12.09.) - BEHOBEN
+
+**Symptom:** Jonas sucht "Aleix Garcia" und bekommt nichts. Sorare fuehrt den Spieler als
+"Aleix García" mit Akzent auf dem i. Betroffen war JEDER Name mit Sonderzeichen: Nübel,
+Yüksek, Pérez, Islamović, Marçal.
+
+**Ursache:** Die Suche lief ausschliesslich ueber `player_name.ilike.*eingabe*`.
+`ilike` vergleicht Zeichen fuer Zeichen, und "i" ist nun einmal nicht "í".
+
+**Fix, zwei Stufen:**
+1. **Akzente (index.html):** Zusaetzlich ueber `player_slug` suchen. Sorares Slugs sind
+   immer akzentfrei (`aleix-garcia-serrano`, `alexander-nubel`, `ismail-yuksek`), also ist
+   der Slug die verlaessliche Grundlage. Die Eingabe wird im Browser normalisiert
+   (NFD-Zerlegung, Diakritika entfernt, Trennzeichen zu Bindestrichen). Kostet keine
+   zusaetzliche Abfrage und keine DB-Aenderung.
+2. **Tippfehler (migrations/2026-09-12_aehnlichkeitssuche.sql):** Findet die normale Suche
+   NICHTS, fragt die Seite `search_players_similar()` und zeigt "did you mean". Trigramm-
+   Vergleich auf dem Slug (pg_trgm war bereits installiert), Schwelle 0,20, GIN-Index.
+
+**Geprueft (live):** "nubel" findet Nübel, "yuksek" findet Yüksek, "alex garcia" schlaegt
+Aleix García vor (0,43), "belingham" -> Bellingham, "halland" -> Haaland, "mbappe" -> Mbappé,
+"nuebel" -> Nübel. Unsinnseingaben liefern nichts.
+
+**Bekannte Grenze:** Sorares Slug ist nicht immer eine saubere Umschrift. Ciprian Tătărușanu
+heisst dort `anton-ciprian-tataru-anu`; die Suche nach "tatarusanu" findet ihn deshalb nicht
+exakt, die Aehnlichkeitssuche faengt ihn aber ab.
