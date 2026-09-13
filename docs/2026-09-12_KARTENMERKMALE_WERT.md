@@ -4,6 +4,9 @@
 die Seriennummer der Trikotnummer entspricht. Alle drei erhoehen die Kartenpunkte und damit das
 Gewicht in der Vereinssammlung. Sollte der FMV das beruecksichtigen?
 
+> **⚠️ KORREKTUR 13.09.: Der Level-Befund in Abschnitt 1 ist FALSCH.** Level hat bei Classic-Karten
+> einen echten Preiseffekt von rund +2,5 % je Level. Siehe Nachtrag "Level, neu gemessen" am Ende.
+
 **Antwort in einem Satz:** Nur die Spezialedition ist den Aufwand wert. Das Level ist nachweislich
 wertlos fuer den Kaeufer, und der Trikotnummer-Treffer ist zu selten, um messbar zu sein.
 
@@ -186,3 +189,71 @@ jetzt belegt statt vermutet.
 `manager_cards` die Merkmale mitschreiben (heute: nur card_slug, rarity, in_season, Kaufdaten).
 Die Seriennummer steckt bereits im `card_slug` (`<spieler>-<jahr>-<rarity>-<serial>`), waere
 also ohne neue Abfrage zu haben. Die Edition braeuchte ein Feld mehr im Portfolio-Sync.
+
+
+---
+
+## KORREKTUR (13.09.): Level, neu gemessen. Der Trader hat recht, jedenfalls bei Classic
+
+**Anlass:** Ein Trader sagte Jonas, XP mache beim Handeln einen deutlichen Wertunterschied.
+Das widersprach Abschnitt 1 ("KEIN Preiseffekt"). Die Nachpruefung zeigt: **Abschnitt 1 ist falsch.**
+
+### Warum die erste Messung nichts fand (zwei Fehler)
+
+1. **Falscher Kartenzustand.** `TokenPrice.card` liefert die Karte so, wie sie HEUTE ist, nicht wie
+   sie beim Verkauf war. Eine vor drei Wochen verkaufte Karte hat seitdem beim Kaeufer XP
+   gesammelt. Genau das war der "Zufall", den Abschnitt 1 beschreibt ("die aelteren Verkaeufe
+   hatten zufaellig hoehere Level"): kein Zufall, sondern der Messfehler selbst.
+2. **Preisgleichstaende.** 15 % der Paare haben exakt denselben Preis, fast alle davon Sorare-
+   Sofortkaeufe zum Festpreis. Sie ziehen jeden Median auf 0,0 % und verdecken den Effekt.
+
+### Neue Methode
+
+Nur Verkaeufe der **letzten 24 Stunden**: Dort entspricht der heutige Kartenzustand fast genau dem,
+was der Kaeufer bekommen hat. 1.000 Karten mit frischen Verkaeufen (`tools/2026-09-13_xp-frische-verkaeufe.mjs`),
+3.819 Verkaeufe, davon 516 Classic mit Saisonjahr. Paare derselben Karte, gleiche Verkaufsart,
+**ohne** Preisgleichstaende, ohne Nummer 1 und ohne Spezialedition. Steigung je Level mit
+Bootstrap-Konfidenzintervall.
+
+### Ergebnis (nur Manager-Verkaeufe)
+
+| Segment | Paare | hoeheres Level teurer | je Level | 95 %-Intervall |
+|---|---|---|---|---|
+| **limited/classic, GLEICHE Saison** | 257 | 55 % | **+2,5 %** | +1,3 bis +3,9 % |
+| limited/classic, alle | 711 | 57 % | +1,6 % | +0,9 bis +2,3 % |
+| limited/classic, gleiche Saison, Level >= 4 | 70 | 67 % | +1,5 % | +0,2 bis +2,8 % |
+| limited/in_season, Level 0 gegen 1 | 281 | 50 % | −1,5 % | −4,9 bis +2,0 % |
+| limited/in_season, beide Level >= 1 | 60 | 55 % | +3,1 % | +0,5 bis +5,5 % |
+| Sorare-Sofortkaeufe | 1.872 | 47 % | −0,6 % | −1,5 bis +0,4 % |
+| rare (beide) | < 10 | | zu wenige | |
+
+**Lesart:**
+- **Classic: echter Effekt, rund +2,5 % je Level.** Er ueberlebt die Kontrolle auf das Saisonjahr,
+  ist also KEIN Alterseffekt (aeltere Karten haben tatsaechlich hoehere Level: 2021/2022 im Mittel
+  Level 4,2, 2024/2025 nur 1,4). Grob hochgerechnet ist eine Level-6-Karte rund 15 % mehr wert als
+  dieselbe Karte auf Level 0.
+- **In-Season: Level 0 gegen 1 bringt nichts.** Ab Level 1 aufwaerts deutet sich ein Effekt an,
+  aber auf 60 Paaren. In-Season-Karten erreichen selten hohe Level.
+- **Sorare-Sofortkaeufe:** kein Effekt, erwartbar, das sind frisch gepraegte Karten zum Festpreis.
+- **Rare:** noch zu wenige frische Verkaeufe fuer eine Aussage.
+
+### Was von Abschnitt 1 stehen bleibt
+
+Die **XP-Halbierung beim Transfer** ist real (eigenes API-Feld `xpAfterTransfer`). Sie erklaert aber
+nicht, dass Level wertlos ist, sondern nur, dass der Kaeufer weniger bekommt, als der Verkaeufer hatte.
+Bezahlt wird fuer das, was nach der Halbierung uebrig bleibt. Die Aussage "Wer Level einbaut, baut
+einen Fehler ein" ist zurueckgenommen.
+
+### Folgen, noch nicht umgesetzt (Entscheidung Jonas)
+
+1. **FMV:** Ob Level in die Formel gehoert, ist eine andere Frage als ob es den Preis beeinflusst
+   (Lehre Spezialedition: Effekt real, Backtest trotzdem ohne Gewinn). Noetig vor jeder Entscheidung
+   ein Backtest. Dafuer muss der Updater den Kartenzustand ZUM ZEITPUNKT DER ERFASSUNG speichern,
+   denn nachtraeglich laesst er sich nicht rekonstruieren.
+2. **Wert je Exemplar im Portfolio:** Level ist damit der staerkste bisher gefundene Hebel,
+   staerker als Spezialedition (+6,3 % pauschal) und fuer viel mehr Karten relevant als die
+   Nummer 1. Das Portfolio muesste dafuer den Kartenzustand je Karte kennen.
+3. **Nebenwirkung auf die Seriennummer-Messung:** Dort wurde "gleiches Level" als Kontrolle
+   benutzt, mit demselben fehlerhaften Zustand. Da die Seriennummer selbst unveraenderlich ist,
+   bleibt der Befund (kein Effekt ausser Nummer 1) plausibel, sollte bei Gelegenheit aber mit
+   frischen Verkaeufen bestaetigt werden.
