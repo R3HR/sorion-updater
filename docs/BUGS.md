@@ -598,3 +598,23 @@ Umbenennung also nie ein gueltiger Slug**, weil die UUID fehlt. Genau deshalb is
 nicht erratbar, und genau deshalb hilft der Profillink: Er enthaelt den vollstaendigen Slug samt
 UUID. Die Link-Erkennung verarbeitet solche Slugs korrekt (gegengeprueft mit dem eigenen Link).
 Fuer bereits bekannte Manager loest `resolve_manager` den Nickname weiterhin auf.
+
+## BUG-044 - Portfolio: Wert ueber Einsatz, Bilanz trotzdem negativ; Kachel-Labels unlesbar (13.09.) - BEHOBEN
+
+**Symptom:** Kacheln zeigen Portfolio Value 540 EUR, Invested 326 EUR, P&L -47 EUR (-14,4 %).
+Jonas: "wieso negative Bilanz, obwohl das Portfolio mehr wert ist als investiert?" Dazu die
+lila Labels ueber den Kacheln: 8px, kaum lesbar (auf Mobil ironischerweise groesser, 10px).
+
+**Ursache:** Keine Rechenfehler, sondern zwei verschiedene Kartenmengen nebeneinander:
+- **Portfolio Value** summiert ALLE Karten, auch geschenkte ohne Kaufpreis (Rewards, Crafts,
+  Claims). Die koennen keinen Gewinn oder Verlust haben.
+- **P&L** zaehlt nur gekaufte Karten und zieht die Verkaufsgebuehr ab (5 %, mind. 0,10 EUR).
+  Bei Limited-Karten um 30 Cent frisst die Pauschale ein Drittel des Werts.
+- **Invested** zaehlt jeden Kaufpreis, auch von Karten ohne FMV; P&L-Prozent bezieht sich
+  dagegen nur auf bepreiste Karten.
+Beim Beispiel entfallen damit gut 260 EUR des Werts auf geschenkte Karten.
+
+**Fix (portfolio.html):** Labels 11px (Mobil 10,5px). Unterzeile unter Value: "EUR X bought ·
+EUR Y free (N rewards/crafts)". Unterzeile unter P&L: "bought cards only · EUR Z fees (5%, min
+EUR 0.10)" plus ggf. "EUR W in N unpriced". Label "P&L · after fees" gekuerzt, Details in der
+Unterzeile. Rechnung unveraendert.
