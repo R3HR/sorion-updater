@@ -1072,6 +1072,13 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
 
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 
+**FALLE (13.09.2026): `TokenPrice.card` zeigt die Karte im HEUTIGEN Zustand, nicht im Zustand beim
+Verkauf.** Level, XP, Besitzer und alles Veraenderliche stammen von jetzt. Wer Preis gegen Level
+auswertet, muss sich auf frische Verkaeufe (unter 24 h) beschraenken oder den Zustand beim Erfassen
+selbst speichern. Unveraenderliche Felder (Seriennummer, Edition, Saison) sind unkritisch. Diese
+Falle hat am 12.09. zum falschen Befund "Level ist wertlos" gefuehrt
+(docs/2026-09-12_KARTENMERKMALE_WERT.md, Korrektur 13.09.).
+
 **Schema am 07.09.2026 neu gezogen** (`Invoke-WebRequest https://api.sorare.com/graphql/schema -OutFile
 C:\craft-log
 eference\schema.graphql`, Sicherung `.bak`). Das alte war Monate alt und kannte
