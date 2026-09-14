@@ -618,3 +618,43 @@ Beim Beispiel entfallen damit gut 260 EUR des Werts auf geschenkte Karten.
 EUR Y free (N rewards/crafts)". Unterzeile unter P&L: "bought cards only · EUR Z fees (5%, min
 EUR 0.10)" plus ggf. "EUR W in N unpriced". Label "P&L · after fees" gekuerzt, Details in der
 Unterzeile. Rechnung unveraendert.
+
+---
+
+## BUG-045 - Letzte Stage eines Boards nie als abgeschlossen erfasst (13./14.09.) - BEHOBEN
+
+- **Symptom:** Der Cowork-Leaderboard-Bot konnte Stage 5 (Ziel 1280) nicht auswerten. Jonas hatte die Preise laengst abgeholt ("die ist safe durch"), der Report zeigte aber Stage 4 als letzte gewertete Runde und Stage 5 weiter als `openRound: LINEUP_SET`.
+- **Ursache:** Sorare ersetzt ein Board, **sobald alle Stages gewonnen sind** - hier um 21:10 UTC durch ein neues Board (Stage 1 im bisher unbekannten Zustand `PRE_MATCHDAY_LOCKED`). `currentUser.boards` listet nur das jeweils aktuelle Board. Der Bot sah Stage 5 zuletzt um 21:00 UTC (Verlauf laut Cron-Antworten: LIVE ab 18:50, zurueck auf LINEUP_SET um 20:50, ab 21:10 nicht mehr sichtbar) und **nie als CLAIMED**. Ein Step, der nicht mehr auf dem Board steht, wurde nie erneut geprueft: keine Rundennummer, kein Eingang in den Punktestand. Die "LEER"-Antworten des Crons ab 21:10 bedeuteten nicht "kein Board", sondern "neues Board ohne Aufstellungen" - der Poll ueberspringt Steps ohne Lineups.
+- **Fix (14.09.):**
+  1. **Nachtrag:** Ueber `currentUser.board(id)` bestaetigt: CLAIMED, 1346.28 / 1280, alle 10 Aufstellungen SUCCESSFUL, 0 laufende Partien. Die gespeicherten Scores stimmten mit dem Endstand **auf die Nachkommastelle** ueberein - es fehlten nur Zustand und Rundennummer. Eingetragen als **R37 / Set-Runde 5**.
+  2. **Nachhol-Baustein im Poll:** Jeder Step, der in `squad_step_scores` offen ist, aber nicht mehr auf dem aktuellen Board steht, wird ueber `currentUser.board(id)` nachgeschlagen. Ist er abgeschlossen (CLAIMED/CLAIMABLE/FAILED), werden Zustand, Scores, Ranking und `aasm_state` geschrieben, die Runde zugeordnet und die formale Abschlussmeldung ausgeloest (`postHit`/`postMissed`, per Dedup-Schluessel hoechstens einmal). Kapselung per try/catch.
+  3. **Test am echten Fall:** Stage 5 per Migration in den Zustand vor dem Nachtrag zurueckgesetzt, Poll ausgeloest: CLAIMED, R37, Set-Runde 5, Report mit 5 Runden, **kein zweiter Discord-Post**. Endstand danach per Folgemigration idempotent festgeschrieben (Migrationen 20260914000500 / 002000 / 003000).
+- **Korrektur einer eigenen Aussage:** Ich hatte zunaechst geschrieben, fuer Stage 5 sei "kein Jubel" gekommen, und eine Sperre gegen einen verspaeteten 🎯 angelegt. Falsch: Der Jubel war am 13.09. um 20:50 UTC (22:50 Berlin) ueber die Frueherkennung laengst gesendet (`confirmed: false`). Die Sperr-Migration 20260914001000 war damit wirkungslos.
+- **Hinweis Nummerierung:** Zunaechst als BUG-044 notiert; die Nummer war bereits vergeben (Portfolio-Bilanz, andere Sitzung). Ausserdem ist **BUG-043 doppelt** vergeben (Strike-Fuehrung 10.09. und Manager Search 12.09.) - nicht umnummeriert, weil beide anderswo referenziert sein koennen; Entscheidung bei Jonas.
+- **Lektion:** `currentUser.boards` ist eine Momentaufnahme von *jetzt*. Dass ein Step daraus verschwindet, heisst nicht, dass er bei uns abgeschlossen ist. Alles, was wir verfolgen, braucht einen eigenen Abschlussweg, der nicht davon abhaengt, ob die Quelle es noch listet. Dieselbe Familie wie BUG-035: Abwesenheit in der Quelle ist keine Aussage ueber den Zustand.
+
+---
+
+## BUG-046 - Durchschnitt per Gleitkomma gerundet, wich vom veroeffentlichten Board ab (14.09.) - BEHOBEN
+
+- **Symptom:** Testfall der Leaderboard-Spezifikation (Stand 13.09., Abschnitt 10): Sorare_Jens nach R4 mit Ø **367,77**, Sollwert und veroeffentlichtes Board **367,78**. Laut Spezifikation ist jede Abweichung vom veroeffentlichten Stand ein Bug im Bot.
+- **Ursache:** Exakter Wert 1471,10 / 4 = **367,775**. `Math.round((sum / n) * 100) / 100` rechnet in Binaer-Gleitkomma; 367,775 liegt dort knapp darunter und wurde abgerundet. Zusaetzlich sortierte der Tiebreak auf dem **gerundeten** Wert - zwei Schnitte, die sich unter 0,005 unterscheiden, haetten falsch gleichgestanden.
+- **Fix (14.09.):** Rechnung in ganzen Cent (`Math.round(sum * 100) / n`, dann kaufmaennisch), Tiebreak auf dem exakten Schnitt. Verifiziert: Bot-Schnitte aller 10 Manager identisch mit kaufmaennischer Rundung (Decimal, ROUND_HALF_UP). Uebriger Testfall wurde bereits vorher exakt reproduziert: R4 Squad 1406,11, Platz 4 = 6 Punkte, Bonus +4, andreihaha 34, Gleichstand bei 27 Namiunk > R3HR > Jens, Block-Ø 22,2 / Linie 17,76, Squad-Ø 1243,04.
+
+## BUG-042 - Ligennamen nicht eindeutig, league_country teils leer (14.09.) - UMGANGEN
+
+- **Symptom:** Der Team-Optimierer fand fuer "Primera División" 44 Vereine und nur 19 davon
+  ueber die API. Die Abdeckung je Spieltag fiel dadurch kuenstlich auf 13 bis 50 Prozent, ein
+  normaler LaLiga-Spieltag (GW6) wurde als "zu duenn" aussortiert.
+- **Ursache 1:** `league_name` ist nicht eindeutig. "Primera División" heisst die hoechste Liga
+  auch in Chile (15 Vereine), Venezuela (9), Costa Rica (6), Bolivien (4) und Guatemala (1).
+- **Ursache 2:** Bei 11 Rare-In-Season-Karten spanischer Vereine (Real Madrid, Sevilla, Betis,
+  Celta, Valencia, Athletic, Villarreal, Levante, Rayo) ist `league_country` leer, obwohl die
+  Liga gesetzt ist. Vermutlich Altbestand aus der Zeit vor dem Einheitsschreiben von
+  Verein/Liga/Land (BUG-025).
+- **Umgehung im Werkzeug:** `tools/cheapest-reliable-lineup.mjs --land=es` filtert auf das Land
+  und nimmt Zeilen ohne Land nur mit, wenn ihr Verein sonst mit diesem Land vorkommt. Abdeckung
+  zaehlt nur noch Spieler mit geladenen Punkten; nicht gefundene Vereine werden ausgegeben.
+- **Offen:** Die leeren `league_country` in `card_prices` nachfuellen (Backfill ueber
+  Vereinsliste). Jede Filterung nur ueber `league_name` ist bis dahin fehleranfaellig, auch
+  auf der Marktseite pruefen.

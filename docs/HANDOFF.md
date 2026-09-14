@@ -220,6 +220,27 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 
 **Antwort-Vertrag (ab 08.09.):** `schemaVersion` und `generatedAt` stecken in **jeder** Antwort (zentral im `json()`-Helfer). **schemaVersion 2** = standings/report sind set-bezogen, neues Feld `set`, `bonusPct` numerisch, `overCap.managers` nach Bonus sortiert. Version 1 = implizit alles davor. Stabil laut Vertrag: `generatedAt`, `round.final`, `openRound`, `set`, `standings[]`. `season` bleibt als Alias von `standings` bestehen. Jeder Pfad unterhalb des Function-Namens routet weiterhin auf dieselbe Function (`/v9`, `/v10`, ...).
 
+**14.09. — Abgleich mit der Leaderboard-Spezifikation (Stand 13.09.):** Testfall aus Abschnitt 10 vollstaendig reproduziert; einzige Abweichung war die Rundung des Schnitts (BUG-046, behoben). Board nach R5 nach Abschnitt 6 gerendert und mit `standings` abgeglichen: identisch.
+- **Offene Abweichungen Bot vs. Spezifikation (nicht umgesetzt, Entscheidung Jonas):**
+  (a) `overCap[].suggestedPenalty` nennt nur **einen** Zahler; laut 3.4 zahlt bei mehr als 5 Kopien **jeder** Ueberzaehlige einzeln.
+  (b) `action=strikes` legt Strikes standardmaessig mit `expires_after_clean_block = true` an; laut Abschnitt 5 verfallen **nur** Bewaehrungsstrikes, Strikes innerhalb eines Sets nicht.
+  (c) `blocks` kennt die Sonderfaelle aus Abschnitt 5 nicht: Block unter 6 Runden nicht werten und in den naechsten wachsen lassen; Schlussblock unter 6 Runden gar nicht werten; unter 60 % Teilnahme fuer den Manager nicht werten. **Relevant fuer den 21.09.:** Block 1 hat aktuell 5 Runden.
+  (d) Spezifikation 2 nennt `overCap[].managers` noch "nach firstSeen sortiert" - seit schemaVersion 2 nach Bonus sortiert mit `suggestedPenalty`.
+
+**14.09. — Letzte Stage eines Boards nachgeholt, Dauer-Fix (BUG-045):** Sorare ersetzt ein Board **sofort**, wenn alle fuenf Stages gewonnen sind (13.09. 21:10 UTC). Der Bot sah Stage 5 nie als CLAIMED. Folge: Report blieb auf Stage 4 stehen, Stage 5 ohne Rundennummer.
+- **Nachtrag:** Stage 5 = **R37 / Set-Runde 5**, CLAIMED, 1346.28 / 1280. Gespeicherte Scores waren exakt richtig (Differenz 0.00 bei allen zehn), es fehlten nur Zustand und Runde. Set 2 danach: 5 Runden, MaisonPanda 47, FFGAJ 37, andreihaha 34.
+- **Nachhol-Baustein im Poll** (direkt nach `canonizeBoards(cu)`): offene Steps aus `squad_step_scores`, die nicht mehr auf dem aktuellen Board stehen, werden per `currentUser.board(id)` nachgeschlagen und bei CLAIMED/CLAIMABLE/FAILED vollstaendig abgeschlossen (Zustand, Scores, Runde, Abschlussmeldung mit Dedup). try/catch. **Am echten Fall getestet** (Ruecksetzung -> Poll -> identischer Endstand, kein Doppelpost).
+- **Neuer Sorare-Zustand beobachtet:** `PRE_MATCHDAY_LOCKED` (Stage 1 eines neuen Boards vor dem ersten Spieltag). Wird wie ein offener Step ohne Aufstellungen behandelt, also uebersprungen - kein Handlungsbedarf.
+- **Korrektur:** Der Jubel fuer Stage 5 kam am 13.09. um 22:50 Berlin ueber die Frueherkennung. Meine Aussage "kein Jubel" und die Sperr-Migration 20260914001000 waren unnoetig; die Sperre war ein No-op.
+- Migrationen: 20260914000500 (Nachtrag), 001000 (Sperre, wirkungslos), 002000 (Test-Ruecksetzung), 003000 (Endstand idempotent festgeschrieben).
+- **Archiv-Unstimmigkeit gefunden, nicht angefasst:** BUG-043 ist in BUGS.md doppelt vergeben (Strike-Fuehrung 10.09. und Manager Search 12.09., andere Sitzung); BUG-044 gehoert zur Portfolio-Bilanz. Die Fehlerdatenbank fuehrt BUG-044 und die zweite BUG-043 nicht. Umnummerieren nur nach Entscheidung von Jonas.
+
+**14.09. — Cache-Schutz und Token im Header:** Anlass: Cowork-Bot bekam auf `/v13` millisekundengenau dieselbe Antwort wie Stunden zuvor. Gegenprobe von hier: `/v13` lieferte frisch (`generatedAt` sekundenaktuell, `CF-Cache-Status: DYNAMIC`) - der Cache sitzt ausschliesslich auf seiner Seite (BUG-032). Unsere Antworten trugen aber gar keinen `Cache-Control`. Jetzt:
+- **Jede Antwort** (zentral im `json()`-Helfer): `Cache-Control: no-store, no-cache, must-revalidate, max-age=0`, `Pragma: no-cache`, `Expires: 0`.
+- **Lesetoken zusaetzlich per Header**: `X-Read-Token: <token>` oder `Authorization: Bearer <token>`. `?key=` bleibt gueltig. Verifiziert: beide Header -> 200, falscher/fehlender Token -> 403, ueberall mit `no-store`. Feste URL moeglich, z. B. `.../squad-poll/report?action=report`.
+- **Offen, nicht von hier pruefbar:** Ob der Abrufweg des Cowork-Bots `no-store` respektiert und ob er ueberhaupt Header setzen kann. Er kann nach eigener Aussage bei Erfolg nicht einmal den HTTP-Status lesen - das spricht fuer ein reines URL-Abrufwerkzeug, das weder Header sendet noch Cache-Header beachtet. **Test auf seiner Seite:** dieselbe feste URL im Abstand von einigen Minuten zweimal abrufen und `generatedAt` vergleichen. Aendert es sich, entfaellt das Hochzaehlen; sonst bleibt nur das Pfad-Suffix.
+- Der Lesetoken stand dabei im Klartext im Chat -> **SEC-006** (niedrig, rein lesend; Rotation erst sinnvoll, wenn der Cowork-Bot den Header-Weg nutzt).
+
 **11.09. — geplantes Setende (`planned_end_on`), NICHT `ended_on`:** Hinweis des Cowork-Bots, dass Set 2 am 29.10. endet und die Ankerlogik den letzten Block sonst bis zum 01.11. durchrechnet. Sein Vorschlag `sets.ended_on = 2026-10-29` waere aber schaedlich gewesen: An `ended_on` haengt, welches Set **aktiv** ist. Heute gesetzt haette es (1) `activeSet` auf NULL gezogen, wodurch `report`/`standings` wieder ueber **alle** Sets aggregiert haetten - der Fehler aus P0.1; (2) `assignRound` haette neue Runden mit `set_id = NULL` geschrieben; (3) `proposedStrikes` waere leer geblieben, die Blockauswertung am 21.09. haette nichts vorgeschlagen.
 - Neue Spalte **`squad_sets.planned_end_on`** (Set 2 = 2026-10-29, Set 1 = 2026-09-07). Sie begrenzt den letzten Block, schliesst das Set aber nicht.
 - Blockende ist jetzt `min(Raster-Ende, planned_end_on)`. Damit endet Block 3 am **29.10.** statt am 01.11., und `complete` kippt puenktlich statt drei Tage zu spaet.
@@ -1069,6 +1090,26 @@ Saison, aeltere Aufstellungen taugen nicht als Massstab.
   LALIGA liegt bei 120 EUR. Rare: J1 League 34 EUR, K League 1 48 EUR, MLS 125 EUR.
   **Die drei starten zum Winter und laufen dann, wenn Europa pausiert** (Ansage Jonas 07.09.),
   gehoeren also dauerhaft in die Tabelle.
+
+## Werkzeug: billigstes verlaessliches Team (tools/cheapest-reliable-lineup.mjs)
+
+Backtest: welches billigste Team haette in einem Wettbewerb in X Prozent der Spieltage dieser
+Saison ueber der echten Cash-Schwelle gelegen. Punkte ohne Karten-Boni, also konservativ.
+Optionen (Stand 14.09.2026):
+- `--liga="LALIGA EA SPORTS"` Wettbewerbsname wie in `reward_thresholds`
+- `--kartenliga="Primera Divisi_n"` Liga wie in `card_prices`, falls anders benannt (ILIKE,
+  `_` ersetzt Akzente, die die Windows-Konsole zerlegt)
+- `--land=es` PFLICHT bei mehrdeutigen Ligennamen (BUG-042), nimmt Zeilen ohne Land mit,
+  wenn ihr Verein sonst mit diesem Land vorkommt
+- `--elig=in_season` nur diese Karten kaufen. In-Season-Wettbewerbe verlangen min. 4
+  In-Season-Karten (`docs/competitions/rules.json`); mit eigener Classic-Karte heisst das:
+  die uebrigen 4 muessen In-Season sein
+- `--mit=<player_slug>` eigene Karte fest einplanen, kostet 0, belegt ihren Positionsplatz
+- `--quote=0.8` geforderte Trefferquote, `--puffer=0.1` Sicherheitsabstand zur Schwelle,
+  `--top=3` Anzahl Ergebnisse
+Kontrollausgaben ernst nehmen: "X von Y Vereinen erreichbar" muss nahe an der echten Vereinszahl
+liegen, sonst stimmt der Ligafilter nicht; die Abdeckung je Spieltag zaehlt nur Spieler mit
+geladenen Punkten.
 
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 

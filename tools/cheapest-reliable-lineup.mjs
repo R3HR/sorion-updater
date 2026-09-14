@@ -31,6 +31,18 @@ const TOP    = parseInt(arg('top', '5'), 10);
 // Vergangenheit angepasst, nicht verlaesslich. Mit --puffer=0.1 muss es 10 %
 // ueber der Schwelle liegen, damit die Woche als Treffer zaehlt.
 const PUFFER = parseFloat(arg('puffer', '0.1'));
+// Liga, wie sie in card_prices heisst, falls der Wettbewerb anders heisst
+// (LALIGA EA SPORTS = "Primera División"). Wird per ILIKE verglichen, damit Akzente
+// in der Windows-Konsole mit _ umschrieben werden koennen: --kartenliga="Primera Divisi_n".
+const KARTENLIGA = arg('kartenliga', LIGA);
+// Nur Karten dieser Eligibility kaufen. In-Season-Wettbewerbe verlangen mindestens
+// 4 In-Season-Karten, mit einer eigenen Classic-Karte muessen die uebrigen 4 In-Season sein.
+const ELIG = arg('elig', null);
+// Fester Spieler, den man schon besitzt: kostet nichts, belegt seinen Platz.
+const MIT = arg('mit', null);
+// Land der Liga (league_country). Noetig, weil Ligennamen nicht eindeutig sind:
+// "Primera División" heisst die Liga auch in Chile, Venezuela, Costa Rica, Bolivien.
+const LAND = arg('land', null);
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const APIKEY = process.env.SORARE_APIKEY;
@@ -68,9 +80,22 @@ const weeks = thr.map((t, i) => ({
 }));
 
 // 2) Kandidaten mit Preisen
-const { data: cards } = await supabase.from('card_prices')
+let cq = supabase.from('card_prices')
   .select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name')
-  .eq('league_name', LIGA).eq('scarcity', RARITY);
+  .ilike('league_name', KARTENLIGA).eq('scarcity', RARITY);
+if (ELIG) cq = cq.eq('eligibility', ELIG);
+cq = cq.select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name, league_country');
+const { data: rawCards } = await cq;
+// Laenderfilter mit Rueckfall: Manche Zeilen haben league_country = null (BUG-042),
+// obwohl der Verein eindeutig spanisch ist. Ein strikter Filter wuerde sie verlieren.
+// Deshalb: Land passt, ODER kein Land und der Verein kommt mit diesem Land vor.
+let cards = rawCards ?? [];
+if (LAND) {
+  const landTeams = new Set(cards.filter(c => c.league_country === LAND).map(c => c.team_name));
+  const vorher = cards.length;
+  cards = cards.filter(c => c.league_country === LAND || (c.league_country == null && landTeams.has(c.team_name)));
+  console.log(`Laenderfilter ${LAND}: ${cards.length} von ${vorher} Kartenzeilen, ${landTeams.size} Vereine`);
+}
 const cand = new Map();
 for (const c of cards ?? []) {
   const eur = c.fmv ?? c.floor_price;
@@ -80,13 +105,27 @@ for (const c of cards ?? []) {
     cand.set(c.player_slug, { slug: c.player_slug, name: c.player_name, pos: c.position,
       team: c.team_name, eur: Number(eur), elig: c.eligibility });
 }
-console.log(`${cand.size} Spieler mit ${RARITY}-Karte und Preis`);
+if (MIT && !cand.has(MIT)) {
+  // Der eigene Spieler kann eine andere Eligibility haben (Classic in In-Season-Wettbewerb).
+  const { data: own } = await supabase.from('card_prices')
+    .select('player_slug, player_name, position, team_name').eq('player_slug', MIT).eq('scarcity', RARITY).limit(1);
+  if (own?.[0]) cand.set(MIT, { slug: MIT, name: own[0].player_name, pos: own[0].position, team: own[0].team_name, eur: 0, elig: 'besitzt' });
+}
+if (MIT) {
+  const f = cand.get(MIT);
+  if (!f) { console.error(`Fester Spieler ${MIT} nicht gefunden`); process.exit(1); }
+  f.eur = 0; f.elig = 'besitzt';
+  console.log(`Fest gesetzt (kostet nichts): ${f.name}, ${f.pos}, ${f.team}`);
+}
+console.log(`${cand.size} Spieler mit ${RARITY}-Karte und Preis${ELIG ? ` (nur ${ELIG})` : ''}`);
 
 // 3) Punkte je Spieltag ueber die Vereine
 const teams = [...new Set([...cand.values()].map(c => c.team).filter(Boolean))];
 const clubsData = await gql(`{ football { clubsReady { slug name } } }`, 'clubs');
 const clubs = (clubsData?.football?.clubsReady ?? []).filter(c => teams.includes(c.name));
 console.log(`${clubs.length} von ${teams.length} Vereinen ueber die API erreichbar`);
+const notFound = teams.filter(t => !clubs.some(c => c.name === t));
+if (notFound.length) console.log(`  NICHT gefunden (Spieler dieser Vereine haben keine Punkte): ${notFound.join(' | ')}`);
 
 const scores = new Map();
 for (const club of clubs) {
@@ -120,7 +159,9 @@ for (const [slug, c] of cand) {
 // Abdeckung je Spieltag: wie viele Kandidaten haben ueberhaupt gespielt?
 // Ein Spieltag, an dem die Liga praktisch nicht antrat (Pokalwoche, Sonderfixture),
 // darf die Verlaesslichkeit nicht kaputtrechnen. Er wird ausgewiesen und uebersprungen.
-const alive = [...cand.values()];
+// Nur Spieler, fuer die Punkte geladen wurden. Sonst druecken Vereine, die ueber die
+// API nicht erreichbar sind, die Quote und ein normaler Spieltag gilt als "zu duenn".
+const alive = [...cand.values()].filter(c => scores.has(c.slug));
 for (const [i, w] of weeks.entries()) {
   w.coverage = alive.filter(c => c.byWeek[i] > 0).length / (alive.length || 1);
   w.count    = alive.filter(c => c.byWeek[i] > 0).length;
@@ -136,7 +177,7 @@ console.log(`Bewertet werden ${scored.length} von ${weeks.length} Spieltagen
 
 // 4) Billigstes Team ueber der geforderten Quote
 const POS = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Forward: 'FWD' };
-const pool = [...cand.values()].filter(c => POS[c.pos] && c.played >= 3).sort((a, b) => a.eur - b.eur);
+const pool = [...cand.values()].filter(c => POS[c.pos] && c.played >= 3 && c.slug !== MIT).sort((a, b) => a.eur - b.eur);
 console.log(`${pool.length} Kandidaten mit mindestens 3 Einsaetzen\n`);
 
 const rate = team => {
@@ -173,23 +214,51 @@ console.log(`Suchraum (Pareto): ${G.length} TW x ${D.length} ABW x ${M.length} M
 const minE = extras.length ? extras[0].eur : 0;
 const found = [];
 let cap = Infinity, bestQ = -1, bestTeam = null;
-for (const g of G) {
-  if (g.eur + D[0].eur + M[0].eur + F[0].eur + minE >= cap) break;
-  for (const d of D) {
-    if (g.eur + d.eur + M[0].eur + F[0].eur + minE >= cap) break;
-    for (const m of M) {
-      if (g.eur + d.eur + m.eur + F[0].eur + minE >= cap) break;
-      for (const f of F) {
-        const baseCost = g.eur + d.eur + m.eur + f.eur;
-        if (baseCost + minE >= cap) break;
-        const base = [g, d, m, f];
+const fixed = MIT ? cand.get(MIT) : null;
+if (fixed) {
+  // Der feste Spieler belegt seinen Positionsplatz. Gesucht werden die drei uebrigen
+  // Pflichtpositionen plus ein freier Platz; der freie Platz darf auch seine Position sein.
+  const byKey = { GK: G, DEF: D, MID: M, FWD: F };
+  const L = ['GK', 'DEF', 'MID', 'FWD'].filter(k => k !== POS[fixed.pos]).map(k => byKey[k]);
+  if (L.some(x => !x.length) || !extras.length) { console.error('Leere Positionsliste, keine Suche moeglich'); process.exit(1); }
+  for (const a of L[0]) {
+    if (a.eur + L[1][0].eur + L[2][0].eur + minE >= cap) break;
+    for (const b of L[1]) {
+      if (a.eur + b.eur + L[2][0].eur + minE >= cap) break;
+      for (const c of L[2]) {
+        const bc = a.eur + b.eur + c.eur;
+        if (bc + minE >= cap) break;
+        const base = [fixed, a, b, c];
         for (const e of extras) {
-          const cost = baseCost + e.eur;
+          const cost = bc + e.eur;
           if (cost >= cap) break;
           if (base.some(p => p.slug === e.slug)) continue;
           const team = [...base, e], q = rate(team);
           if (q > bestQ) { bestQ = q; bestTeam = { cost, q, team }; }
           if (q >= QUOTE) { found.push({ cost, q, team }); if (cost < cap) cap = cost; }
+        }
+      }
+    }
+  }
+} else {
+  for (const g of G) {
+    if (g.eur + D[0].eur + M[0].eur + F[0].eur + minE >= cap) break;
+    for (const d of D) {
+      if (g.eur + d.eur + M[0].eur + F[0].eur + minE >= cap) break;
+      for (const m of M) {
+        if (g.eur + d.eur + m.eur + F[0].eur + minE >= cap) break;
+        for (const f of F) {
+          const baseCost = g.eur + d.eur + m.eur + f.eur;
+          if (baseCost + minE >= cap) break;
+          const base = [g, d, m, f];
+          for (const e of extras) {
+            const cost = baseCost + e.eur;
+            if (cost >= cap) break;
+            if (base.some(p => p.slug === e.slug)) continue;
+            const team = [...base, e], q = rate(team);
+            if (q > bestQ) { bestQ = q; bestTeam = { cost, q, team }; }
+            if (q >= QUOTE) { found.push({ cost, q, team }); if (cost < cap) cap = cost; }
+          }
         }
       }
     }
