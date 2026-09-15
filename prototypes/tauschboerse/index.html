@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sorion Trade Board Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&family=Orbitron:wght@600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<!--
+  PROTOTYP Tauschboerse (15.09.2026). Nicht an sorion.pro angebunden.
+  Vier simulierte Manager, Zustand nur im localStorage dieses Browsers.
+  Planung: docs/2026-09-15_TAUSCHBOERSE_PLAN.md
+-->
+<style>
+  :root {
+    --bg: #0d0d1a; --surface: #13131f; --surface2: #1a1a2e; --surface3: #1f1f35;
+    --border: #2a2a45; --border2: #3a3a60; --purple: #b060ff; --purple2: #8040cc;
+    --cyan: #00f5ff; --text: #e8e8ff; --text2: #9090c0; --dim: #8888b4;
+    --limited: #ffb830; --rare: #ff5555; --up: #00f5a0; --down: #ff2d78; --pink: #ff6fb1;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Exo 2', system-ui, sans-serif; min-height: 100vh; }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 18px 20px 60px; }
+
+  .proto-note { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--limited);
+    border: 1px dashed rgba(255,184,48,.45); background: rgba(255,184,48,.06); border-radius: 6px;
+    padding: 6px 10px; margin-bottom: 14px; }
+
+  header { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .brand { font-family: 'Orbitron', sans-serif; font-weight: 800; letter-spacing: .08em; font-size: 20px; }
+  .brand span { color: var(--purple); }
+  .brand small { display: block; font-family: 'Share Tech Mono', monospace; font-weight: 400; letter-spacing: .12em; font-size: 10px; color: var(--dim); }
+
+  .who { display: flex; gap: 8px; align-items: center; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
+  .seg { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .seg button { background: none; border: 0; padding: 7px 12px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--purple2); color: #fff; }
+  .ghost { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; cursor: pointer; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
+  .ghost:hover { border-color: var(--border2); color: var(--text); }
+
+  nav.tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+  nav.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--text2); }
+  nav.tabs button.on { color: var(--text); border-bottom-color: var(--purple); }
+  nav.tabs .count { color: var(--purple); margin-left: 4px; }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; min-width: 150px; }
+  .stat small { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  .stat b { font-family: 'Orbitron', sans-serif; font-size: 20px; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .input, select.input { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text);
+    font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+  label.check { display: flex; gap: 6px; align-items: center; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: var(--text2); cursor: pointer; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: 12px; }
+  .tile { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer;
+    transition: border-color .15s, transform .15s; display: flex; flex-direction: column; }
+  .tile:hover { border-color: var(--purple2); transform: translateY(-2px); }
+  .tile .img { position: relative; aspect-ratio: 3 / 4; background: linear-gradient(160deg, var(--surface3), var(--surface2)); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .tile .img img { width: 100%; height: 100%; object-fit: cover; }
+  .tile .img .ph { font-family: 'Orbitron', sans-serif; color: var(--border2); font-size: 28px; }
+  .rar { position: absolute; top: 8px; left: 8px; font-family: 'Share Tech Mono', monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(13,13,26,.8); }
+  .rar.limited { color: var(--limited); border: 1px solid rgba(255,184,48,.5); }
+  .rar.rare { color: var(--rare); border: 1px solid rgba(255,85,85,.5); }
+  .flag { position: absolute; top: 8px; right: 8px; font-family: 'Share Tech Mono', monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px;
+    color: var(--up); background: rgba(0,245,160,.12); border: 1px solid rgba(0,245,160,.5); }
+  .tile .meta { padding: 9px 10px 11px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .tile .meta b { font-size: 14px; line-height: 1.2; }
+  .tile .meta small { color: var(--dim); font-size: 11px; }
+  .tile .row { display: flex; justify-content: space-between; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .tile .owner { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--cyan); }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+  .chip { font-family: 'Share Tech Mono', monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border2); color: var(--text2); white-space: nowrap; }
+  .chip.want { color: var(--pink); border-color: rgba(255,111,177,.5); background: rgba(255,111,177,.08); }
+  .chip.mine { color: var(--purple); border-color: rgba(176,96,255,.5); background: rgba(176,96,255,.08); }
+  .chip.match { color: var(--up); border-color: rgba(0,245,160,.5); background: rgba(0,245,160,.08); }
+  .chip.dim { color: var(--dim); }
+
+  .empty { font-family: 'Share Tech Mono', monospace; color: var(--dim); padding: 30px 0; }
+  h2.sec { font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--text2); margin: 22px 0 10px; }
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .lrow { display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .lrow .thumb { width: 42px; height: 56px; border-radius: 5px; background: var(--surface3); overflow: hidden; flex: none; }
+  .lrow .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .lrow .body { flex: 1; min-width: 0; }
+  .lrow .body b { font-size: 14px; }
+  .lrow .body small { display: block; color: var(--dim); font-size: 11px; font-family: 'Share Tech Mono', monospace; }
+  .btn { background: var(--purple2); border: 1px solid var(--purple); color: #fff; border-radius: 8px; padding: 7px 12px; cursor: pointer;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px; white-space: nowrap; }
+  .btn:hover { background: var(--purple); }
+  .btn.sec { background: none; border-color: var(--border2); color: var(--text2); }
+  .btn.sec:hover { color: var(--text); border-color: var(--purple2); }
+  .btn.good { background: rgba(0,245,160,.12); border-color: rgba(0,245,160,.6); color: var(--up); }
+  .btn[disabled] { opacity: .45; cursor: not-allowed; }
+
+  .match-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .match-card.mutual { border-color: rgba(0,245,160,.45); box-shadow: 0 0 0 1px rgba(0,245,160,.12) inset; }
+  .match-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .match-head b { font-family: 'Orbitron', sans-serif; font-size: 15px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col h4 { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+  .col ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .col li { font-size: 13px; }
+  .col li small { color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 10px; }
+
+  .backdrop { position: fixed; inset: 0; background: rgba(5,5,12,.8); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 560px; }
+  .modal-head { display: flex; gap: 14px; padding: 16px; border-bottom: 1px solid var(--border); }
+  .modal-head .thumb { width: 72px; height: 96px; border-radius: 6px; overflow: hidden; background: var(--surface3); flex: none; }
+  .modal-head .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .modal-head h3 { font-family: 'Orbitron', sans-serif; font-size: 17px; margin-bottom: 4px; }
+  .modal-head .sub { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--text2); line-height: 1.6; }
+  .modal-head .x { margin-left: auto; background: none; border: 0; color: var(--dim); font-size: 20px; cursor: pointer; align-self: flex-start; }
+  .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .box-title { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+  .wish-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; border: 1px solid rgba(255,111,177,.45);
+    border-radius: 8px; padding: 10px 12px; cursor: pointer; color: var(--pink); font-family: 'Share Tech Mono', monospace; font-size: 13px; }
+  .wish-toggle:hover { background: rgba(255,111,177,.07); }
+  .wish-toggle[disabled] { border-color: var(--border); color: var(--dim); cursor: default; background: none; }
+  .wrow { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--border); }
+  .wrow:first-child { border-top: 0; }
+  .wrow .body { flex: 1; }
+  .wrow .body b { font-size: 14px; }
+  .wrow .body small { display: block; color: var(--dim); font-size: 11px; font-family: 'Share Tech Mono', monospace; margin-top: 2px; }
+  .hint { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: var(--dim); }
+
+  @media (max-width: 640px) { .cols { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note">PROTOTYPE · simulated managers · not connected to sorion.pro · changes are stored only in this browser</div>
+  <header>
+    <div class="brand">SOR<span>I</span>ON <span>/</span> TRADE BOARD<small>WISHLISTS AND CARDS UP FOR TRADE</small></div>
+    <div class="who">
+      acting as
+      <div class="seg" id="users"></div>
+      <button class="ghost" onclick="resetDemo()" title="Restore the demo start state">reset demo</button>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="view"></main>
+</div>
+<div id="modal-root"></div>
+
+<script src="data.js"></script>
+<script>
+  // ── Grundlagen ──────────────────────────────────────────────────────────────
+  const STORE = 'sorion_trade_proto_v1';
+  const USERS = [
+    { id: 'A', name: 'User A' }, { id: 'B', name: 'User B' },
+    { id: 'C', name: 'User C' }, { id: 'D', name: 'User D' },
+  ];
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const userName = id => USERS.find(u => u.id === id)?.name ?? id;
+  const eligLabel = e => e === 'classic' ? 'Classic' : 'In-Season';
+  const rarLabel = r => r === 'rare' ? 'Rare' : 'Limited';
+  const eur = v => v == null || isNaN(v) ? '-' : '€' + Number(v).toFixed(2);
+  const ago = ts => { const d = Math.floor((Date.now() - ts) / 86400000); return d <= 0 ? 'today' : d === 1 ? '1 day ago' : d + ' days ago'; };
+
+  // Fester Zufall, damit User A..D bei jedem Laden dieselben Karten haben
+  function rng(seed) {
+    return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+
+  // ── Katalog: echter Datenstand aus card_prices (data.js) ────────────────────
+  // Ein Katalog-Eintrag entspricht dem, was auf einer Wunschliste steht:
+  // Spieler + Rarity + Eligibility.
+  const CATALOG = (window.SAMPLE_CARDS || []).map((c, i) => ({
+    ...c, idx: i, fmv: Number(c.fmv), floor_price: c.floor_price == null ? null : Number(c.floor_price),
+    key: `${c.player_slug}|${c.scarcity}|${c.eligibility}`,
+  }));
+  const BY_KEY = Object.fromEntries(CATALOG.map(c => [c.key, c]));
+
+  // ── Portfolios: konkrete Exemplare mit Level und Seriennummer ───────────────
+  const OWNED = (() => {
+    const R = rng(20260915);
+    const pick = arr => arr[Math.floor(R() * arr.length)];
+    const popular = CATALOG.slice(0, 14);          // gemeinsame Spieler, damit Wuensche aufeinandertreffen
+    const out = [];
+    for (const u of USERS) {
+      const chosen = new Set();
+      while (chosen.size < 6) chosen.add(pick(popular).key);
+      while (chosen.size < 11) chosen.add(pick(CATALOG).key);
+      let n = 0;
+      for (const key of chosen) {
+        const c = BY_KEY[key];
+        const copies = R() < 0.18 ? 2 : 1;
+        for (let k = 0; k < copies; k++) {
+          const serial = c.scarcity === 'rare' ? 1 + Math.floor(R() * 60) : 1 + Math.floor(R() * 400);
+          const level = c.eligibility === 'classic' ? Math.floor(R() * 7) : Math.floor(R() * 3);
+          const year = c.eligibility === 'classic' ? 2024 : 2026;
+          out.push({ id: `${u.id}-${n++}`, owner: u.id, key, serial, level,
+            card_slug: `${c.player_slug}-${year}-${c.scarcity}-${serial}` });
+        }
+      }
+    }
+    return out;
+  })();
+  const CARD = Object.fromEntries(OWNED.map(o => [o.id, o]));
+
+  // ── Zustand: Wunschlisten und Angebote (spaeter: trade_wishlist, trade_listing)
+  function seedState() {
+    const S = rng(7);
+    const now = Date.now();
+    const listing = OWNED.filter(() => S() < 0.45).map(o => ({ manager: o.owner, card: o.id, ts: now - Math.floor(S() * 12) * 86400000 }));
+    const wishlist = [];
+    for (const u of USERS) {
+      const others = OWNED.filter(o => o.owner !== u.id);
+      const wanted = new Set();
+      while (wanted.size < 5) wanted.add(others[Math.floor(S() * others.length)].key);
+      const unowned = CATALOG.filter(c => !OWNED.some(o => o.key === c.key));
+      if (unowned.length) wanted.add(unowned[Math.floor(S() * unowned.length)].key);
+      for (const key of wanted) wishlist.push({ manager: u.id, key, ts: now - Math.floor(S() * 20) * 86400000 });
+    }
+    return { me: 'A', tab: 'portfolio', wishlist, listing };
+  }
+  let state;
+  try { state = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch { state = null; }
+  if (!state || !Array.isArray(state.wishlist) || !Array.isArray(state.listing)) state = seedState();
+  // Nur Angebote behalten, deren Karte existiert (spaeter: Aufraeumen beim Portfolio-Sync)
+  state.listing = state.listing.filter(l => CARD[l.card] && CARD[l.card].owner === l.manager);
+  const ui = { modal: null, showWishers: false, boardOnlyWish: false, boardRarity: 'all', boardQuery: '', wishQuery: '' };
+  function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {} }
+
+  // ── Abfragen (spaeter: RPCs) ────────────────────────────────────────────────
+  const isListed = id => state.listing.some(l => l.card === id);
+  const listingOf = id => state.listing.find(l => l.card === id);
+  const wishersOf = (key, exclude) => state.wishlist.filter(w => w.key === key && w.manager !== exclude);
+  const wishes = (manager, key) => state.wishlist.some(w => w.manager === manager && w.key === key);
+  const onMyWishlist = key => wishes(state.me, key);
+  const listedBy = manager => state.listing.map(l => CARD[l.card]).filter(o => o && o.owner === manager);
+  const mine = () => OWNED.filter(o => o.owner === state.me);
+
+  // ── Aktionen ────────────────────────────────────────────────────────────────
+  function setUser(id) { state.me = id; ui.modal = null; save(); render(); }
+  function setTab(t) { state.tab = t; ui.modal = null; save(); render(); }
+  function toggleListing(id) {
+    const o = CARD[id]; if (!o || o.owner !== state.me) return;       // nur eigene Karten
+    if (isListed(id)) state.listing = state.listing.filter(l => l.card !== id);
+    else state.listing.push({ manager: state.me, card: id, ts: Date.now() });
+    save(); render();
+  }
+  function toggleWish(idx) {
+    const key = CATALOG[idx]?.key; if (!key) return;
+    if (onMyWishlist(key)) state.wishlist = state.wishlist.filter(w => !(w.manager === state.me && w.key === key));
+    else state.wishlist.push({ manager: state.me, key, ts: Date.now() });
+    save(); render();
+  }
+  function openCard(id) { ui.modal = id; ui.showWishers = false; render(); }
+  function closeModal() { ui.modal = null; render(); }
+  function resetDemo() {
+    if (!confirm('Restore the demo start state? All wishlist and trade changes in this browser are lost.')) return;
+    try { localStorage.removeItem(STORE); } catch {}
+    state = seedState(); ui.modal = null; save(); render();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.modal) closeModal(); });
+
+  // ── Bausteine ───────────────────────────────────────────────────────────────
+  const img = (c, cls = '') => c.picture_url
+    ? `<img class="${cls}" src="${esc(c.picture_url)}" alt="" loading="lazy" onerror="this.remove()">`
+    : '';
+
+  function tile(o, { showOwner = false } = {}) {
+    const c = BY_KEY[o.key];
+    const want = wishersOf(o.key, o.owner).length;
+    return `<div class="tile" role="button" tabindex="0" onclick="openCard('${o.id}')" onkeydown="if(event.key==='Enter')openCard('${o.id}')">
+      <div class="img"><span class="ph">${esc(c.player_name.charAt(0))}</span>${img(c)}
+        <span class="rar ${c.scarcity}">${rarLabel(c.scarcity)} · ${eligLabel(c.eligibility)}</span>
+        ${isListed(o.id) ? '<span class="flag">Up for trade</span>' : ''}</div>
+      <div class="meta">
+        <b>${esc(c.player_name)}</b><small>${esc(c.team_name)}</small>
+        <div class="row"><span>Lv ${o.level} · #${o.serial}</span><span>${eur(c.fmv)}</span></div>
+        ${showOwner ? `<div class="owner">${esc(userName(o.owner))}</div>` : ''}
+        <div class="chips">
+          ${want ? `<span class="chip want">♥ ${want} wishlist${want === 1 ? '' : 's'}</span>` : ''}
+          ${o.owner !== state.me && onMyWishlist(o.key) ? '<span class="chip mine">On your wishlist</span>' : ''}
+        </div>
+      </div></div>`;
+  }
+
+  // ── Ansicht: Portfolio ──────────────────────────────────────────────────────
+  function viewPortfolio() {
+    const cards = mine();
+    const listed = cards.filter(o => isListed(o.id)).length;
+    const demand = cards.filter(o => wishersOf(o.key, state.me).length).length;
+    const wishers = new Set(cards.flatMap(o => wishersOf(o.key, state.me).map(w => w.manager)));
+    return `
+      <div class="stats">
+        <div class="stat"><small>Cards</small><b>${cards.length}</b></div>
+        <div class="stat"><small>Up for trade</small><b style="color:var(--up)">${listed}</b></div>
+        <div class="stat"><small>Wanted by others</small><b style="color:var(--pink)">${demand}</b></div>
+        <div class="stat"><small>Interested managers</small><b>${wishers.size}</b></div>
+      </div>
+      <p class="hint" style="margin-bottom:12px">Click a card to offer it for trade or to see who wants it.</p>
+      <div class="grid">${cards.map(o => tile(o)).join('')}</div>`;
+  }
+
+  // ── Ansicht: Wunschliste ────────────────────────────────────────────────────
+  function viewWishlist() {
+    const my = state.wishlist.filter(w => w.manager === state.me).sort((a, b) => b.ts - a.ts);
+    const q = ui.wishQuery.trim().toLowerCase();
+    const results = q.length >= 2
+      ? CATALOG.filter(c => (c.player_name + ' ' + c.team_name).toLowerCase().includes(q)).slice(0, 12)
+      : [];
+    const entries = my.map(w => {
+      const c = BY_KEY[w.key]; if (!c) return '';
+      const offers = state.listing.map(l => CARD[l.card]).filter(o => o && o.key === w.key && o.owner !== state.me);
+      const owners = new Set(OWNED.filter(o => o.key === w.key && o.owner !== state.me && !isListed(o.id)).map(o => o.owner));
+      return `<div class="lrow">
+        <div class="thumb">${img(c)}</div>
+        <div class="body">
+          <b>${esc(c.player_name)}</b>
+          <small>${rarLabel(c.scarcity)} · ${eligLabel(c.eligibility)} · FMV ${eur(c.fmv)} · added ${ago(w.ts)}</small>
+          <div class="chips">
+            ${offers.length
+              ? offers.map(o => `<span class="chip match" style="cursor:pointer" onclick="openCard('${o.id}')">${esc(userName(o.owner))} offers Lv ${o.level} · #${o.serial}</span>`).join('')
+              : '<span class="chip dim">No copy up for trade right now</span>'}
+            ${owners.size ? `<span class="chip dim">Owned but not offered: ${[...owners].map(userName).map(esc).join(', ')}</span>` : ''}
+          </div>
+        </div>
+        <button class="btn sec" onclick="toggleWish(${c.idx})">Remove</button>
+      </div>`;
+    }).join('');
+    return `
+      <h2 class="sec" style="margin-top:0">Add a player</h2>
+      <div class="toolbar">
+        <input class="input" id="wish-q" style="flex:1;min-width:220px" placeholder="search player or club" value="${esc(ui.wishQuery)}"
+          oninput="ui.wishQuery=this.value; renderKeep('wish-q')">
+      </div>
+      ${q.length >= 2 ? `<div class="list">${results.length ? results.map(c => `
+        <div class="lrow"><div class="thumb">${img(c)}</div>
+          <div class="body"><b>${esc(c.player_name)}</b><small>${esc(c.team_name)} · ${rarLabel(c.scarcity)} · ${eligLabel(c.eligibility)} · FMV ${eur(c.fmv)}</small></div>
+          ${onMyWishlist(c.key)
+            ? `<button class="btn sec" onclick="toggleWish(${c.idx})">On wishlist ✓</button>`
+            : `<button class="btn" onclick="toggleWish(${c.idx})">+ Wishlist</button>`}
+        </div>`).join('') : '<div class="empty">// no player found</div>'}</div>` : '<p class="hint">Type at least two letters.</p>'}
+      <h2 class="sec">Your wishlist (${my.length})</h2>
+      <div class="list">${entries || '<div class="empty">// your wishlist is empty</div>'}</div>`;
+  }
+
+  // ── Ansicht: Tauschboerse ───────────────────────────────────────────────────
+  function viewBoard() {
+    const q = ui.boardQuery.trim().toLowerCase();
+    let cards = state.listing.map(l => CARD[l.card]).filter(o => o && o.owner !== state.me);
+    if (ui.boardOnlyWish) cards = cards.filter(o => onMyWishlist(o.key));
+    if (ui.boardRarity !== 'all') cards = cards.filter(o => BY_KEY[o.key].scarcity === ui.boardRarity);
+    if (q) cards = cards.filter(o => (BY_KEY[o.key].player_name + ' ' + BY_KEY[o.key].team_name).toLowerCase().includes(q));
+    cards.sort((a, b) => (onMyWishlist(b.key) - onMyWishlist(a.key)) || (listingOf(b.id).ts - listingOf(a.id).ts));
+    return `
+      <div class="toolbar">
+        <input class="input" id="board-q" placeholder="search player or club" value="${esc(ui.boardQuery)}" oninput="ui.boardQuery=this.value; renderKeep('board-q')">
+        <select class="input" onchange="ui.boardRarity=this.value; render()">
+          ${['all', 'limited', 'rare'].map(r => `<option value="${r}" ${ui.boardRarity === r ? 'selected' : ''}>${r === 'all' ? 'All rarities' : rarLabel(r)}</option>`).join('')}
+        </select>
+        <label class="check"><input type="checkbox" ${ui.boardOnlyWish ? 'checked' : ''} onchange="ui.boardOnlyWish=this.checked; render()"> only players on my wishlist</label>
+        <span class="hint">${cards.length} card${cards.length === 1 ? '' : 's'} up for trade by other managers</span>
+      </div>
+      ${cards.length ? `<div class="grid">${cards.map(o => tile(o, { showOwner: true })).join('')}</div>` : '<div class="empty">// nothing up for trade with these filters</div>'}`;
+  }
+
+  // ── Ansicht: Matches ────────────────────────────────────────────────────────
+  function viewMatches() {
+    const blocks = USERS.filter(u => u.id !== state.me).map(u => {
+      const theyOffer = listedBy(u.id).filter(o => onMyWishlist(o.key));
+      const myCards = mine();
+      const theyWantListed = myCards.filter(o => isListed(o.id) && wishes(u.id, o.key));
+      const theyWantOther = myCards.filter(o => !isListed(o.id) && wishes(u.id, o.key));
+      const mutual = theyOffer.length && (theyWantListed.length || theyWantOther.length);
+      const score = theyOffer.length * 2 + theyWantListed.length * 2 + theyWantOther.length + (mutual ? 10 : 0);
+      return { u, theyOffer, theyWantListed, theyWantOther, mutual, score };
+    }).sort((a, b) => b.score - a.score);
+
+    const li = o => { const c = BY_KEY[o.key];
+      return `<li style="cursor:pointer" onclick="openCard('${o.id}')">${esc(c.player_name)} <small>${rarLabel(c.scarcity)} · Lv ${o.level} · #${o.serial} · ${eur(c.fmv)}</small></li>`; };
+    return `<div class="list" style="gap:12px">${blocks.map(b => `
+      <div class="match-card ${b.mutual ? 'mutual' : ''}">
+        <div class="match-head">
+          <b>${esc(b.u.name)}</b>
+          ${b.mutual ? '<span class="chip match">Mutual match</span>' : (b.theyOffer.length || b.theyWantListed.length || b.theyWantOther.length) ? '<span class="chip dim">One-sided</span>' : '<span class="chip dim">No overlap yet</span>'}
+        </div>
+        <div class="cols">
+          <div class="col"><h4>Offers what you want (${b.theyOffer.length})</h4>
+            <ul>${b.theyOffer.map(li).join('') || '<li class="hint">nothing</li>'}</ul></div>
+          <div class="col"><h4>Wants your cards (${b.theyWantListed.length + b.theyWantOther.length})</h4>
+            <ul>${b.theyWantListed.map(li).join('')}${b.theyWantOther.map(o => li(o).replace('</small></li>', ' · not offered yet</small></li>')).join('') || '<li class="hint">nothing</li>'}</ul></div>
+        </div>
+        <div style="margin-top:12px;display:flex;justify-content:flex-end">
+          <button class="btn" disabled title="Phase 2: assemble a multi-card trade and send it to Sorare">Build trade (phase 2)</button>
+        </div>
+      </div>`).join('')}</div>`;
+  }
+
+  // ── Detailfenster einer Karte ───────────────────────────────────────────────
+  function modalHtml() {
+    const o = CARD[ui.modal]; if (!o) return '';
+    const c = BY_KEY[o.key];
+    const own = o.owner === state.me;
+    const listed = isListed(o.id);
+    const wishers = wishersOf(o.key, o.owner).sort((a, b) => a.ts - b.ts);
+
+    let body = '';
+    if (own) {
+      body += `<div class="box">
+        <div class="box-title">Trade status</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span class="hint">${listed ? `Visible to other managers since ${ago(listingOf(o.id).ts)}.` : 'Only you can see this card on your portfolio.'}</span>
+          ${listed ? `<button class="btn sec" onclick="toggleListing('${o.id}')">Withdraw from trade</button>`
+                   : `<button class="btn good" onclick="toggleListing('${o.id}')">Offer for trade</button>`}
+        </div></div>`;
+
+      body += `<div class="box">
+        <button class="wish-toggle" ${wishers.length ? '' : 'disabled'} onclick="ui.showWishers=!ui.showWishers; render()">
+          <span>♥ On ${wishers.length} wishlist${wishers.length === 1 ? '' : 's'}</span>
+          <span>${wishers.length ? (ui.showWishers ? 'hide ▲' : 'show managers ▼') : 'nobody yet'}</span>
+        </button>
+        ${ui.showWishers && wishers.length ? `<div style="margin-top:8px">${wishers.map(w => {
+          const theirs = listedBy(w.manager).filter(x => onMyWishlist(x.key));
+          return `<div class="wrow">
+            <div class="body"><b>${esc(userName(w.manager))}</b>
+              <small>wants ${esc(c.player_name)} ${rarLabel(c.scarcity)} · ${eligLabel(c.eligibility)} · since ${ago(w.ts)}</small>
+              <div class="chips">${theirs.length
+                ? theirs.map(x => `<span class="chip match" style="cursor:pointer" onclick="openCard('${x.id}')">offers ${esc(BY_KEY[x.key].player_name)} Lv ${x.level}</span>`).join('')
+                : '<span class="chip dim">offers nothing from your wishlist</span>'}</div>
+            </div>
+            <button class="btn sec" disabled title="Phase 2">Build trade</button>
+          </div>`; }).join('')}</div>` : ''}
+        ${!listed && wishers.length ? '<p class="hint" style="margin-top:8px">Tip: this card is wanted but not offered yet.</p>' : ''}
+      </div>`;
+    } else {
+      body += `<div class="box">
+        <div class="box-title">Owner</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <span><b>${esc(userName(o.owner))}</b> <span class="hint">${listed ? `offers this card since ${ago(listingOf(o.id).ts)}` : 'has not offered this card'}</span></span>
+          <button class="btn" disabled title="Phase 2">Build trade</button>
+        </div></div>
+        <div class="box">
+          <div class="box-title">Your wishlist</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span class="hint">${onMyWishlist(o.key) ? 'This player is on your wishlist.' : 'Add the player to get matched with every copy up for trade.'}</span>
+            ${onMyWishlist(o.key) ? `<button class="btn sec" onclick="toggleWish(${c.idx})">Remove</button>` : `<button class="btn" onclick="toggleWish(${c.idx})">+ Wishlist</button>`}
+          </div>
+          <p class="hint" style="margin-top:8px">♥ On ${wishers.length} wishlist${wishers.length === 1 ? '' : 's'} in total.</p>
+        </div>`;
+    }
+
+    return `<div class="backdrop" onclick="if(event.target===this)closeModal()">
+      <div class="modal" role="dialog" aria-modal="true" aria-label="${esc(c.player_name)}">
+        <div class="modal-head">
+          <div class="thumb">${img(c)}</div>
+          <div>
+            <h3>${esc(c.player_name)}</h3>
+            <div class="sub">${esc(c.team_name)}${c.position ? ' · ' + esc(c.position) : ''}<br>
+              ${rarLabel(c.scarcity)} · ${eligLabel(c.eligibility)} · Level ${o.level} · Serial #${o.serial}<br>
+              FMV ${eur(c.fmv)} · Floor ${eur(c.floor_price)}<br>
+              <span style="color:var(--dim)">${esc(o.card_slug)}</span></div>
+          </div>
+          <button class="x" onclick="closeModal()" aria-label="Close">✕</button>
+        </div>
+        <div class="modal-body">${body}</div>
+      </div></div>`;
+  }
+
+  // ── Rendern ─────────────────────────────────────────────────────────────────
+  function render() {
+    document.getElementById('users').innerHTML = USERS.map(u =>
+      `<button class="${u.id === state.me ? 'on' : ''}" onclick="setUser('${u.id}')">${esc(u.name)}</button>`).join('');
+    const myWish = state.wishlist.filter(w => w.manager === state.me).length;
+    const board = state.listing.filter(l => l.manager !== state.me).length;
+    const tabs = [['portfolio', 'My portfolio', mine().length], ['wishlist', 'Wishlist', myWish], ['board', 'Trade board', board], ['matches', 'Matches', null]];
+    document.getElementById('tabs').innerHTML = tabs.map(([id, label, n]) =>
+      `<button class="${state.tab === id ? 'on' : ''}" onclick="setTab('${id}')">${label}${n != null ? `<span class="count">${n}</span>` : ''}</button>`).join('');
+    const views = { portfolio: viewPortfolio, wishlist: viewWishlist, board: viewBoard, matches: viewMatches };
+    document.getElementById('view').innerHTML = (views[state.tab] || viewPortfolio)();
+    document.getElementById('modal-root').innerHTML = ui.modal ? modalHtml() : '';
+  }
+  // Suchfelder behalten beim Neuzeichnen Fokus und Cursor
+  function renderKeep(id) {
+    const el = document.getElementById(id); const pos = el ? el.selectionStart : null;
+    render();
+    const again = document.getElementById(id);
+    if (again) { again.focus(); if (pos != null) again.setSelectionRange(pos, pos); }
+  }
+
+  if (!CATALOG.length) {
+    document.getElementById('view').innerHTML = '<div class="empty">// data.js missing: no sample cards loaded</div>';
+  } else {
+    save(); render();
+  }
+</script>
+</body>
+</html>

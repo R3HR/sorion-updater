@@ -322,6 +322,28 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
+## 🧪 Tauschboerse: Prototyp (15.09.2026), NICHT angebunden
+
+Wunschlisten und Tauschangebote zwischen Managern, geplant von null.
+**Plan:** `docs/2026-09-15_TAUSCHBOERSE_PLAN.md` (Grundentscheidungen, Datenmodell, offene Fragen).
+**Prototyp:** `prototypes/tauschboerse/index.html` + `data.js`, laeuft ohne Server-Anbindung mit vier
+simulierten Managern (User A bis D), Zustand nur im localStorage. Lokal starten:
+`python -m http.server 8765 --directory prototypes/tauschboerse`, dann http://localhost:8765.
+
+Umgesetzt: Portfolio mit "Up for trade" und "♥ N wishlists", Kartendetail mit Liste der Interessenten
+(inkl. deren passender Angebote), Wunschliste mit Suche, Tauschboerse mit Filtern, Matches je Manager.
+"Build trade" ist sichtbar, aber deaktiviert (Phase 2). Geprueft am 15.09. im Browser: Szenario
+anbieten, beim Interessenten sichtbar, fremde Karten nicht anbietbar, keine Konsolenfehler.
+
+**Wichtigster Befund fuer Phase 2:** `createDirectOffer` braucht `approvals` mit Wallet-Signatur des
+Absenders. Sorion kann Angebote NICHT serverseitig absenden, der Manager muss in Sorare bestaetigen.
+
+**Offen (Jonas):** Pro oder frei, Opt-in fuer Sichtbarkeit, Wunsch-Details (Mindestlevel, Hoechstpreis),
+Raritaeten, Discord-Benachrichtigung bei Match. Details im Plan, Abschnitt 7.
+
+**Stolperstein:** Beispieldaten aus `npx supabase db query` ueber eine Python-Pipe unter Windows wurden
+doppelt kodiert (Umlaute als "Ã¶"). Beim Einlesen `sys.stdin.reconfigure(encoding='utf-8')` setzen.
+
 ## 🔴 ZUERST LESEN (11.09.2026): v3.4 und v3.5 haben NIE gerechnet — INC-009
 
 Die Preisaktualisierung stand vom **06. bis 11.09.** still. Ursache: drei `//`-Kommentare
