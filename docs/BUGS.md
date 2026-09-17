@@ -658,3 +658,33 @@ Unterzeile. Rechnung unveraendert.
 - **Offen:** Die leeren `league_country` in `card_prices` nachfuellen (Backfill ueber
   Vereinsliste). Jede Filterung nur ueber `league_name` ist bis dahin fehleranfaellig, auch
   auf der Marktseite pruefen.
+
+---
+
+## BUG-047 - Ticker fror nach Rundenende auf dem letzten Live-Wert ein (15./16.09.) - BEHOBEN
+
+- **Symptom (Jonas):** "Der Squad hat die Stage mit 990,71 Punkten beendet, aber der Liveticker zeigt 991.55 / 980." Set 2, Stage 2.
+- **Ursache:** Der Ticker-Block laeuft nur, solange ein Step aktiv ist (`isActive`). Letzte Bearbeitung 15.09. 23:30 Berlin (21:30 UTC), danach schloss die Stage. Sorare korrigierte die Scores nach Abpfiff noch um -0.84. Die Datenbank bekam das mit - `squad_step_scores` wird fuer alle Steps des Boards bei jedem Poll geschrieben, Stand 00:20 Berlin exakt 990.71, **keine Abweichung zu Sorare** -, der Ticker aber nicht mehr. Die Daten waren richtig, nur die Anzeige fror ein.
+- **Fix (16.09.):** Schlussbearbeitung am Ende jedes Polls, nach der Board-Schleife: Fuer Ticker-Nachrichten der letzten 48 h, deren Step CLAIMED/CLAIMABLE/FAILED ist und eine Runde hat, wird die Tabelle **aus den Datenbank-Scores** neu gerendert und **in place bearbeitet** (`postOrEdit(..., forceNew=false)` - nie neu gepostet, nie geloescht). Titel "· Final", Fusszeile "Final · Stand: HH:MM", ohne Delta-Spalte, Kopfzeile "target reached" bzw. "target missed · X short". `render_hash` (Fingerabdruck ueber Titel, Text und Farbe, bewusst ohne Uhrzeit) sorgt dafuer, dass nur bei echter Aenderung bearbeitet wird; `final_at` haelt die erste Schlussfassung fest. Keine Ereignismeldungen, kein Jubel. Greift auch fuer Stages, die der Nachhol-Baustein aus BUG-045 abschliesst. try/catch. Migration 20260916003000.
+- **Verifiziert:** Stage 2 - `message_id` vor und nach dem Poll identisch (bearbeitet, nicht neu gepostet), `render_hash` und `final_at` gesetzt; zweiter Poll ohne erneute Bearbeitung (`updated_at` unveraendert). Endstand 990.71 / 980. Stage 1 desselben Boards (R38) lag ebenfalls im Fenster und erhielt ihre Schlussfassung.
+- **Lektion:** Jede Live-Anzeige braucht einen Endzustand. Eine Ansicht, die nur "solange aktiv" aktualisiert, friert auf dem letzten Zwischenwert ein - und die Quelle korrigiert gerade nach dem Abschluss noch. Dieselbe Familie wie BUG-036 und BUG-045: das Ende eines Lebenszyklus war nicht abgedeckt.
+
+## BUG-044 - Gameweek-Seite: juengste Spieltage "temporarily unavailable" nach Umbenennung (17.09.) - BEHOBEN
+
+**Symptom:** Auf gameweeks.html zeigen Game Week 12, 13 und 14 nur "temporarily unavailable".
+Aeltere Spieltage laden, weil sie bereits in `so5_lineups` liegen.
+
+**Ursache:** Die Edge Function `so5-results` fragt `so5Fixture { userFixtureResults(userSlug:) }`.
+Dieses Feld folgt **keiner Umbenennung**: fuer `jr3hr` (Jonas heisst jetzt R3HR) liefert es
+"User(slug=jr3hr) not found". `user(slug:"jr3hr")` und die Kartenabfrage leiten dagegen weiterhin
+auf `r3hr-7625d620-...` weiter, deshalb lief das Portfolio normal. Betroffen sind alle
+umbenannten Manager und alle noch nicht abgelegten Spieltage. Das Frontend zeigte jeden Fehler
+pauschal als "temporarily unavailable".
+
+**Fix (Edge Function, deployt 17.09.):** Bei "not found" einmal `user(slug:)` fragen, den aktuellen
+Slug nehmen und erneut abfragen. Abgelegt wird weiterhin unter dem ANGEFRAGTEN Slug, damit die
+Historie nicht auf zwei Schluessel zerfaellt. Getestet mit `jr3hr`: GW10 bis GW14 laden
+(2/2/8/3/3 Aufstellungen), abgeschlossene Spieltage liegen danach unter `jr3hr` in der DB.
+
+**Hinweis:** `C:\craft-log\supabase\functions` steht nicht unter Versionskontrolle. Die Aenderung
+existiert nur lokal und im Deploy.
