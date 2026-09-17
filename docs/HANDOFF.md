@@ -1135,6 +1135,25 @@ Kontrollausgaben ernst nehmen: "X von Y Vereinen erreichbar" muss nahe an der ec
 liegen, sonst stimmt der Ligafilter nicht; die Abdeckung je Spieltag zaehlt nur Spieler mit
 geladenen Punkten.
 
+## Sorare-Inside-API: Beta-Zugang, NUR privat (bindend, Ansage Jonas 17.09.2026)
+
+Jonas ist Beta-Tester der Sorare-Inside-API. Auflage des Anbieters: **Nutzung nur durch ihn
+selbst, nicht kommerziell.**
+
+**Sorion ist kommerziell** (bezahlte Pro-Stufe). Daten aus dieser API duerfen deshalb NICHT nach
+`card_prices`, `reward_thresholds`, `lineup_costs` oder in irgendeine Tabelle, aus der sorion.pro
+liest, nicht in Edge Functions, Railway-Dienste oder Cronjobs, nicht auf die Seiten, nicht in
+Discord-Patchnotes, nicht in die Repos (auch der Schluessel nicht).
+
+**Erlaubt:** Auswertungen fuer Jonas' eigene Aufstellungen und Kaeufe, lokal, Ergebnisse im
+Scratchpad. Schluessel gehoert in eine Datei AUSSERHALB beider Repos, nie in `Sorion_pro/.env`
+(das wird zu leicht auf einen Railway-Dienst gespiegelt).
+
+**Abgrenzung, nicht verwechseln:** `nextClassicFixtureProjectedGrade` und
+`nextClassicFixturePlayingStatusOdds` liefert SORARES eigene API (Datenquelle ist Sorare Inside,
+im Spieler-Modal attributiert, Edge Function `player-live`). Dieser Weg bleibt fuer sorion.pro
+erlaubt und ist von der Beta-Auflage nicht betroffen.
+
 ## Champion / Under 23 / All Star: Regeln und Befunde (17.09.2026, Frage Jonas)
 
 Frage: "Wo bringe ich meine besten Spieler unter, wo habe ich die besten Chancen?" Befunde, die
