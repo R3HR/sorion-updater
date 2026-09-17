@@ -1135,6 +1135,33 @@ Kontrollausgaben ernst nehmen: "X von Y Vereinen erreichbar" muss nahe an der ec
 liegen, sonst stimmt der Ligafilter nicht; die Abdeckung je Spieltag zaehlt nur Spieler mit
 geladenen Punkten.
 
+## Champion / Under 23 / All Star: Regeln und Befunde (17.09.2026, Frage Jonas)
+
+Frage: "Wo bringe ich meine besten Spieler unter, wo habe ich die besten Chancen?" Befunde, die
+ueber den Tag hinaus gelten:
+- **Regeln (API, `displayedRules`, GW15):** alle drei sind Classic-Wettbewerbe (`all_seasons`),
+  **7 Karten** (TW, 2 ABW, 2 MF, ST, 1 frei aus ABW/MF/ST) plus 2 Bank, Kapitaen.
+  Under 23: `age.max 23`, Stichtag `cutOffDate 2026-07-01`. Champion: nur Premier League,
+  Bundesliga, Primera Division, Ligue 1, Serie A. All Star: keine Einschraenkung.
+  **Slug-Falle:** Under 23 heisst im Slug `under_twenty_one`
+  (`...-seasonal-under_twenty_one-all_seasons_under_twenty_one_rare`), Champion `champions`.
+- **Laendercodes kommen kleingeschrieben** (`gb-eng`, `de`, `es`). Ein Abgleich gegen
+  `GB-ENG` verwirft jeden Premier-League-Spieler, ohne Fehler.
+- **Startelf-Quoten am Donnerstag vor einem Wochenend-Spieltag noch leer**, ueber BEIDE Wege
+  geprueft (`nextClassicFixturePlayingStatusOdds` und `anyFutureGameStats.footballPlayingStatusOdds`),
+  obwohl die Spiele korrekt erkannt werden. Kein Fehler, sondern noch nicht veroeffentlicht.
+  Prognose (`nextClassicFixtureProjectedGrade`) lag fuer 102 von 296 Spielern vor.
+- **Modell gegen Realitaet:** Summe aus Prognose/L15 plus Kapitaen liegt 15 bis 20 % UNTER den
+  echten Punkten von Jonas' Aufstellungen (U23 Rare: Modell ~400, echt 492). Grund: keine
+  Kartenboni, In-Season-Karten ausgeklammert. Absolute Wahrscheinlichkeiten daraus NICHT
+  weitergeben, nur Reihenfolgen. Pruefstein ist `so5_lineups` (Spalte `manager_slug`).
+- **Essence-Wert (essence_value(), 17.09.):** Limited 4,56 EUR, Rare 73,53 EUR je 1.000
+  (Rare nur 7 Crafts, Groessenordnung). 250 Rare-Essence sind so viel wert wie 5.000 Limited.
+- **Ergebnis fuer Jonas' Depot:** Rare vor Limited; Champion und Under 23 vor All Star (All Star ist
+  offen, dort bringt jeder seine Besten, Jonas liegt im Schnitt hinter 59 bis 68 % des Feldes).
+  Spieler, die in U23 UND Champion passen, zuerst nach Champion: Jonas hat nur 6 aeltere
+  Top-5-Rare-Spieler (kein Stuermer), aber 22 junge aus anderen Ligen fuer U23.
+
 ## Sorare-API: Merkzettel (ZUERST hier nachsehen, nicht im Schema stochern)
 
 **FALLE (17.09.2026): Umbenannte Manager.** `user(slug:)` und `user.cards` leiten einen alten Slug
