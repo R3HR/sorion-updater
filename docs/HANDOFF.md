@@ -1201,6 +1201,15 @@ eference\schema.graphql`, Sicherung `.bak`). Das alte war Monate alt und kannte
 Felder, die es nicht mehr gibt (`football.players(slugs:)`), und die neuen noch nicht. **Bei jedem
 "Feld existiert nicht" zuerst das Schema erneuern, nicht raten.**
 
+**FALLE (Korrektur Jonas 17.09.2026): Startelf-Quoten gibt es ueber die Sorare-API NICHT MEHR.**
+`nextClassicFixturePlayingStatusOdds` und `anyFutureGameStats.footballPlayingStatusOdds` liefern
+durchgaengig null (am 17.09. fuer alle 296 geprueften Spieler, beide Wege). Das ist KEIN
+"noch nicht veroeffentlicht", wie ich zuerst annahm, sondern das Feld ist tot. Die Quoten gibt
+es nur noch bei Sorare Inside direkt. **Folge fuer Sorion:** Die Edge Function `player-live`
+fragt dieses Feld ab, die Startelf-Quote im Spieler-Modal duerfte seitdem leer sein. Pruefen und
+entweder entfernen oder ersetzen. Die Punkte-Prognose (`nextClassicFixtureProjectedGrade`) kommt
+weiterhin (am 17.09. fuer 102 von 296 Spielern).
+
 **Spieler fuer einen bestimmten Spieltag beurteilen (Stand 07.09.2026):**
 - `anyGamesForFixture(so5FixtureSlug:)` sagt direkt, ob ein Spieler in diesem Spieltag spielt.
   Das ist der Filter, den auch der Sorare-Marktplatz anbietet. **Nicht** ueber `nextGame` plus
