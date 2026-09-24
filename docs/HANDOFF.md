@@ -2,7 +2,7 @@
 
 > Zentrale Übergabedatei für alle Bots/Agents. **Vor jeder Arbeit lesen, nach jeder Arbeit aktualisieren — auch bei kleinen Sessions!**
 > **Squad-Bot - Wegweiser zu allen Dateien: `C:\craft-log\squad-bot\README.md`** (Function, Migrationen, Tabellen, Cron-Jobs, Actions, Secrets, Kanal-Aufteilung, offene Punkte). Erster Anlaufpunkt bei Bot-Arbeit.
-> **Squad-Leaderboard-Spezifikation (24.08., von Jonas): [SQUAD_LEADERBOARD.md](SQUAD_LEADERBOARD.md)** - vollstaendiges Regel- und Rechenwerk (Zyklen, Punkte, Strafen, Cap-Entscheidungsbaum, Ausgabeformate). **Maßgeblich bei Widerspruechen zu aelteren Notizen hier.**
+> **Squad-Leaderboard-Spezifikation (24.08., von Jonas; fortgeschrieben bis 24.09.): [SQUAD_LEADERBOARD.md](SQUAD_LEADERBOARD.md)** - vollstaendiges Regel- und Rechenwerk (Zyklen, Punkte, Strafen, Cap-Entscheidungsbaum, Ausgabeformate; seit 24.09. zusaetzlich Sets, Bloecke/Strikes und die aktuellen Discord-Formate, Kapitel 15-18). **Maßgeblich bei Widerspruechen zu aelteren Notizen hier.**
 > **Lineup-Optimizer (Konzept 04.09., IDEA-006): [LINEUP_OPTIMIZER.md](LINEUP_OPTIMIZER.md)** — bestmögliche Aufstellungen je Gameweek aus Portfolio-Daten, Zielgröße erwartete Belohnung in EUR; nicht gebaut, Bauplan in 4 Stufen, Stufe 0 = Regelwerk je Wettbewerb (`so5-competitions`).
 > Bugs → [BUGS.md](BUGS.md) · Crashes/Sicherheit → [INCIDENTS.md](INCIDENTS.md) · Vorgemerkte Konzepte → [IDEAS.md](IDEAS.md)
 > **Monetarisierungsstrategie (20.08., externe Product-Lead-Analyse): [MONETARISIERUNG.md](MONETARISIERUNG.md)** — Freemium-Empfehlung (Pro 3,99 €/Monat um Rendite-Suite/Alerts/Historie), Validierung vor Bau (Fake-Door + Founding Supporter), 5 priorisierte nächste Schritte. Preise/Schwellen sind Hypothesen.
@@ -226,6 +226,8 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
   (b) `action=strikes` legt Strikes standardmaessig mit `expires_after_clean_block = true` an; laut Abschnitt 5 verfallen **nur** Bewaehrungsstrikes, Strikes innerhalb eines Sets nicht.
   (c) `blocks` kennt die Sonderfaelle aus Abschnitt 5 nicht: Block unter 6 Runden nicht werten und in den naechsten wachsen lassen; Schlussblock unter 6 Runden gar nicht werten; unter 60 % Teilnahme fuer den Manager nicht werten. **Relevant fuer den 21.09.:** Block 1 hat aktuell 5 Runden.
   (d) Spezifikation 2 nennt `overCap[].managers` noch "nach firstSeen sortiert" - seit schemaVersion 2 nach Bonus sortiert mit `suggestedPenalty`.
+
+**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **19.09. Nachtrag:** Die Luecke trat beim naechsten Board sofort ein; das neue Board steht unter `currentUser.setBoard(mode: SQUAD, sport: FOOTBALL)`. Reihenfolge jetzt: Liste -> `setBoard` -> letztes Board per ID. **Offen (alt):** Ein komplett neues Board (naechster Zyklus) findet der ID-Fallback nicht - dafuer ist jetzt `setBoard` da. Beim naechsten Boardwechsel pruefen, ob die Liste wieder Boards liefert (`boardFallback` muss dann `null` sein). Diagnose-Idee noch nicht gebaut: Alarm, wenn der Poll mitten in einem laufenden Board `steps: []` liefert.
 
 **16.09. — Ticker-Schlussfassung nach Rundenende (BUG-047):** Der Ticker fror auf dem letzten Live-Wert ein (Stage 2: 991.55 statt Endstand 990.71), weil er nur bei aktiver Stage bearbeitet wurde und Sorare nach Abpfiff noch korrigiert. Datenbank war korrekt. Jetzt am Ende jedes Polls: abgeschlossene Stages (48-h-Fenster) werden aus den DB-Scores als **"· Final"** neu gerendert und **in place bearbeitet**, nur bei Inhaltsaenderung (`squad_ticker_messages.render_hash`, `final_at`). Nie Neupost, keine Ereignismeldungen. Verifiziert: gleiche `message_id`, zweiter Poll ohne Bearbeitung; Stage 1 und 2 des aktuellen Boards haben ihre Schlussfassung.
 
@@ -1153,6 +1155,30 @@ Scratchpad. Schluessel gehoert in eine Datei AUSSERHALB beider Repos, nie in `So
 `nextClassicFixturePlayingStatusOdds` liefert SORARES eigene API (Datenquelle ist Sorare Inside,
 im Spieler-Modal attributiert, Edge Function `player-live`). Dieser Weg bleibt fuer sorion.pro
 erlaubt und ist von der Beta-Auflage nicht betroffen.
+
+## LUECKE: "special weekly"-Wettbewerbe fehlen in reward_thresholds (24.09.2026)
+
+Sorare fuehrt seit Game Week 16 eine woechentliche Sonderreihe mit ECHTEM Preisgeld, die unser
+Sync nicht erfasst. Gefunden, weil Jonas sagte "es gibt neue Wettbewerbe".
+
+- **Slug-Muster ist anders:** `football-25-29-sep-2026-special-weekly-european-nations-division-1`
+  statt `...-seasonal-<key>-<eligibility>_..._<rarity>`. Der Filter `isCompetition()` in
+  `tools/sync-reward-thresholds.mjs` verlangt `-(in_season|all_seasons)_..._<rarity>` und wirft
+  diese Leaderboards deshalb still weg. **Auf der Leaderboards-Seite fehlen sie komplett.**
+- **Bisher gesehen:** GW16 `special-weekly-division-1|2`, GW17 bis GW20
+  `special-weekly-european-nations-division-1|2`. Division 1 = Rare (dazu SR/Unique erlaubt),
+  Division 2 = nur Super Rare/Unique. **5 Karten** (TW, ABW, MF, ST, frei), 2 Bank, Kapitaen.
+- **Preisgeld GW17:** Division 1 3.000 USD auf 458 Aufstellungen, **300 belohnt** (65 %),
+  Rang 1 1.000 USD, Cash bis Rang 30, danach Rare-Essence bis Rang 300. Division 2 2.950 USD
+  auf 100 Aufstellungen, 50 belohnt, Rang 1 1.500 USD.
+- **Wie man die Zulassung liest, wenn `displayedRules` leer ist:** `So5Leaderboard.algoliaFilters`
+  nennt den echten Filter im Klartext, hier
+  `sport:football AND (rarity:unique OR ...) AND (active_competitions:uefa-nations-league)`.
+  `displayedTypedRules { __typename }` nennt zusaetzlich die greifenden Regeltypen. Das ist der
+  verlaessliche Weg bei Sonderwettbewerben, `displayedRules.leagues/competitions` bleibt dort null.
+- **Offen:** Sync erweitern (Wettbewerbsname aus dem Slug ableiten, Division als eigene Zeile),
+  damit die Tabelle diese Wettbewerbe zeigt. Preisgeld und Feldgroesse machen sie fuer die
+  Leaderboards-Seite interessanter als manche Liga.
 
 ## Champion / Under 23 / All Star: Regeln und Befunde (17.09.2026, Frage Jonas)
 
