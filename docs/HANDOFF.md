@@ -549,6 +549,26 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
+**NEU 25.09. — Anmeldung nur mit Sorare: zwei Schritte fehlen, REIHENFOLGE beachten**
+Ziel (Jonas): Konto anlegen und anmelden ausschliesslich ueber Sorare, ohne eigene Mailadresse.
+Das Backend konnte das laengst (`sorare-oauth`, action `login`: legt bei Bedarf einen Auth-Nutzer
+mit interner Platzhalter-Adresse `<slug>@sorare.craftlog.pro` an und gibt eine fertige Sitzung
+zurueck). Es war nur nirgends angeboten.
+
+1. **`npx supabase functions deploy sorare-oauth`** (aus `C:\craft-log`). Der Deploy wurde mir
+   von der Berechtigungspruefung verweigert, die Aenderung liegt nur lokal. Sie fuegt die
+   **Adoption** hinzu: Wer sich frueher per E-Mail angemeldet und Sorare verifiziert verknuepft
+   hat (11 Konten), bekommt sein BESTEHENDES Konto, statt ein zweites, leeres ohne Pro-Stufe.
+2. **Danach** `sorion-ui` pushen (Commit liegt lokal bereit): Knopf "Sign in with Sorare" im
+   Profil und der Anmelde-Zweig auf der Rueckkehrseite.
+
+Ohne Schritt 1 darf Schritt 2 NICHT raus. Bereits erledigt ist die Migration
+`2026-09-25_sorare_login_mapping.sql` (Spalte `sorare_user_id` plus eindeutiger Index, damit eine
+Umbenennung kein zweites Konto erzeugt, BUG-014).
+
+**Danach zu testen (nur mit echtem Sorare-Login moeglich):** abgemeldet auf dem Handy anmelden,
+dann mit einem Bestandskonto pruefen, dass Pro-Stufe und Portfolio erhalten bleiben.
+
 **NEU 07.09. — Railway-Dienst "Rewards" anlegen** (Details im Abschnitt Team-Kosten):
 1. Railway → Projekt *faithful-gentleness* → **New Service → GitHub Repo → R3HR/sorion-updater**
 2. Settings → Config-as-code Pfad: **/railway-rewards.toml** (kein Root Directory setzen)
