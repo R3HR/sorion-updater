@@ -661,6 +661,16 @@ Unterzeile. Rechnung unveraendert.
 
 ---
 
+## BUG-048 - Bot stumm: Sorare lieferte die Board-Liste leer (18.09.) - BEHOBEN
+
+- **Symptom (Jonas):** "Der Bot laeuft nicht mehr seit heute Nachmittag." Keine Aufstellungs-, Cap- oder Fristmeldungen.
+- **Befund:** Cron und Funktion liefen einwandfrei - jeder Poll 200 OK, aber mit `steps: []`. Letzter Board-Stand in der DB 09:40 UTC (Stage 5, Ziel 1280, LINEUP_SET). Token gueltig, `squad` kam, Career-Boards kamen; nur `currentUser.boards(mode: SQUAD, ...)` war leer - in allen Varianten (ohne rarity, `engaged: true/false`, `rarities: [...]`). Dasselbe Board `Board:00ab65ed...` war per `currentUser.board(id:)` voll abrufbar: Stage 1-4 CLAIMED, Stage 5 LINEUP_SET, `myCurrentStep` gesetzt, `nextMatchdayAt` 19.09. 07:00 UTC. Ursache liegt bei Sorare (Liste und Einzelabruf widersprechen sich); ob Absicht oder Fehler, ist offen.
+- **Fix (18.09.):** Query als `buildQuery(boardId?)`: ohne ID die Liste, mit ID `boards: board(id: ...)` (Alias, gleiche Auswahl, Ergebnis auf Array normalisiert). Ist die Liste leer, holt der Poll das zuletzt bekannte Board mit offener Stage (`squad_step_scores`, neuestes `updated_at`) direkt per ID - nur wenn dort noch eine offene Stage steht; fertige Boards bleiben beim Nachhol-Baustein (BUG-045). Poll-Antwort meldet `boardFallback`. try/catch.
+- **Verifiziert:** Manueller Poll nach Deploy: `boardFallback: Board:00ab65ed...`, alle 5 Stages, Stage 5 mit 10 Aufstellungen. Der Lauf holte die in den stillen Stunden aufgelaufenen Meldungen nach (neue Aufstellungen, Cap-Konflikte ffgaj, Kane-Limit).
+- **Grenze:** Ein komplett NEUES Board (naechster Zyklus) kennt der Fallback nicht - das kaeme nur ueber die Liste. Bleibt die Liste dann leer, ist der Bot wieder blind.
+- **Nachtrag 19.09. - die Luecke trat sofort ein:** Stage 5 wurde am 18.09. abends geschafft (1308.80 / 1280), Sorare startete ein neues Board - und der Bot war ab dem Morgen wieder blind (der ID-Fallback kennt nur das alte, fertige Board). Das neue Board `Board:947e9cc3...` stand ausschliesslich unter **`currentUser.setBoard(mode: SQUAD, sport: FOOTBALL)`** (neu im Schema, 40.294 statt 39.180 Zeilen). Fix: Bei leerer Liste zuerst `setBoard` (Alias `boards: setBoard(...)`), erst danach der ID-Fallback. `boardFallback` meldet `setBoard:<id>`. Verifiziert 19.09. 08:10 UTC: Stage 1 PLAYABLE, Ziel 700, 3 Aufstellungen, nachgeholte Aufstellungsmeldungen. Vermutung: Sorare hat Squad-Boards von der Liste auf `setBoard` umgezogen - dann ist `setBoard` kuenftig die eigentliche Quelle.
+- **Lektion:** "200 OK mit leerem Ergebnis" ist kein Gesundheitszeichen. Ein leerer Board-Stand mitten in einem laufenden Board ist ein Alarmfall, kein Ruhezustand.
+
 ## BUG-047 - Ticker fror nach Rundenende auf dem letzten Live-Wert ein (15./16.09.) - BEHOBEN
 
 - **Symptom (Jonas):** "Der Squad hat die Stage mit 990,71 Punkten beendet, aber der Liveticker zeigt 991.55 / 980." Set 2, Stage 2.
@@ -688,3 +698,30 @@ Historie nicht auf zwei Schluessel zerfaellt. Getestet mit `jr3hr`: GW10 bis GW1
 
 **Hinweis:** `C:\craft-log\supabase\functions` steht nicht unter Versionskontrolle. Die Aenderung
 existiert nur lokal und im Deploy.
+
+## BUG-045 - "Sign in with Sorare" warf ReferenceError, solange man abgemeldet war (02.10.) - BEHOBEN
+
+**Symptom:** Nutzer meldet Konsolenfehler `loginWithSorare is not defined` beim Klick auf den
+neuen Knopf im Profil. Der Knopf tat nichts.
+
+**Ursache:** Ich hatte `loginWithSorare` neben `connectSorare` gelegt, und beide standen INNERHALB
+von `enterProfile()`. Diese Funktion laeuft erst nach erfolgreicher Anmeldung. Fuer abgemeldete
+Besucher, also genau die Zielgruppe des Knopfes, existierte keine der beiden Funktionen.
+Vorher fiel es nicht auf, weil `connectSorare` nur im eingeloggten Profil gebraucht wurde.
+
+**Fix:** Die Autorisierung steht jetzt als `sorareAuthorize()` auf oberster Skript-Ebene,
+`window.loginWithSorare` und `window.connectSorare` zeigen beide darauf.
+
+**Lehre:** Wer eine Funktion fuer einen NEUEN Zustand wiederverwendet, muss pruefen, ob sie in
+diesem Zustand ueberhaupt definiert ist. Ein Klicktest im abgemeldeten Zustand haette gereicht;
+den konnte ich ohne Konto nicht machen und habe es auch nicht als Luecke benannt.
+
+**Nebenbefund (OFFEN, Entscheidung Jonas): zwei Konten fuer denselben Manager.**
+`tomneg` hat ein Sorion-Profil per Mail (908 Portfolio-Karten) UND eine aeltere Zeile in
+`sorare_users` aus CraftLog, die auf ein ANDERES Auth-Konto zeigt. Beim Sorare-Login gewinnt die
+`sorare_users`-Zeile, der Nutzer landet also im CraftLog-Konto. Das Portfolio haengt am Slug und
+waere weiterhin da, Profilzeile und eine etwaige Pro-Stufe aber nicht. Die Adoption aus
+`2026-09-25` greift hier NICHT, sie wirkt nur, wenn gar keine Zuordnung existiert.
+Moegliche Wege: (a) so lassen, ein Mensch hat dann ein gemeinsames Konto fuer beide Produkte;
+(b) beim Login das verifizierte Sorion-Profil bevorzugen; (c) die beiden Konten zusammenfuehren.
+Betrifft aktuell genau einen Nutzer.
