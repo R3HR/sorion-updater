@@ -65,7 +65,7 @@ async function rankingsPage(slug, page) {
   const d = await gql(`{ so5 { so5Leaderboard(slug:"${slug}") {
     so5RankingsPaginated(page: ${page}, pageSize: ${PAGE}) {
       nodes { ranking score so5Lineup { so5Appearances {
-        anyPlayer { slug } anyCard { rarityTyped inSeasonEligible } } } } } } } }`,
+        score anyPlayer { slug displayName } anyCard { rarityTyped inSeasonEligible } } } } } } } }`,
     `${slug} S.${page}`);
   return d?.so5?.so5Leaderboard?.so5RankingsPaginated?.nodes ?? [];
 }
@@ -88,7 +88,7 @@ async function main() {
   console.log(`[${new Date().toISOString()}] Aufstellungs-Kosten${DRY ? ' (DRY)' : ''}, Saison ab ${SINCE}`);
 
   const { data: lbs, error } = await supabase.from('reward_thresholds')
-    .select('fixture_slug, leaderboard_slug, fixture_name, competition, rarity, cash_rank, essence_rank, lineups, fixture_state')
+    .select('fixture_slug, leaderboard_slug, fixture_name, competition, rarity, cash_rank, essence_rank, lineups, fixture_state, tiers')
     .gte('start_date', SINCE).order('start_date', { ascending: true });
   if (error) { console.error('reward_thresholds:', error.message); process.exit(1); }
   console.log(`${lbs.length} Leaderboard-Wochen dieser Saison`);
@@ -98,6 +98,7 @@ async function main() {
   // ohne Paginierung waere die Liste unvollstaendig und der taegliche Cron
   // wuerde jedes Mal die ganze Saison neu abfragen.
   let done = new Set();
+  const earnDone = new Set();
   if (!FORCE && !DRY) {
     for (let off = 0; ; off += 1000) {
       const { data, error } = await supabase.from('lineup_costs')
@@ -107,6 +108,13 @@ async function main() {
       if (data.length < 1000) break;
     }
     console.log(`Bereits erfasst: ${done.size} Leaderboard-Wochen`);
+    // Spieler-Verdienste (Top-Verdiener-Tabelle, 02.10.) gibt es erst seit spaeter. Eine
+    // Woche gilt nur als fertig, wenn auch ihre Cash-Verdienste gespeichert sind.
+    const { data: ew, error: ee } = await supabase.from('player_earnings_weeks')
+      .select('fixture_slug, leaderboard_slug').eq('reward_kind', 'cash');
+    if (ee) console.warn(`  Verdienst-Bestand lesen: ${ee.message}`);
+    for (const r of ew ?? []) earnDone.add(r.fixture_slug + '|' + r.leaderboard_slug);
+    console.log(`Spieler-Verdienste erfasst: ${earnDone.size} Leaderboard-Wochen`);
   }
 
   // 1) Aufstellungen einsammeln
@@ -116,7 +124,8 @@ async function main() {
   for (const lb of lbs) {
     // Vorlaeufige Spieltage (noch nicht "closed", Ausschuettung laeuft) neu rechnen:
     // ihre Raenge koennen sich mit einer Score-Korrektur noch verschieben.
-    if (lb.fixture_state === 'closed' && done.has(lb.fixture_slug + '|' + lb.leaderboard_slug)) continue;
+    const wk = lb.fixture_slug + '|' + lb.leaderboard_slug;
+    if (lb.fixture_state === 'closed' && done.has(wk) && (!lb.cash_rank || earnDone.has(wk))) continue;
     const maxRank = lb.essence_rank || lb.cash_rank;
     if (!maxRank) continue;                       // Leaderboard ohne Geld/Essence
     // CASH: VOLLERHEBUNG, jede Seite bis zum letzten bezahlten Rang.
@@ -142,6 +151,8 @@ async function main() {
         if (!apps.length) continue;
         const cards = apps.map(a => ({
           slug: a.anyPlayer?.slug,
+          name: a.anyPlayer?.displayName ?? null,
+          pts: Number(a.score) || 0,
           scarcity: a.anyCard?.rarityTyped,
           elig: a.anyCard?.inSeasonEligible ? 'in_season' : 'classic',
         })).filter(c => c.slug && c.scarcity);
@@ -186,7 +197,58 @@ async function main() {
   }
   console.log(`Vollstaendig bepreist: ${full.length}/${rows.length} (${Math.round(100 * full.length / rows.length)} %)`);
 
+  // 3) Spieler-Verdienste (Top-Verdiener je Liga, Entscheidung Jonas 02.10.)
+  //    Gewinn der Aufstellung aus der Preisstufe (from <= Rang <= to), verteilt nach
+  //    PUNKTEANTEIL: wer 80 von 400 Punkten holte, bekommt 20 % zugerechnet. Holte die
+  //    ganze Aufstellung 0 Punkte, wird gleich verteilt. Nur CASH, weil nur dort alle
+  //    Gewinner erhoben werden; Essence ist eine Stichprobe und waere verzerrt.
+  const usdFor = (lb, rank) => {
+    for (const t of lb.tiers ?? []) if (rank >= t.from && rank <= t.to) return Number(t.usd) || 0;
+    return 0;
+  };
+  const earn = new Map();            // "fixture|leaderboard" -> Map(player -> Summen)
+  for (const r of raw) {
+    if (!(r.lb.cash_rank && r.ranking <= r.lb.cash_rank)) continue;
+    const usd = usdFor(r.lb, r.ranking);
+    if (!usd) continue;
+    const total = r.cards.reduce((a, c) => a + c.pts, 0);
+    const key = r.lb.fixture_slug + '|' + r.lb.leaderboard_slug;
+    if (!earn.has(key)) earn.set(key, { lb: r.lb, players: new Map() });
+    const pm = earn.get(key).players;
+    for (const c of r.cards) {
+      const share = total > 0 ? c.pts / total : 1 / r.cards.length;
+      const e = pm.get(c.slug) ?? { name: c.name, lineups: 0, points: 0, earned: 0 };
+      e.lineups++; e.points += c.pts; e.earned += usd * share;
+      pm.set(c.slug, e);
+    }
+  }
+  const earnRows = [];
+  for (const { lb, players } of earn.values())
+    for (const [slug, e] of players) earnRows.push({
+      fixture_slug: lb.fixture_slug, leaderboard_slug: lb.leaderboard_slug,
+      competition: lb.competition, rarity: lb.rarity, reward_kind: 'cash',
+      player_slug: slug, player_name: e.name, lineups: e.lineups,
+      points: Math.round(e.points * 100) / 100, earned: Math.round(e.earned * 100) / 100,
+      synced_at: new Date().toISOString(),
+    });
+  const usdSum = earnRows.reduce((a, r) => a + r.earned, 0);
+  console.log(`Spieler-Verdienste: ${earnRows.length} Zeilen aus ${earn.size} Leaderboard-Wochen, ${Math.round(usdSum)} USD verteilt`);
+
   if (DRY) { console.log('DRY-RUN, nichts geschrieben.'); return; }
+
+  // Je Leaderboard-Woche ERSETZEN statt nur upserten: faellt ein Spieler nach einer
+  // Score-Korrektur aus den Gewinnern, darf seine alte Zeile nicht stehen bleiben.
+  let earnWritten = 0;
+  for (const { lb } of earn.values()) {
+    const { error: de } = await supabase.from('player_earnings').delete()
+      .eq('fixture_slug', lb.fixture_slug).eq('leaderboard_slug', lb.leaderboard_slug).eq('reward_kind', 'cash');
+    if (de) console.warn(`  Verdienste loeschen (${lb.leaderboard_slug}): ${de.message}`);
+  }
+  for (let i = 0; i < earnRows.length; i += 500) {
+    const { error: ie } = await supabase.from('player_earnings').insert(earnRows.slice(i, i + 500));
+    if (ie) console.warn(`  Verdienste schreiben (${i}): ${ie.message}`); else earnWritten += Math.min(500, earnRows.length - i);
+  }
+  console.log(`Spieler-Verdienste geschrieben: ${earnWritten}`);
   let written = 0;
   for (let i = 0; i < rows.length; i += 500) {
     const { error: e } = await supabase.from('lineup_costs')

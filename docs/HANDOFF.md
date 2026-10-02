@@ -750,7 +750,7 @@ die Checkliste weiter unten.
 
 | Feature-Key | Was | Stufe | Wo |
 |---|---|---|---|
-| `leaderboard_cash` | Cash-Punkteschwelle UND Cash-Team-Kosten auf der Leaderboards-Seite | `pro` | rewards.html |
+| `leaderboard_cash` | Cash-Punkteschwelle, Cash-Team-Kosten UND Top-Verdiener nach Cash (RPC `top_earners`, seit 02.10.) auf der Leaderboards-Seite | `pro` | rewards.html |
 | `portfolio_earnings` | "Earned in lineups": Gesamt-Kachel UND Ertrag je Karte im Modal | `pro` | portfolio.html |
 
 Frei bleiben dort bewusst: Essence-Schwelle, Essence-Team-Kosten, bezahlte Raenge, Top-Score,
@@ -1178,32 +1178,31 @@ Scratchpad. Schluessel gehoert in eine Datei AUSSERHALB beider Repos, nie in `So
 im Spieler-Modal attributiert, Edge Function `player-live`). Dieser Weg bleibt fuer sorion.pro
 erlaubt und ist von der Beta-Auflage nicht betroffen.
 
-## IN ARBEIT: Top-Verdiener je Liga auf rewards.html (02.10.2026, Wunsch Jonas)
+## Top-Verdiener je Liga auf rewards.html (02.10.2026, Wunsch Jonas) - LIVE
 
 **Entschieden (Jonas 02.10.):** (1) Gewinn je Aufstellung nach PUNKTEANTEIL auf die Spieler
-verteilen. (2) Erst nur Cash, Essence spaeter (braucht Vollerhebung aller Essence-Raenge,
-~11.500 Seiten fuer die Saison, ~700 je Spieltag; heute nur Stichprobe). (3) EINE Tabelle unter
-der Haupttabelle mit Schalter Cash/Essence und Liga-Dropdown, Rarity vom bestehenden Umschalter.
-(4) Cash konsequent Pro (Gate `leaderboard_cash`, Kostprobe English League Players).
+verteilen (wer 80 von 400 Punkten holte, bekommt 20 %; holte die Aufstellung 0, gleich verteilt).
+(2) Erst nur Cash. Essence braucht eine Vollerhebung aller Essence-Raenge (~11.500 Seiten fuer
+die Saison, ~700 je Spieltag), heute ist es eine Stichprobe und waere verzerrt. (3) EINE Tabelle
+unter der Haupttabelle mit Schalter Cash/Essence (Essence deaktiviert, "SOON") und
+Liga-Dropdown, Rarity vom bestehenden Umschalter. Klick auf eine Liga in der Haupttabelle
+waehlt sie aus und springt hin. (4) Cash konsequent Pro (Gate `leaderboard_cash`, Kostprobe
+English League Players; ohne Pro startet das Dropdown bei der Kostprobe).
 
-**Erledigt:** Migration `migrations/2026-10-02_player_earnings.sql` GESCHRIEBEN, NOCH NICHT
-EINGESPIELT (Tabelle `player_earnings`, View `player_earnings_weeks`, RPC `top_earners`).
+**Bausteine:** Migration `migrations/2026-10-02_player_earnings.sql` (eingespielt 02.10.):
+Tabelle `player_earnings` (je Spieltag x Leaderboard x Spieler verdichtet, RLS, anonym 401),
+Sicht `player_earnings_weeks` (Bestandspruefung), RPC `top_earners(competition, rarity, kind,
+limit)`. Gesperrt liefert die RPC 25 Zeilen OHNE Namen und Zahlen, die Seite blurrt nur.
+Befuellt von `tools/sync-lineup-costs.mjs` im selben Durchgang wie die Team-Kosten (laeuft mit
+dem Rewards-Cron Di/Fr). Je Leaderboard-Woche werden die Zeilen ERSETZT, nicht nur ergaenzt,
+damit ein Spieler nach einer Score-Korrektur nicht als Leiche stehen bleibt. Eine Woche gilt nur
+als fertig, wenn sie auch in `player_earnings_weeks` steht (selbstheilend).
 
-**Offen, in dieser Reihenfolge:**
-1. Migration einspielen (`npx supabase db query --linked --file ...` aus `C:\craft-log\supabase`).
-2. `tools/sync-lineup-costs.mjs` erweitern: in `rankingsPage` je Appearance `score` und
-   `anyPlayer { slug displayName }` abfragen; `tiers` aus reward_thresholds mitlesen; je
-   Cash-Aufstellung USD aus der Stufe (from <= ranking <= to, Feld `usd`), Anteil =
-   Appearance-Score / Summe der Appearance-Scores (alle 0: gleich verteilen); je
-   Leaderboard-Woche zu Spieler-Summen verdichten, vorhandene Zeilen dieser Woche loeschen,
-   dann einfuegen. Bestandspruefung: nur ueberspringen, wenn closed UND in lineup_costs UND
-   (kein cash_rank ODER in `player_earnings_weeks`).
-3. Einmal `--force` fuer die Saison (Cash-Seiten ~472, mit Essence-Stichprobe ~700 Aufrufe).
-4. rewards.html: Abschnitt unter `</table>` (Zeile ~267), vor "How to read this": Schalter
-   Cash/Essence (Essence vorerst deaktiviert, "soon"), Dropdown mit Ligen der aktuellen Rarity,
-   Tabelle Pos, Spieler, Verein, Gewinner-Aufstellungen, Spieltage, Punkte, Erwirtschaftet (USD).
-   Aufruf `rpc/top_earners` mit Token wie `leaderboard_thresholds`; `locked` = blurren.
-   Farben: Cash `var(--cash)`, Essence `var(--purple)`.
+**Pruefung (02.10.):** Saison nachgeladen (911 API-Aufrufe), 22.516 Zeilen aus 289
+Leaderboard-Wochen. **Erhaltungsprobe:** verteilte Summe = ausgezahltes Preisgeld je
+Leaderboard aus den Preisstufen, 289 von 289 Wochen, beide 1.937.110 USD, null Abweichungen.
+Diese Probe bei jeder Aenderung an Verteilung oder Erhebung wiederholen, sie faengt fehlende
+Gewinner UND Rundungs-/Anteilsfehler gleichzeitig.
 
 ## LUECKE: "special weekly"-Wettbewerbe fehlen in reward_thresholds (24.09.2026)
 
