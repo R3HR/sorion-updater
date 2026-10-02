@@ -52,10 +52,17 @@ async function gql(query, label) {
 // so5RankingsPaginated zaehlt Seiten ab 0 (HANDOFF, Falle 06.09.)
 const pageOf = rank => Math.max(0, Math.floor((rank - 1) / PAGE));
 
+// Verein, fuer den der Spieler IN DIESEM SPIEL antrat (BUG-049). NICHT So5Appearance.anyTeam:
+// das ist der Verein auf der KARTE. Nationalmannschaft -> leer (Verein aus den anderen Wochen).
+const gameClub = a => {
+  const t = a.anyPlayerGameStats?.anyTeam;
+  return t?.__typename === 'Club' ? t.name : null;
+};
+
 async function rankingsPage(slug, page) {
   const d = await gql(`{ so5 { so5Leaderboard(slug:"${slug}") {
     so5RankingsPaginated(page: ${page}, pageSize: ${PAGE}) {
-      nodes { ranking so5Lineup { so5Appearances { score anyTeam { name } anyPlayer { slug displayName } } } } } } } }`,
+      nodes { ranking so5Lineup { so5Appearances { score anyPlayerGameStats { anyTeam { __typename name } } anyPlayer { slug displayName } } } } } } } }`,
     `${slug} S.${page}`);
   return d?.so5?.so5Leaderboard?.so5RankingsPaginated?.nodes ?? null;
 }
@@ -119,8 +126,8 @@ async function main() {
         for (const a of apps) {
           const pts = Number(a.score) || 0;
           const share = total > 0 ? pts / total : 1 / apps.length;
-          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-049)
-          const e = players.get(a.anyPlayer.slug) ?? { name: a.anyPlayer.displayName, club: a.anyTeam?.name ?? null, lineups: 0, points: 0, earned: 0 };
+          const e = players.get(a.anyPlayer.slug) ?? { name: a.anyPlayer.displayName, club: gameClub(a), lineups: 0, points: 0, earned: 0 };
+          if (!e.club) e.club = gameClub(a);
           e.lineups++; e.points += pts; e.earned += ess * share;
           players.set(a.anyPlayer.slug, e);
         }

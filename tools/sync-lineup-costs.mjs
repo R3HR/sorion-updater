@@ -61,11 +61,20 @@ async function gql(query, label) {
 // Cash-Gewinner.
 const pageOf = rank => Math.max(0, Math.floor((rank - 1) / PAGE));
 
+// Verein, fuer den der Spieler IN DIESEM SPIEL antrat (BUG-049). NICHT So5Appearance.anyTeam:
+// das ist der Verein, der auf der KARTE steht (Dembele, Karte 2022: "FC Barcelona"). Spielte er
+// fuer seine Nationalmannschaft (Laenderspielwoche), bleibt das Feld leer, damit die Liste den
+// Verein aus den uebrigen Wochen zeigt statt "France".
+const gameClub = a => {
+  const t = a.anyPlayerGameStats?.anyTeam;
+  return t?.__typename === 'Club' ? t.name : null;
+};
+
 async function rankingsPage(slug, page) {
   const d = await gql(`{ so5 { so5Leaderboard(slug:"${slug}") {
     so5RankingsPaginated(page: ${page}, pageSize: ${PAGE}) {
       nodes { ranking score so5Lineup { so5Appearances {
-        score anyTeam { name } anyPlayer { slug displayName } anyCard { rarityTyped inSeasonEligible } } } } } } } }`,
+        score anyPlayerGameStats { anyTeam { __typename name } } anyPlayer { slug displayName } anyCard { rarityTyped inSeasonEligible } } } } } } } }`,
     `${slug} S.${page}`);
   return d?.so5?.so5Leaderboard?.so5RankingsPaginated?.nodes ?? [];
 }
@@ -152,8 +161,7 @@ async function main() {
         const cards = apps.map(a => ({
           slug: a.anyPlayer?.slug,
           name: a.anyPlayer?.displayName ?? null,
-          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-049: Spieler wechseln nach ihren Punkten)
-          club: a.anyTeam?.name ?? null,
+          club: gameClub(a),
           pts: Number(a.score) || 0,
           scarcity: a.anyCard?.rarityTyped,
           elig: a.anyCard?.inSeasonEligible ? 'in_season' : 'classic',
@@ -220,6 +228,7 @@ async function main() {
     for (const c of r.cards) {
       const share = total > 0 ? c.pts / total : 1 / r.cards.length;
       const e = pm.get(c.slug) ?? { name: c.name, club: c.club, lineups: 0, points: 0, earned: 0 };
+      if (!e.club) e.club = c.club;
       e.lineups++; e.points += c.pts; e.earned += usd * share;
       pm.set(c.slug, e);
     }

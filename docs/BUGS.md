@@ -742,9 +742,18 @@ Betrifft aktuell genau einen Nutzer.
   Migration `2026-10-02_player_earnings_club.sql`). Die Liste zeigt den Verein, mit dem er in
   diesem Wettbewerb am haeufigsten gepunktet hat (`mode()`). `card_prices` nur noch als
   Rueckfall, dann die zuletzt aktualisierte Zeile.
-- **Verifikation:** Testlauf GW17: 321 von 321 Zeilen mit Verein. Saison fuer Cash und Essence
-  mit `--force` neu geladen.
+- **Zweiter Anlauf, gleicher Tag:** Der erste Fix nahm `So5Appearance.anyTeam`. Das ist aber der
+  Verein, der AUF DER KARTE steht, nicht der aus dem Spiel (Dembele, Karte 2022: "FC Barcelona";
+  Ueda erschien mit Kashima Antlers, seinem Verein von 2021). Gemessen an 250 Auftritten: 35
+  wichen ab. Richtig ist `anyPlayerGameStats.anyTeam`. In Laenderspielwochen ist das die
+  Nationalmannschaft, deshalb nur Typ `Club` uebernehmen, sonst leer lassen; die Liste zeigt
+  dann den Verein aus den uebrigen Wochen, ganz ohne Vereinswoche den heutigen.
+- **Verifikation:** GW13 bis GW17 neu geladen: Ueda (Ligue 1) Lille, Dembele Paris, Olise
+  (Bundesliga) Bayern, Lopes Angers. 6.691 von 6.751 Zeilen mit Spielverein, der Rest sind
+  reine Laenderspiel-Auftritte. Danach Cash und Essence fuer die ganze Saison mit `--force`.
 - **Hinweis:** Der Commit 24d543e nennt noch BUG-046, die Nummer war bereits vergeben.
+- **Lektion:** Ein Feldname sagt nicht, WESSEN Team gemeint ist. Vor dem Bauen an echten Daten
+  gegenpruefen, bei denen die Antworten auseinanderfallen muessen (Wechsler, alte Karten).
 - **Lektion:** Bei historischen Auswertungen jedes beschreibende Merkmal (Verein, Liga, Alter)
   zum Zeitpunkt des Ereignisses speichern, nicht beim Anzeigen aus dem Ist-Zustand nachschlagen.
   Gleiche Falle wie beim Kartenlevel am 12.09. (TokenPrice.card zeigt den heutigen Zustand).
