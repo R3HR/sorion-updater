@@ -229,6 +229,8 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 
 **18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **19.09. Nachtrag:** Die Luecke trat beim naechsten Board sofort ein; das neue Board steht unter `currentUser.setBoard(mode: SQUAD, sport: FOOTBALL)`. Reihenfolge jetzt: Liste -> `setBoard` -> letztes Board per ID. **Offen (alt):** Ein komplett neues Board (naechster Zyklus) findet der ID-Fallback nicht - dafuer ist jetzt `setBoard` da. Beim naechsten Boardwechsel pruefen, ob die Liste wieder Boards liefert (`boardFallback` muss dann `null` sein). Diagnose-Idee noch nicht gebaut: Alarm, wenn der Poll mitten in einem laufenden Board `steps: []` liefert.
 
+**25.09. — Sorare-Bug bei Stage 4 (R46):** Sorare meldete die Stage zeitweise als FAILED mit 866,23 und unvollstaendigen Scores, der Bot speicherte das um 22:20 UTC. Kurz danach korrigierte Sorare auf CLAIMED 1248,77 / 1140 (Captain meldete 1248). Migration `20260926090000_squad_r46_sorare_bug_correction.sql` hat die Korrektur vorgezogen; ein manueller Poll um 22:29 UTC schrieb dieselben Werte - der Bot heilt so etwas selbst, weil er alle Steps des aktuellen Boards bei jedem Poll schreibt. Kein Bot-Fehler.
+
 **16.09. — Ticker-Schlussfassung nach Rundenende (BUG-047):** Der Ticker fror auf dem letzten Live-Wert ein (Stage 2: 991.55 statt Endstand 990.71), weil er nur bei aktiver Stage bearbeitet wurde und Sorare nach Abpfiff noch korrigiert. Datenbank war korrekt. Jetzt am Ende jedes Polls: abgeschlossene Stages (48-h-Fenster) werden aus den DB-Scores als **"· Final"** neu gerendert und **in place bearbeitet**, nur bei Inhaltsaenderung (`squad_ticker_messages.render_hash`, `final_at`). Nie Neupost, keine Ereignismeldungen. Verifiziert: gleiche `message_id`, zweiter Poll ohne Bearbeitung; Stage 1 und 2 des aktuellen Boards haben ihre Schlussfassung.
 
 **14.09. — Letzte Stage eines Boards nachgeholt, Dauer-Fix (BUG-045):** Sorare ersetzt ein Board **sofort**, wenn alle fuenf Stages gewonnen sind (13.09. 21:10 UTC). Der Bot sah Stage 5 nie als CLAIMED. Folge: Report blieb auf Stage 4 stehen, Stage 5 ohne Rundennummer.
@@ -1175,6 +1177,33 @@ Scratchpad. Schluessel gehoert in eine Datei AUSSERHALB beider Repos, nie in `So
 `nextClassicFixturePlayingStatusOdds` liefert SORARES eigene API (Datenquelle ist Sorare Inside,
 im Spieler-Modal attributiert, Edge Function `player-live`). Dieser Weg bleibt fuer sorion.pro
 erlaubt und ist von der Beta-Auflage nicht betroffen.
+
+## IN ARBEIT: Top-Verdiener je Liga auf rewards.html (02.10.2026, Wunsch Jonas)
+
+**Entschieden (Jonas 02.10.):** (1) Gewinn je Aufstellung nach PUNKTEANTEIL auf die Spieler
+verteilen. (2) Erst nur Cash, Essence spaeter (braucht Vollerhebung aller Essence-Raenge,
+~11.500 Seiten fuer die Saison, ~700 je Spieltag; heute nur Stichprobe). (3) EINE Tabelle unter
+der Haupttabelle mit Schalter Cash/Essence und Liga-Dropdown, Rarity vom bestehenden Umschalter.
+(4) Cash konsequent Pro (Gate `leaderboard_cash`, Kostprobe English League Players).
+
+**Erledigt:** Migration `migrations/2026-10-02_player_earnings.sql` GESCHRIEBEN, NOCH NICHT
+EINGESPIELT (Tabelle `player_earnings`, View `player_earnings_weeks`, RPC `top_earners`).
+
+**Offen, in dieser Reihenfolge:**
+1. Migration einspielen (`npx supabase db query --linked --file ...` aus `C:\craft-log\supabase`).
+2. `tools/sync-lineup-costs.mjs` erweitern: in `rankingsPage` je Appearance `score` und
+   `anyPlayer { slug displayName }` abfragen; `tiers` aus reward_thresholds mitlesen; je
+   Cash-Aufstellung USD aus der Stufe (from <= ranking <= to, Feld `usd`), Anteil =
+   Appearance-Score / Summe der Appearance-Scores (alle 0: gleich verteilen); je
+   Leaderboard-Woche zu Spieler-Summen verdichten, vorhandene Zeilen dieser Woche loeschen,
+   dann einfuegen. Bestandspruefung: nur ueberspringen, wenn closed UND in lineup_costs UND
+   (kein cash_rank ODER in `player_earnings_weeks`).
+3. Einmal `--force` fuer die Saison (Cash-Seiten ~472, mit Essence-Stichprobe ~700 Aufrufe).
+4. rewards.html: Abschnitt unter `</table>` (Zeile ~267), vor "How to read this": Schalter
+   Cash/Essence (Essence vorerst deaktiviert, "soon"), Dropdown mit Ligen der aktuellen Rarity,
+   Tabelle Pos, Spieler, Verein, Gewinner-Aufstellungen, Spieltage, Punkte, Erwirtschaftet (USD).
+   Aufruf `rpc/top_earners` mit Token wie `leaderboard_thresholds`; `locked` = blurren.
+   Farben: Cash `var(--cash)`, Essence `var(--purple)`.
 
 ## LUECKE: "special weekly"-Wettbewerbe fehlen in reward_thresholds (24.09.2026)
 
