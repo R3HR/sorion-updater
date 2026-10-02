@@ -1213,6 +1213,14 @@ Laufzeit nach einem Spieltag rund 15 bis 20 Minuten.
 **Alle Gewinner statt Top 25 (02.10.):** RPC liefert bis 2000 plus `total`; Seite zeigt erst 25,
 Knopf "Show all N winners", dann Suchfeld (Akzente und Sonderbuchstaben wie Ø/ß egal).
 Gesperrt bleiben es 25 Platzhalter.
+**Grenze 1.000 Zeilen:** PostgREST liefert auch bei RPCs hoechstens 1.000 Zeilen (max-rows).
+Die Seite fordert deshalb hoechstens 1.000 an, der Knopf sagt dann "Show top 1,000 of N".
+Betrifft bei Cash nur Rest of the World SR (1.160), bei Essence mehrere grosse Listen
+(All Star Limited 7.256). Die Discord-Meldung vom 02.10. ("the full list is one click away")
+bleibt bewusst unkorrigiert.
+**GEPLANT (Jonas 02.10.):** Verdienste je Spieler EINZELN auf der Marktuebersicht hinterlegen,
+also im Spieler-Detail Cash und Essence je Wettbewerb und Rarity aus `player_earnings`. Damit
+ist jeder Spieler auffindbar, unabhaengig von Rang und 1.000er-Grenze der Ranglisten.
 **Verein = Spielverein (BUG-049):** `anyPlayerGameStats.anyTeam`, nur Typ Club. NICHT
 `So5Appearance.anyTeam`, das ist der Verein auf der Karte.
 
