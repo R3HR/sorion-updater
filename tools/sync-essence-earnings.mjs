@@ -55,7 +55,7 @@ const pageOf = rank => Math.max(0, Math.floor((rank - 1) / PAGE));
 async function rankingsPage(slug, page) {
   const d = await gql(`{ so5 { so5Leaderboard(slug:"${slug}") {
     so5RankingsPaginated(page: ${page}, pageSize: ${PAGE}) {
-      nodes { ranking so5Lineup { so5Appearances { score anyPlayer { slug displayName } } } } } } } }`,
+      nodes { ranking so5Lineup { so5Appearances { score anyTeam { name } anyPlayer { slug displayName } } } } } } } }`,
     `${slug} S.${page}`);
   return d?.so5?.so5Leaderboard?.so5RankingsPaginated?.nodes ?? null;
 }
@@ -119,7 +119,8 @@ async function main() {
         for (const a of apps) {
           const pts = Number(a.score) || 0;
           const share = total > 0 ? pts / total : 1 / apps.length;
-          const e = players.get(a.anyPlayer.slug) ?? { name: a.anyPlayer.displayName, lineups: 0, points: 0, earned: 0 };
+          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-046)
+          const e = players.get(a.anyPlayer.slug) ?? { name: a.anyPlayer.displayName, club: a.anyTeam?.name ?? null, lineups: 0, points: 0, earned: 0 };
           e.lineups++; e.points += pts; e.earned += ess * share;
           players.set(a.anyPlayer.slug, e);
         }
@@ -134,7 +135,7 @@ async function main() {
     const rows = [...players].map(([slug, e]) => ({
       fixture_slug: lb.fixture_slug, leaderboard_slug: lb.leaderboard_slug,
       competition: lb.competition, rarity: lb.rarity, reward_kind: 'essence',
-      player_slug: slug, player_name: e.name, lineups: e.lineups,
+      player_slug: slug, player_name: e.name, club: e.club, lineups: e.lineups,
       points: Math.round(e.points * 100) / 100, earned: Math.round(e.earned * 100) / 100,
       synced_at: new Date().toISOString(),
     }));

@@ -65,7 +65,7 @@ async function rankingsPage(slug, page) {
   const d = await gql(`{ so5 { so5Leaderboard(slug:"${slug}") {
     so5RankingsPaginated(page: ${page}, pageSize: ${PAGE}) {
       nodes { ranking score so5Lineup { so5Appearances {
-        score anyPlayer { slug displayName } anyCard { rarityTyped inSeasonEligible } } } } } } } }`,
+        score anyTeam { name } anyPlayer { slug displayName } anyCard { rarityTyped inSeasonEligible } } } } } } } }`,
     `${slug} S.${page}`);
   return d?.so5?.so5Leaderboard?.so5RankingsPaginated?.nodes ?? [];
 }
@@ -152,6 +152,8 @@ async function main() {
         const cards = apps.map(a => ({
           slug: a.anyPlayer?.slug,
           name: a.anyPlayer?.displayName ?? null,
+          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-046: Spieler wechseln nach ihren Punkten)
+          club: a.anyTeam?.name ?? null,
           pts: Number(a.score) || 0,
           scarcity: a.anyCard?.rarityTyped,
           elig: a.anyCard?.inSeasonEligible ? 'in_season' : 'classic',
@@ -217,7 +219,7 @@ async function main() {
     const pm = earn.get(key).players;
     for (const c of r.cards) {
       const share = total > 0 ? c.pts / total : 1 / r.cards.length;
-      const e = pm.get(c.slug) ?? { name: c.name, lineups: 0, points: 0, earned: 0 };
+      const e = pm.get(c.slug) ?? { name: c.name, club: c.club, lineups: 0, points: 0, earned: 0 };
       e.lineups++; e.points += c.pts; e.earned += usd * share;
       pm.set(c.slug, e);
     }
@@ -227,7 +229,7 @@ async function main() {
     for (const [slug, e] of players) earnRows.push({
       fixture_slug: lb.fixture_slug, leaderboard_slug: lb.leaderboard_slug,
       competition: lb.competition, rarity: lb.rarity, reward_kind: 'cash',
-      player_slug: slug, player_name: e.name, lineups: e.lineups,
+      player_slug: slug, player_name: e.name, club: e.club, lineups: e.lineups,
       points: Math.round(e.points * 100) / 100, earned: Math.round(e.earned * 100) / 100,
       synced_at: new Date().toISOString(),
     });
