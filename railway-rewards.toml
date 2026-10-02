@@ -35,5 +35,8 @@ builder = "nixpacks"
 # Der Lauf braucht nach einem Spieltag rund 160 Aufrufe in etwa 3 Minuten, das
 # passt daneben. Bei 429-Fehlern im Log zuerst hier eine Stunde verschieben.
 cronSchedule = "0 19 * * 2,5"
-startCommand = "node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs"
+# Seit 02.10. dritter Schritt: Essence-Verdienste je Spieler (Vollerhebung, ~15 min je Spieltag).
+# WICHTIG: Diese Datei ist fuer den Dienst nur Doku (Config-as-code abgekuendigt, INC-008),
+# wirksam ist der startCommand in den Diensteinstellungen. Beides gleich halten.
+startCommand = "node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs && node tools/sync-essence-earnings.mjs"
 restartPolicyType = "never"

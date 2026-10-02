@@ -227,7 +227,9 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
   (c) `blocks` kennt die Sonderfaelle aus Abschnitt 5 nicht: Block unter 6 Runden nicht werten und in den naechsten wachsen lassen; Schlussblock unter 6 Runden gar nicht werten; unter 60 % Teilnahme fuer den Manager nicht werten. **Relevant fuer den 21.09.:** Block 1 hat aktuell 5 Runden.
   (d) Spezifikation 2 nennt `overCap[].managers` noch "nach firstSeen sortiert" - seit schemaVersion 2 nach Bonus sortiert mit `suggestedPenalty`.
 
-**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **19.09. Nachtrag:** Die Luecke trat beim naechsten Board sofort ein; das neue Board steht unter `currentUser.setBoard(mode: SQUAD, sport: FOOTBALL)`. Reihenfolge jetzt: Liste -> `setBoard` -> letztes Board per ID. **Offen (alt):** Ein komplett neues Board (naechster Zyklus) findet der ID-Fallback nicht - dafuer ist jetzt `setBoard` da. Beim naechsten Boardwechsel pruefen, ob die Liste wieder Boards liefert (`boardFallback` muss dann `null` sein). Diagnose-Idee noch nicht gebaut: Alarm, wenn der Poll mitten in einem laufenden Board `steps: []` liefert.
+**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **02.10. — S11-Warnungen (BUG-050, BUG-051):** Zwei Fehler in Folge. (1) `s11Snapshot` hing noch an der alten Board-Liste und war seit dem 19.09. **komplett stumm** - jetzt dieselbe Quellenfolge wie der Poll (Liste -> `setBoard`). (2) Eine Partie galt als auswertbar, sobald **eine** Mannschaft aufgestellt war; ein Spieler der anderen wurde dann als "nicht im Kader" gemeldet (Nanasi, in Wahrheit Startelf). Jetzt muessen **beide** Formationen veroeffentlicht sein, sonst `pending` und keine Warnung.
+
+**19.09. Nachtrag:** Die Luecke trat beim naechsten Board sofort ein; das neue Board steht unter `currentUser.setBoard(mode: SQUAD, sport: FOOTBALL)`. Reihenfolge jetzt: Liste -> `setBoard` -> letztes Board per ID. **Offen (alt):** Ein komplett neues Board (naechster Zyklus) findet der ID-Fallback nicht - dafuer ist jetzt `setBoard` da. Beim naechsten Boardwechsel pruefen, ob die Liste wieder Boards liefert (`boardFallback` muss dann `null` sein). Diagnose-Idee noch nicht gebaut: Alarm, wenn der Poll mitten in einem laufenden Board `steps: []` liefert.
 
 **25.09. — Sorare-Bug bei Stage 4 (R46):** Sorare meldete die Stage zeitweise als FAILED mit 866,23 und unvollstaendigen Scores, der Bot speicherte das um 22:20 UTC. Kurz danach korrigierte Sorare auf CLAIMED 1248,77 / 1140 (Captain meldete 1248). Migration `20260926090000_squad_r46_sorare_bug_correction.sql` hat die Korrektur vorgezogen; ein manueller Poll um 22:29 UTC schrieb dieselben Werte - der Bot heilt so etwas selbst, weil er alle Steps des aktuellen Boards bei jedem Poll schreibt. Kein Bot-Fehler.
 
@@ -1197,6 +1199,22 @@ Befuellt von `tools/sync-lineup-costs.mjs` im selben Durchgang wie die Team-Kost
 dem Rewards-Cron Di/Fr). Je Leaderboard-Woche werden die Zeilen ERSETZT, nicht nur ergaenzt,
 damit ein Spieler nach einer Score-Korrektur nicht als Leiche stehen bleibt. Eine Woche gilt nur
 als fertig, wenn sie auch in `player_earnings_weeks` steht (selbstheilend).
+
+**Essence (02.10., gleicher Tag):** eigenes Skript `tools/sync-essence-earnings.mjs`. Holt je
+Leaderboard-Woche ALLE Essence-Raenge (Saison: 11.544 Seiten, 257 min), verdichtet sofort zu
+Spieler-Summen, schreibt die Woche, gibt den Speicher frei; Rohaufstellungen werden nicht
+gespeichert. Prueft die Erhaltung je Woche selbst ("Erhaltung ok"). Ergebnis Saison GW1 bis 17:
+154.445 Zeilen, 429 Wochen, 0 Abweichungen. Jede Stufe zahlt genau EINE Essence-Sorte; Unique
+zahlt Super-Rare-Essence (keine Unique-Essence), die Seite beschriftet das.
+**Cron:** Rewards-Dienst laeuft seit 02.10. in DREI Schritten
+`sync-reward-thresholds && sync-lineup-costs && sync-essence-earnings` (Di/Fr 19:00 UTC),
+gesetzt per `railway api`/`serviceInstanceUpdate`, wirksam erst nach frischem Deployment aus Git.
+Laufzeit nach einem Spieltag rund 15 bis 20 Minuten.
+**Alle Gewinner statt Top 25 (02.10.):** RPC liefert bis 2000 plus `total`; Seite zeigt erst 25,
+Knopf "Show all N winners", dann Suchfeld (Akzente und Sonderbuchstaben wie Ø/ß egal).
+Gesperrt bleiben es 25 Platzhalter.
+**Verein = Spielverein (BUG-049):** `anyPlayerGameStats.anyTeam`, nur Typ Club. NICHT
+`So5Appearance.anyTeam`, das ist der Verein auf der Karte.
 
 **Pruefung (02.10.):** Saison nachgeladen (911 API-Aufrufe), 22.516 Zeilen aus 289
 Leaderboard-Wochen. **Erhaltungsprobe:** verteilte Summe = ausgezahltes Preisgeld je
