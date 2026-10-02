@@ -152,7 +152,7 @@ async function main() {
         const cards = apps.map(a => ({
           slug: a.anyPlayer?.slug,
           name: a.anyPlayer?.displayName ?? null,
-          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-046: Spieler wechseln nach ihren Punkten)
+          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-049: Spieler wechseln nach ihren Punkten)
           club: a.anyTeam?.name ?? null,
           pts: Number(a.score) || 0,
           scarcity: a.anyCard?.rarityTyped,

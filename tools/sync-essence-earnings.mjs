@@ -119,7 +119,7 @@ async function main() {
         for (const a of apps) {
           const pts = Number(a.score) || 0;
           const share = total > 0 ? pts / total : 1 / apps.length;
-          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-046)
+          // Verein IN DIESEM SPIEL, nicht der heutige (BUG-049)
           const e = players.get(a.anyPlayer.slug) ?? { name: a.anyPlayer.displayName, club: a.anyTeam?.name ?? null, lineups: 0, points: 0, earned: 0 };
           e.lineups++; e.points += pts; e.earned += ess * share;
           players.set(a.anyPlayer.slug, e);

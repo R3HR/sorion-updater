@@ -1,4 +1,4 @@
--- Top-Verdiener: Verein AUS DEM SPIEL statt heutiger Verein (02.10.2026, BUG-046)
+-- Top-Verdiener: Verein AUS DEM SPIEL statt heutiger Verein (02.10.2026, BUG-049)
 --
 -- BEFUND (Jonas: "Ligen durcheinander geworfen"): Die Verdienste waren richtig zugeordnet,
 -- aber die Vereinsspalte kam aus card_prices, also dem HEUTIGEN Verein, und dort per

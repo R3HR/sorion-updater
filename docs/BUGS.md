@@ -725,3 +725,26 @@ waere weiterhin da, Profilzeile und eine etwaige Pro-Stufe aber nicht. Die Adopt
 Moegliche Wege: (a) so lassen, ein Mensch hat dann ein gemeinsames Konto fuer beide Produkte;
 (b) beim Login das verifizierte Sorion-Profil bevorzugen; (c) die beiden Konten zusammenfuehren.
 Betrifft aktuell genau einen Nutzer.
+
+## BUG-049 - Top-Verdiener zeigten den heutigen Verein, Ligen wirkten vermischt (02.10.) - BEHOBEN
+
+- **Symptom (Jonas, nach einem Hinweis von aussen):** "In den Ranglisten sind Ligen durcheinander
+  geworfen." In der Eredivisie-Liste stand Ayase Ueda mit LOSC Lille, in anderen Listen Spieler
+  mit Vereinen fremder Ligen.
+- **Befund:** Die Verdienste selbst waren richtig zugeordnet. Geprueft je Einzelliga: 24 oder
+  25 von 25 Spielern der Top-Listen stammen aus der Liga des Wettbewerbs, der Rest sind
+  Wechsler. Falsch war die ANZEIGE: Die RPC `top_earners` nahm den Verein aus `card_prices`,
+  also den HEUTIGEN Verein, und dort per `limit 1` ohne Sortierung aus irgendeiner
+  Kartenzeile. 32 von 805 Top-Spielern hatten dort widerspruechliche Vereine. Wer nach seinen
+  Punkten gewechselt ist (Ueda: Feyenoord -> Lille), stand scheinbar in der falschen Liga.
+- **Fix:** Die Syncs speichern je Woche den Verein, fuer den der Spieler in der Aufstellung
+  angetreten ist (`So5Appearance.anyTeam { name }`, neue Spalte `player_earnings.club`,
+  Migration `2026-10-02_player_earnings_club.sql`). Die Liste zeigt den Verein, mit dem er in
+  diesem Wettbewerb am haeufigsten gepunktet hat (`mode()`). `card_prices` nur noch als
+  Rueckfall, dann die zuletzt aktualisierte Zeile.
+- **Verifikation:** Testlauf GW17: 321 von 321 Zeilen mit Verein. Saison fuer Cash und Essence
+  mit `--force` neu geladen.
+- **Hinweis:** Der Commit 24d543e nennt noch BUG-046, die Nummer war bereits vergeben.
+- **Lektion:** Bei historischen Auswertungen jedes beschreibende Merkmal (Verein, Liga, Alter)
+  zum Zeitpunkt des Ereignisses speichern, nicht beim Anzeigen aus dem Ist-Zustand nachschlagen.
+  Gleiche Falle wie beim Kartenlevel am 12.09. (TokenPrice.card zeigt den heutigen Zustand).
