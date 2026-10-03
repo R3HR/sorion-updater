@@ -201,6 +201,11 @@ async function main() {
 
   // Spalte last_sale_at vorhanden? (migrations/2026-08-02_last_sale_date.sql)
   // Vergleichs-Spalten vorhanden? (migrations/2026-08-22_accuracy_benchmarks.sql)
+  // Manager-Verkaeufe getrennt ablegen? (migrations/2026-10-03_manager_sales.sql)
+  const msProbe = await supabase.from('card_prices').select('manager_sales').limit(1);
+  const hasManagerSales = !msProbe.error;
+  if (!hasManagerSales) console.warn('card_prices.manager_sales fehlt — Manager-Verkaeufe werden nicht getrennt abgelegt');
+
   // Supply-Spalte vorhanden? (migrations/2026-09-06_card_supply.sql)
   const supProbe = await supabase.from('card_prices').select('supply').limit(1);
   const hasSupply = !supProbe.error;
@@ -333,6 +338,15 @@ async function main() {
       }
     }
 
+    // Der FMV rechnet seit v3.6 NUR mit Manager-Verkaeufen. Die Anzeige zeigte
+    // daneben aber alle Verkaufsarten: bei Lamine Yamal fuenf Sofortkaeufe um
+    // 355 EUR neben einem FMV von 252 EUR. Deshalb dieselbe Grundlage mitschreiben.
+    const mgrSales = sales.filter(s => s.deal === 'TokenOffer' && s.eur > 0).slice(0, 10);
+    const managerSales = mgrSales.map(s => ({ eur: s.eur, date: s.date }));
+    const avgManagerSales = mgrSales.length
+      ? parseFloat((mgrSales.reduce((a, b) => a + b.eur, 0) / mgrSales.length).toFixed(2))
+      : null;
+
     const sorted = [...sales].sort((a, b) => a.eur - b.eur);
     const floorPrice = fetchedFloor ?? sorted[0]?.eur ?? null;
     const fmvRaw = calculateFMV(sales, floorPrice, Date.now(), eligibility === 'classic' ? CLASSIC_PROFILE : undefined);
@@ -374,6 +388,8 @@ async function main() {
       // Nur setzen, wenn die Spalte da ist — sonst scheitert JEDES Update.
       ...(hasLastSale ? { last_sale_at: sales[0]?.date ?? null } : {}),
       avg_sales:   sales.length ? parseFloat((sales.slice(0, 10).reduce((s, p) => s + p.eur, 0) / Math.min(sales.length, 10)).toFixed(2)) : null,
+      // Nur setzen, wenn die Spalten existieren (sonst scheitert JEDES Update).
+      ...(hasManagerSales ? { manager_sales: managerSales, avg_manager_sales: avgManagerSales } : {}),
       sales_count: sales.filter(s => new Date(s.date) >= h24ago).length,
       sales_72h:   sales.filter(s => new Date(s.date) >= h72ago).length,
       sales_7d:    sales.filter(s => new Date(s.date) >= d7ago).length,
