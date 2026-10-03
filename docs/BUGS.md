@@ -796,3 +796,26 @@ dort genannten 3.991.)
 
 **Lehre:** Eine glatte Zahl wie 3.000 ist ein Verdachtsmoment, kein Zufall. Und jede
 Obergrenze in einer Schleife braucht eine sichtbare Folge, wenn sie greift.
+
+## BUG-047 - Portfolio zeigte nur 1.000 Karten, und der Sync speicherte nur 3.000 (03.10.) - BEHOBEN
+
+**Symptom:** Nach dem Fix von BUG-046 meldet Jonas, dass das Portfolio desselben Managers
+sogar nur 1.000 Karten zeigt.
+
+**Zwei unabhaengige Deckel, beide still:**
+1. **Anzeige:** `loadFromDb` holte `manager_cards` in EINER Anfrage. PostgREST liefert hart
+   hoechstens 1.000 Zeilen, auch mit groesserem `Range`-Kopf (gemessen:
+   `Content-Range: 0-999/3181`). Alles darueber fehlte, Wert und P&L entsprechend zu niedrig.
+2. **Ablage:** `sync-portfolio` hatte denselben 60-Seiten-Deckel wie die Manager Search
+   (BUG-046), also 3.000 Karten. In der DB standen deshalb exakt 3.000 Limited + 181 Rare.
+
+**Fix:** Die Seite blaettert jetzt in 1.000er-Schritten, bis eine Seite nicht mehr voll ist.
+Der Sync holt bis zu 240 Seiten (12.000 Karten). Edge Function deployt.
+
+**Gegenprobe:** Sperre fuer `jakobs-xi` einmalig zurueckgesetzt, Sync neu laufen lassen:
+**3.991 Karten** gespeichert (vorher 3.181), exakt die Zahl aus dem Sorare-Profil. Die Live-Seite
+zeigt danach "3991 cards".
+
+**Lehre, dieselbe wie bei BUG-046:** Jede Obergrenze braucht eine sichtbare Folge. Zwei Deckel
+in zwei Schichten haben sich hier gegenseitig verdeckt: Nach dem Beheben des einen sah die Zahl
+immer noch falsch aus, nur anders falsch.
