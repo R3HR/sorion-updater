@@ -661,6 +661,22 @@ Unterzeile. Rechnung unveraendert.
 
 ---
 
+## BUG-051 - S11-Warnung meldete einen Startelfspieler als "nicht im Kader" (02.10.) - BEHOBEN
+
+- **Symptom (Jonas):** "Der Bot hat diese Nachricht geschrieben, obwohl der Spieler nachweislich in der schwedischen Startaufstellung steht und auch bei Sorare so hinterlegt ist" - Warnung 19:50 an andreihaha und parisboemboem: Sebastian Nanasi sei nicht im Spieltagskader fuer Bosnien und Herzegowina - Schweden (Anpfiff 20:45).
+- **Ursache:** Eine Partie galt als auswertbar, sobald **eine** der beiden Aufstellungen veroeffentlicht war (`homeFormation.startingLineupAvailable || awayFormation...`). Um 19:50 stand Bosnien, Schweden noch nicht. Nanasi war dadurch in keiner der beiden Listen - und die Einstufung kennt fuer "steht in keiner Liste" nur `not_in_squad`. Um 20:10 waren beide Seiten da (je 11 + Bank), Nanasi in der Startelf.
+- **Fix (02.10.):** `avail` verlangt jetzt **beide** Seiten (`&&`). Fehlt eine, bleibt der Spieler `pending` und es geht keine Warnung raus. Lieber ein paar Minuten spaeter warnen als falsch - eine Fehlwarnung kostet einen Startelfspieler.
+- **Verifiziert:** Nach dem Deploy 19 Starter, 1 Bank (Hancko, echt), 0 `not_in_squad`.
+- **Lektion:** Ein Ja/Nein aus zwei Quellen braucht die Pruefung, ob **beide** geantwortet haben. Sonst wird "noch nicht bekannt" stillschweigend zu "nicht vorhanden" - und die Meldung klingt genauso sicher wie eine echte.
+
+## BUG-050 - S11-Pruefung seit dem 19.09. stumm (Board-Liste) (01.10.) - BEHOBEN
+
+- **Symptom (Jonas):** "Der Bot hat maisonpanda noch nicht darauf aufmerksam gemacht, dass Antonio Nusa auf der Bank sitzt."
+- **Ursache:** `s11Snapshot` ist eine eigene GraphQL-Abfrage und hing weiter an `boards(mode: SQUAD, ...)` - der Liste, die Sorare seit dem 19.09. leer liefert (BUG-048). Der Fix von damals betraf nur die Hauptabfrage des Polls. Die S11-Pruefung fand dadurch 0 Spieler, warf aber keinen Fehler: sie meldete schlicht nie etwas. Zwischen 19.09. und 01.10. gab es **gar keine** Bank-Warnungen.
+- **Fix (01.10.):** Dieselbe Quellenfolge wie im Poll - erst die Liste, und wenn der aktuelle Step dort nicht vorkommt, `setBoard(mode: SQUAD, sport: FOOTBALL)`; Ergebnis auf Array normalisiert.
+- **Verifiziert:** 27 Spieler, 26 Starter, 1 Bank (Nusa); Warnung mit Ping an maisonpanda 48 Min vor Anpfiff raus.
+- **Lektion:** Wird eine Datenquelle ausgetauscht, muss **jede** Abfrage mitgezogen werden, die sie benutzt - eine zweite Abfrage faellt nicht auf, wenn ihr Ergebnis "nichts zu melden" aussieht. Stille Nebenbefunde brauchen eine eigene Pruefung.
+
 ## BUG-048 - Bot stumm: Sorare lieferte die Board-Liste leer (18.09.) - BEHOBEN
 
 - **Symptom (Jonas):** "Der Bot laeuft nicht mehr seit heute Nachmittag." Keine Aufstellungs-, Cap- oder Fristmeldungen.
@@ -757,3 +773,26 @@ Betrifft aktuell genau einen Nutzer.
 - **Lektion:** Bei historischen Auswertungen jedes beschreibende Merkmal (Verein, Liga, Alter)
   zum Zeitpunkt des Ereignisses speichern, nicht beim Anzeigen aus dem Ist-Zustand nachschlagen.
   Gleiche Falle wie beim Kartenlevel am 12.09. (TokenPrice.card zeigt den heutigen Zustand).
+
+## BUG-046 - Manager Search schnitt grosse Sammlungen stillschweigend bei 3.000 Karten ab (03.10.) - BEHOBEN
+
+**Symptom:** Ein Nutzer vergleicht die Manager Search mit dem echten Sorare-Profil:
+Sorion zeigt 3181 Karten (3000 L, 181 R), Sorare zeigt 3.810 Limited und 181 Rare,
+zusammen 3.991. Auch Portfoliowert und P&L waren dadurch zu niedrig.
+
+**Ursache:** Die Blaetter-Schleife in `msFetchManager` lief `while (cursor && page < 60)`
+bei 50 Karten je Seite, also hart bei 3.000. Die glatte Zahl war das Verraeterische.
+Rare lag mit 181 unter der Grenze und stimmte deshalb exakt. Der Abbruch war still:
+kein Hinweis, keine Fehlermeldung, die falsche Zahl stand als Tatsache da.
+
+**Fix:** Grenze auf 240 Seiten (12.000 Karten) angehoben, in index.html UND portfolio.html
+(zwei Kopien derselben Funktion). Wird die Grenze doch erreicht, steht jetzt "min." vor der
+Zahl, statt eine abgeschnittene Zahl als genau auszugeben.
+
+**Gegenprobe:** voller Durchlauf fuer das gemeldete Konto: 3.810 Limited in 77 Seiten,
+181 Rare, 0 Super Rare, zusammen 3.991 in 29 Sekunden. Das deckt sich exakt mit Sorare.
+(Die 9 im lila Feld des Profils sind keine Pro-Karten: 3.810 + 181 ergibt bereits die
+dort genannten 3.991.)
+
+**Lehre:** Eine glatte Zahl wie 3.000 ist ein Verdachtsmoment, kein Zufall. Und jede
+Obergrenze in einer Schleife braucht eine sichtbare Folge, wenn sie greift.
