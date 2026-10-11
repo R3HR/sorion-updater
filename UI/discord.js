@@ -21,7 +21,7 @@
  * Zustand, nichts zum Wegklicken, nichts dauerhaft Verdecktes.
  */
 (function () {
-  var INVITE  = 'https://discord.gg/mncXeJJKbn';
+  var INVITE  = 'https://discord.gg/ZMvVEE8QvZ';
   var BLURPLE = '#5865F2';   // Discord-Markenfarbe — nur als FLAECHE (Knopf, Rahmen)
   // Als SCHRIFT auf dunklem Grund faellt die Markenfarbe durch: gemessen 3,70:1
   // gegen #1a1a2e, gefordert sind 4,5:1 fuer kleine Schrift. Diese Aufhellung
