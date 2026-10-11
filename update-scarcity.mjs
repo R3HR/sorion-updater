@@ -349,7 +349,12 @@ async function main() {
 
     const sorted = [...sales].sort((a, b) => a.eur - b.eur);
     const floorPrice = fetchedFloor ?? sorted[0]?.eur ?? null;
-    const fmvRaw = calculateFMV(sales, floorPrice, Date.now(), eligibility === 'classic' ? CLASSIC_PROFILE : undefined);
+    // scarcity muss mit: Prinzip 9 (v3.8) mischt nur bei rare und super_rare den
+    // Floor ein. Ohne diese Angabe bliebe der Anteil ueberall 0.
+    const fmvRaw = calculateFMV(sales, floorPrice, Date.now(), {
+      ...(eligibility === 'classic' ? CLASSIC_PROFILE : {}),
+      scarcity: SCARCITY,
+    });
     const fmv = fmvRaw ? parseFloat(fmvRaw.toFixed(2)) : null;
 
     const now = Date.now();

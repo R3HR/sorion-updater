@@ -67,3 +67,45 @@ Kandidaten fuer v3.8, zu messen wie immer per Walk-Forward, getrennt je Segment:
 Wichtig dabei: Der Floor ist ein ANGEBOT, kein Verkauf. Er kann von einem einzelnen Verkaeufer
 gesetzt werden und ist manipulierbar, der Backtest muss das Risiko mitbewerten (Sprunghoehe,
 Ausreisser), nicht nur den Median.
+
+---
+
+## Umsetzung: v3.8, Floor-Anteil je Verkaufsdichte (11.10.2026)
+
+Gemessen an echten Manager-Verkaeufen der letzten 30 Tage, direkt auf `fmv_accuracy`
+(dort steht zu jedem Verkauf der FMV UND der Floor von damals):
+
+| Segment | heute | fest 70 % Floor | **individuell** | nur Floor |
+|---|---|---|---|---|
+| rare in-season | 24,7 % | 16,4 % | **16,0 %** | 15,5 % |
+| rare classic | 25,6 % | 22,2 % | **21,8 %** | 22,9 % |
+| super_rare classic | 32,3 % | 26,2 % | **25,6 %** | 26,6 % |
+
+**Gewaehlt: individuell je Karte**, Gewicht nach der eigenen Zahl von Manager-Verkaeufen im
+Fenster: bis 1 Verkauf 80 % Floor, bis 3 65 %, bis 6 45 %, bis 12 25 %, darueber 10 %.
+
+Warum nicht einfach der Floor, der bei in-season minimal besser trifft: Er ist ein ANGEBOT, von
+einem einzelnen Verkaeufer setzbar, und hat spuerbar mehr grobe Fehler (9,9 gegen 7,2 % ueber
+100 % Abweichung). Die Mischung behaelt den Verkaufsanker, trifft praktisch gleich gut und bringt
+den Bias auf null (+0,1 statt -4,1 %).
+
+**Bewusste Ausnahme zu Prinzip 2:** Bei Rare zieht der Floor auch NACH OBEN. Das widerspricht
+"ein hoher Ask hebt die Verkaeuflichkeit nicht", traegt dort aber eindeutig:
+
+| Variante | rare in-season Median | davon Faelle mit Floor UEBER dem Wert |
+|---|---|---|
+| beide Richtungen | **16,0 %** | **11,9 %** |
+| nur nach unten | 20,0 % | 21,4 % |
+
+Bei duenner Rare-Basis ist unser Verkaufswert oft veraltet, der Floor dagegen taggenau. Fuer
+Limited bleibt Prinzip 2 unangetastet, dort ist der Floor-Anteil 0.
+
+**Smoke-Test:** 9 Faelle, alle bestanden (limited unveraendert, rare mit duenner Basis stark
+Richtung Floor, mit dichter Basis nur leicht, ohne Floor und ohne scarcity-Angabe unveraendert).
+
+**Aenderungssperre:** `2026-10-11_fmv_v38_change_guard.sql`, Kante 12.10., ausgefuehrt.
+`fmv_versions` ergaenzt.
+
+**Nachkontrolle in 3 bis 4 Tagen:** `accuracy_benchmark(3)` je Segment. Erwartung: rare in-season
+von 23,6 auf etwa 16 %, rare classic von 22,0 auf etwa 22 bei deutlich besserem Bias, und der FMV
+sollte den Floor dann in allen Segmenten schlagen oder einholen.
