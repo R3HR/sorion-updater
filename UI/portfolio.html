@@ -1227,11 +1227,20 @@
   // laeuft mit 10-Minuten-Cooldown. Vorher kostete JEDER Aufruf 6-16 Anfragen.
   let lastSyncedAt = null;
 
+  // SEC-006: Manager-Daten laufen jetzt über RPCs mit dem NUTZER-Token.
+  // Der anon-Key genügt nicht mehr — die Tabellen selbst sind gesperrt.
+  // Die RPC entscheidet: eigener Manager immer, fremder nur mit Pro-Tier.
+  function userHeaders() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
+    return { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + (s?.access_token || ANON_KEY) };
+  }
+
   async function loadFromDb(slug) {
-    const H = { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY };
+    const H = userHeaders();
     const [syncRes, cardRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/manager_sync?sorare_slug=eq.${encodeURIComponent(slug)}&select=synced_at,card_count`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/manager_cards?sorare_slug=eq.${encodeURIComponent(slug)}&select=card_slug,player_slug,player_name,picture_url,rarity,in_season,buy_eur,buy_date,buy_type`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/manager_sync_for?p_slug=${encodeURIComponent(slug)}&select=synced_at,card_count`, { headers: H }),
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/manager_cards_for?p_slug=${encodeURIComponent(slug)}&select=card_slug,player_slug,player_name,picture_url,rarity,in_season,buy_eur,buy_date,buy_type`, { headers: H }),
     ]);
     const sync = syncRes.ok ? (await syncRes.json())[0] : null;
     const rows = cardRes.ok ? await cardRes.json() : [];
@@ -1822,8 +1831,8 @@
     body.innerHTML = '<tr><td class="th-empty" colspan="8">// loading trade history…</td></tr>';
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/manager_trades?sorare_slug=eq.${encodeURIComponent(currentSlug)}&select=card_slug,rarity,sold_at,sell_eur,buy_eur,buy_at,buy_via&order=sold_at.desc`,
-        { headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY } });
+        `${SUPABASE_URL}/rest/v1/rpc/manager_trades_for?p_slug=${encodeURIComponent(currentSlug)}&select=card_slug,rarity,sold_at,sell_eur,buy_eur,buy_at,buy_via&order=sold_at.desc`,
+        { headers: userHeaders() });
       if (!res.ok) throw new Error('could not load trades');
       const rows = await res.json();
 
