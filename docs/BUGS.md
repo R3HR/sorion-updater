@@ -819,3 +819,27 @@ zeigt danach "3991 cards".
 **Lehre, dieselbe wie bei BUG-046:** Jede Obergrenze braucht eine sichtbare Folge. Zwei Deckel
 in zwei Schichten haben sich hier gegenseitig verdeckt: Nach dem Beheben des einen sah die Zahl
 immer noch falsch aus, nur anders falsch.
+
+## BUG-049 - Manager Search starb an einem einzelnen abgebrochenen Abruf (13.10.) - BEHOBEN
+
+**Symptom:** Jonas meldet bei der Galerie von `jakobs-xi`:
+`// Unexpected token 'N', "Network co"... is not valid JSON`
+
+**Ursache:** Die Sammlung braucht 77 bis 83 Abrufe hintereinander (50 Karten je Seite). Faellt
+EINER davon aus, antwortet die Edge-Laufzeit mit Klartext statt JSON ("Network connection lost."),
+und `res.json()` wirft einen Syntaxfehler. Der riss die ganze Suche ab, obwohl bis dahin
+tausende Karten geladen waren. Je groesser die Sammlung, desto wahrscheinlicher der Treffer:
+bei 83 Abrufen genuegt eine Stoerquote von gut einem Prozent.
+
+**Fix:** Antwort wird als Text gelesen und defensiv geparst; eine fehlgeschlagene Seite wird bis
+zu dreimal mit wachsender Pause wiederholt (400, 800 ms). Erst danach bricht die Suche ab, und
+die Meldung nennt, was tatsaechlich zurueckkam, statt eines JSON-Syntaxfehlers. In index.html
+UND portfolio.html (zwei Kopien derselben Funktion).
+
+**Gegenprobe:** voller Durchlauf fuer `jakobs-xi` am 13.10.: 83 Abrufe, 4.056 Karten,
+0 Fehlschlaege. Der Fehler ist sporadisch, nicht reproduzierbar, genau dafuer ist die
+Wiederholung da.
+
+**Offen, serverseitig:** Mit groesseren Seiten (100 statt 50 Karten) halbierte sich die Zahl der
+Abrufe und damit die Trefferwahrscheinlichkeit. Das braucht ein Deploy von `sorare-oauth`, das mir
+am 25.09. von der Berechtigungspruefung verweigert wurde.
