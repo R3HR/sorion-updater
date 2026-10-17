@@ -147,3 +147,33 @@ der Beitrag des Floors, der ein Angebot bleibt und von einem einzelnen Verkaeufe
 kann. Deshalb bleibt es bei 0,90 statt 1,0: der Verkaufsanker daempft Ausreisser.
 
 Smoke-Test: 9 Faelle, alle bestanden. Aenderungssperre Kante 18.10. gesetzt.
+
+### Out-of-Sample-Test (17.10., auf Nachfrage Jonas)
+
+Die Gewichte oben waren zunaechst IN-SAMPLE gewaehlt: an denselben Daten bestimmt, an denen sie
+bewertet wurden. Nachgeholt: Gewichte aus dem 13.-15.10., Bewertung nur auf dem 16.-17.10.
+Der reine Verkaufswert wird dabei aus dem v3.8-Ergebnis zurueckgerechnet
+(`sv = (fmv - w8*floor) / (1 - w8)`), damit die Kandidaten sauber neu gebildet werden koennen.
+
+| Segment | reiner Verkaufswert | v3.8 live | v3.9 (0,90) | **v3.9 (0,97)** | nur Floor |
+|---|---|---|---|---|---|
+| rare in-season, Median | 42,8 % | 19,7 % | 16,0 % | **14,2 %** | 14,7 % |
+| rare in-season, Treffer ±20 % | | | 56,0 % | **57,6 %** | 56,5 % |
+| rare in-season, grobe Fehler | 13,5 % | 5,4 % | 7,2 % | **9,3 %** | 10,9 % |
+| limited in-season, Median | 20,0 % | 20,0 % | **19,3 %** | | 20,9 % |
+| limited classic, Median | 21,6 % | 21,6 % | **21,6 %** | | 24,0 % |
+
+**Erst mit 0,97 bei den duennsten Karten schlagen wir den Floor in allen drei Massen**: Median
+14,2 gegen 14,7 %, Treffer 57,6 gegen 56,5 %, grobe Fehler 9,3 gegen 10,9 %. Die verbleibenden
+3 % Verkaufswert sind kein Zierrat, sie daempfen genau die Ausreisser, die den reinen Floor
+teuer machen.
+
+**Bemerkenswert:** Unser reiner Verkaufswert liegt bei rare in-season 42,8 % daneben. Das ist der
+eigentliche Grund fuer das ganze Thema: Bei Karten mit hoechstens einem Manager-Verkauf in drei
+Wochen hat ein Durchschnitt ueber Verkaeufe schlicht keine Grundlage mehr.
+
+**Endstand v3.9:** rare und super_rare 0,97 / 0,80 / 0,55 / 0,30 / 0,15 je nach Zahl der
+Manager-Verkaeufe; limited in-season 0,20 bzw. 0,10; limited classic 0.
+
+**Vorbehalt:** Der Test umfasst zwei Tage und 828 Rare-Verkaeufe. Die Nachkontrolle an echten
+Live-Werten folgt, sobald v3.9 zwei bis drei Tage gerechnet hat.
