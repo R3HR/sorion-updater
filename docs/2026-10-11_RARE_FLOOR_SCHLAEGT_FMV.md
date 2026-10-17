@@ -109,3 +109,41 @@ Richtung Floor, mit dichter Basis nur leicht, ohne Floor und ohne scarcity-Angab
 **Nachkontrolle in 3 bis 4 Tagen:** `accuracy_benchmark(3)` je Segment. Erwartung: rare in-season
 von 23,6 auf etwa 16 %, rare classic von 22,0 auf etwa 22 bei deutlich besserem Bias, und der FMV
 sollte den Floor dann in allen Segmenten schlagen oder einholen.
+
+---
+
+## Nachkontrolle 17.10.: v3.8 war zu zaghaft, daher v3.9
+
+**Jonas:** "Unsere Genauigkeitstabelle laedt nicht, ausserdem ist unsere Genauigkeit mittlerweile
+deutlich schlechter als der Floor."
+
+**Zur Tabelle (zwei Fehler, behoben):** `fmv_accuracy_daily` hatte RLS an, aber weder Policy noch
+Leserecht, die Seite bekam 401. Und der Fallback der Seite rief `accuracy_benchmark` ohne Argument
+auf, also mit 30 Tagen, und lief nach 3 Sekunden in den anon-Timeout. Jetzt: Leserecht plus Policy,
+Standard auf 7 Tage begrenzt, Index auf (deal_type, created_at). Von aussen geprueft: beide
+Aufrufe antworten mit 200.
+
+**Zur Genauigkeit:** v3.8 lief korrekt (FMV/Floor bei rare in-season von 1,149 auf 1,070), aber die
+Wirkung reichte nicht. Live gemessen an 2.526 Rare-Verkaeufen seit dem 13.10.:
+
+| Segment | FMV (v3.8) | Floor |
+|---|---|---|
+| rare in-season | 19,9 % | **13,7 %** |
+| rare classic | 23,0 % | **17,7 %** |
+| limited in-season | 19,4 % | **18,3 %** |
+| limited classic | **21,6 %** | 29,4 % |
+
+**Der Grund:** 90 % aller Rare-Verkaeufe betreffen Karten mit HOECHSTENS EINEM Manager-Verkauf in
+21 Tagen. Genau dort steckte trotz v3.8 noch zu viel Eigenwert drin. Ein weiterer Schritt zum
+Floor senkt den Fehler in dieser Gruppe von 20,1 auf 13,1 %.
+
+**v3.9:** Gewichte je Liquiditaetsstufe neu, geprueft je Stufe statt pauschal.
+Rare und Super Rare: 0,90 bei hoechstens 1 Verkauf, dann 0,70 / 0,50 / 0,30 / 0,15.
+Limited in-season neu 0,20 (bis 6 Verkaeufe) bzw. 0,10. Limited classic bleibt bei 0, dort
+gewinnt der FMV deutlich.
+
+**Preis:** Grobe Fehler ueber 100 % steigen in der duennen Gruppe von 5,3 auf etwa 8,8 %. Das ist
+der Beitrag des Floors, der ein Angebot bleibt und von einem einzelnen Verkaeufer gesetzt werden
+kann. Deshalb bleibt es bei 0,90 statt 1,0: der Verkaufsanker daempft Ausreisser.
+
+Smoke-Test: 9 Faelle, alle bestanden. Aenderungssperre Kante 18.10. gesetzt.

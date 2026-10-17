@@ -354,6 +354,7 @@ async function main() {
     const fmvRaw = calculateFMV(sales, floorPrice, Date.now(), {
       ...(eligibility === 'classic' ? CLASSIC_PROFILE : {}),
       scarcity: SCARCITY,
+      eligibility,            // v3.9: limited classic bekommt KEINEN Floor-Anteil
     });
     const fmv = fmvRaw ? parseFloat(fmvRaw.toFixed(2)) : null;
 
