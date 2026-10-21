@@ -227,11 +227,17 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
   (c) `blocks` kennt die Sonderfaelle aus Abschnitt 5 nicht: Block unter 6 Runden nicht werten und in den naechsten wachsen lassen; Schlussblock unter 6 Runden gar nicht werten; unter 60 % Teilnahme fuer den Manager nicht werten. **Relevant fuer den 21.09.:** Block 1 hat aktuell 5 Runden.
   (d) Spezifikation 2 nennt `overCap[].managers` noch "nach firstSeen sortiert" - seit schemaVersion 2 nach Bonus sortiert mit `suggestedPenalty`.
 
-**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **02.10. — S11-Warnungen (BUG-050, BUG-051):** Zwei Fehler in Folge. (1) `s11Snapshot` hing noch an der alten Board-Liste und war seit dem 19.09. **komplett stumm** - jetzt dieselbe Quellenfolge wie der Poll (Liste -> `setBoard`). (2) Eine Partie galt als auswertbar, sobald **eine** Mannschaft aufgestellt war; ein Spieler der anderen wurde dann als "nicht im Kader" gemeldet (Nanasi, in Wahrheit Startelf). Jetzt muessen **beide** Formationen veroeffentlicht sein, sonst `pending` und keine Warnung.
+**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **10.10. — Claim-Frist bleibt individuell + Vorwarnung (Entscheidung Captain):** Regel 6.3 bleibt wie geschrieben: Ein Claim gilt bis 30 Min vor dem ersten Anpfiff des **Betroffenen**, spaetestens 19:00. Eine Frist fuer alle wurde verworfen (am Wochenende laufen viele Spiele vor 19:00, z. B. alle deutschen), eine individuelle Untergrenze ebenfalls ("sorgt fuer Chaos"). **Keine Umlenkung:** Ist ein Claim gegen den Schwaechsten zu spaet, ist er ungueltig, der Claimende stellt um oder zahlt - der Bot lenkt nicht auf den Naechstschwaecheren um. Bekannte Luecke, bewusst hingenommen: Wer frueh spielt, ist nach seiner Frist auch mit der schwaechsten Kopie geschuetzt. Dagegen **neu: Vorwarnung** (`claimclose:<step>:<manager>`, #lineups, ohne Ping): 30 Min vor einer Frist **vor 19:00** meldet der Bot, gegen wen bald nicht mehr geclaimt werden kann und bei welchen Spielern auf 4/4 er die schwaechste Kopie haelt (gleiche Regel wie beim Claim, `weakestIn`). Erster Live-Lauf 10.10. 14:55: enexxx (Davies), andreihaha (Olise). **Noch offen:** Die Abend-Erinnerung ("30 minutes left to claim") faellt aus, sobald irgendeine Aufstellung gesperrt ist (`!anyLocked`), und ihre Frist springt, wenn spaet eine Aufstellung mit frueherem Anpfiff dazukommt (10.10.: keine Erinnerung). Text nennt ausserdem nur eine Uhrzeit. Umbau vorgeschlagen, nicht beauftragt.
+
+**02.10. — S11-Warnungen (BUG-050, BUG-051):** Zwei Fehler in Folge. (1) `s11Snapshot` hing noch an der alten Board-Liste und war seit dem 19.09. **komplett stumm** - jetzt dieselbe Quellenfolge wie der Poll (Liste -> `setBoard`). (2) Eine Partie galt als auswertbar, sobald **eine** Mannschaft aufgestellt war; ein Spieler der anderen wurde dann als "nicht im Kader" gemeldet (Nanasi, in Wahrheit Startelf). Jetzt muessen **beide** Formationen veroeffentlicht sein, sonst `pending` und keine Warnung.
 
 **19.09. Nachtrag:** Die Luecke trat beim naechsten Board sofort ein; das neue Board steht unter `currentUser.setBoard(mode: SQUAD, sport: FOOTBALL)`. Reihenfolge jetzt: Liste -> `setBoard` -> letztes Board per ID. **Offen (alt):** Ein komplett neues Board (naechster Zyklus) findet der ID-Fallback nicht - dafuer ist jetzt `setBoard` da. Beim naechsten Boardwechsel pruefen, ob die Liste wieder Boards liefert (`boardFallback` muss dann `null` sein). Diagnose-Idee noch nicht gebaut: Alarm, wenn der Poll mitten in einem laufenden Board `steps: []` liefert.
 
 **25.09. — Sorare-Bug bei Stage 4 (R46):** Sorare meldete die Stage zeitweise als FAILED mit 866,23 und unvollstaendigen Scores, der Bot speicherte das um 22:20 UTC. Kurz danach korrigierte Sorare auf CLAIMED 1248,77 / 1140 (Captain meldete 1248). Migration `20260926090000_squad_r46_sorare_bug_correction.sql` hat die Korrektur vorgezogen; ein manueller Poll um 22:29 UTC schrieb dieselben Werte - der Bot heilt so etwas selbst, weil er alle Steps des aktuellen Boards bei jedem Poll schreibt. Kein Bot-Fehler.
+
+**05.10. — Nachfolge auf einem Platz (Regelwerk 7.3):** Tabelle `squad_successions` (Migration 20261005210000): `from_slug` zaehlt bis `from_last_round`, `to_slug` ab `to_after_round + 1`. `computeStandings` filtert Ergebnisse/0-Runden ueber `activeIn(m, round)` und uebertraegt danach (nach den Strafen) die PUNKTE auf den Nachfolger, nicht Summe/Rundenzahl. `blocks`: Linien jetzt aus dem Punkte-Ø JE RUNDE ueber die besetzten Plaetze (ohne Vakanz identisch zum alten Wert, verifiziert Block 1/2), Linie je Manager ueber seine eigenen Runden (`conditions.*.line` ist jetzt pro Manager), Platzhalter je Block (Vorgaenger in alten Bloecken, `leftSquad`/`inheritedFrom`), keine Vorschlaege fuer Ausgeschiedene. Erster Fall: maisonpanda -> henrytemo, R54/R55. **Offen:** Discord-ID von HenryTemo fuer @-Mentions nachtragen.
+
+**18.10. — Skill `squad-leaderboard`** (`C:\craft-log\.claude\skills\squad-leaderboard\`): `scripts/render.py` holt standings/report/blocks/rounds/cap_instructions/penalties, macht die Sorare-Gegenprobe und schreibt Leaderboard + Last-Stage-Post nach `_squad_snapshots\posts\posts_R<n>.txt`, dazu eine Pruefliste (fehlende Lineups, Cap-Verstoesse, Gleichstaende, zwei ❌, Blockende). Getestet an R65: identisch mit der Handrechnung. Python ueber den vollen Pfad aufrufen, der Windows-Alias `python` ist kaputt. Noch nicht drin: Weekly-Post. **21.10.:** Rendering liegt jetzt serverseitig in der rein lesenden Action `posts` (Read-Token genuegt, `&format=text` fuer Bots ohne JSON); `render.py` holt nur noch den Text. Grund: der Skill sollte an einen anderen Bot, der das Cron-Secret nicht bekommen darf (SEC-007). Server- und Lokal-Ausgabe an R67 zeichengleich verglichen. **21.10. (2):** Weekly ist drin: rein lesende Action `weekly` (`&week=JJJJ-MM-TT` optional, Standard = letzte abgeschlossene Woche Mo–So nach Spieltag) liefert Weekly Results + Strike Conditions des laufenden Blocks (Regelwerk 9/10.3/17.3), `render.py weekly`. Getestet an der Woche 12.–18.10. (R60–R65). `posts` meldet montags `MONTAG: Weekly faellig`. Captain: ab Set 3 wieder jeden Montag posten.
 
 **16.09. — Ticker-Schlussfassung nach Rundenende (BUG-047):** Der Ticker fror auf dem letzten Live-Wert ein (Stage 2: 991.55 statt Endstand 990.71), weil er nur bei aktiver Stage bearbeitet wurde und Sorare nach Abpfiff noch korrigiert. Datenbank war korrekt. Jetzt am Ende jedes Polls: abgeschlossene Stages (48-h-Fenster) werden aus den DB-Scores als **"· Final"** neu gerendert und **in place bearbeitet**, nur bei Inhaltsaenderung (`squad_ticker_messages.render_hash`, `final_at`). Nie Neupost, keine Ereignismeldungen. Verifiziert: gleiche `message_id`, zweiter Poll ohne Bearbeitung; Stage 1 und 2 des aktuellen Boards haben ihre Schlussfassung.
 
@@ -895,6 +901,23 @@ zeigen. Danach Schalter aus, Seite neu laden: beide zeigen Platzhalter mit Schlo
 
 - **Ko-fi-Automatik:** Der Weg steht (Codes), es fehlt nur die Ausgabe in der
   Ko-fi-Dankesnachricht bzw. ein Vorrat generierter Codes.
+  **07.10.2026: erste echte Spende (1 EUR, einmalig, Name auf Ko-fi verborgen → "Somebody").**
+  **16.10.2026 (Stand laut Jonas): 2 Spenden à 1 EUR, >20 Besucher/Tag, ~70 Konten.** Wachstums-/Geld-Beratung im Chat:
+  Empfehlung = zuerst Ko-fi-Stufe → Pro-Freischaltung automatisieren (heute bekommt ein 5-EUR-Zahler nichts automatisch),
+  dann Founding-Supporter-Test aus MONETARISIERUNG.md starten, Retention messen, Reddit/ChatGPT-Kanal mit Daten-Posts bespielen.
+  **16.10.2026: Jonas kann einmalig 200-500 EUR investieren.** Empfehlung im Chat: Grossteil als Laufzeit-Puffer
+  (Supabase Pro + Railway, ~37 EUR/Monat → 6-12 Monate gesichert), ~50-100 EUR Rechtssicherheit vor dem ersten Pro-Verkauf
+  (AGB/Widerruf/Datenschutz fuer Abos), ~50-100 EUR messbares Community-Experiment (Gewinnspiel mit Sorare-Karte oder Creator).
+  KEINE bezahlten Ads, keine Freelancer-Features. Entscheidung Jonas offen.
+  **16.10.2026 Idee Jonas: Copywriter fuer Blog-Artikel, damit KI (ChatGPT) auf Sorion aufmerksam wird.**
+  Befund (geprueft in sorion-ui): KEINE robots.txt, KEINE sitemap.xml, KEINE llms.txt; index.html rendert alle Zahlen
+  per JS (Crawler sehen nur "loading…" und leere Felder). Empfehlung: zuerst diese Technik-Basis (kostenlos) + Search Console
+  und Bing Webmaster Tools, dann Daten-Artikel aus vorhandenen Analysen (Reward-Schwellen, Rare Floor vs FMV, Accuracy) auf Englisch,
+  Copywriter nur als Lektor (max. 100-150 EUR Test). Erwaehnungen auf Reddit/Discords zaehlen fuer KI mehr als eigener Blog.
+  KPI: chatgpt.com-Referrer (11.09.: 63 Hits/30d). Entscheidung Jonas offen.
+  Code geprueft: Die Ko-fi-Pipeline (`dedup → enrich → announce → persist`) vergibt KEINE
+  Stufe, also auch kein Pro. Vergabe nur manuell per `set_user_tier(...)` und nur, wenn zu
+  der Mail ein Sorion-Konto existiert. Mail nicht in Doku/Chat uebernehmen.
 - **Produktfrage:** einen Wettbewerb als Kostprobe offen lassen, damit die Seite auf Reddit
   ihren Aufhaenger behaelt?
 - **Preisfrage:** Partner-API-Staffel (29-49 EUR/Monat) ist nur Konzept, siehe
@@ -1474,3 +1497,26 @@ hinter eine Function mit Service-Key + DB-Cache legen, nicht direkt aus der Seit
 - Keine Secrets in Code/Git; Keys mit `sb_`-Präfix sind aktuell, alles mit `eyJ` ist Legacy/tot
 - Neue UI-Texte Englisch (legal.html Deutsch)
 - **Nach JEDER Session: HANDOFF-Stand + BUGS/INCIDENTS aktualisieren** (Verstoß am 22.–26.07. → Jonas musste es anmahnen)
+
+## 🔓 Portfolio-Sichtbarkeit, Stand 21.10.2026 (Vorgabe Jonas)
+
+Der Lockdown vom 13.10. hatte jedes fremde Portfolio komplett geleert. Gewollt waren Schutz vor
+Massenabzug und Monetarisierung, nicht eine leere Seite fuer Gaeste. Neue Aufteilung
+(`2026-10-21_portfolios_wieder_oeffentlich.sql`):
+
+| Was | Wer darf | Wie durchgesetzt |
+|---|---|---|
+| Sammlung (welche Karten) | **jeder** | `manager_cards_for(slug)`, Tabellen bleiben gesperrt |
+| Kaufpreise (buy_eur/date/type) | eigener Manager oder Pro | **serverseitig NULL**, verlassen den Server nicht |
+| Depotwert, Invested, P&L, Earned | eigener Manager oder Pro | Kacheln im Frontend verdeckt |
+| Handelshistorie (`manager_trades`) | eigener Manager oder Pro | RPC liefert nichts, unveraendert |
+| Sync-Stand (wann, wie viele) | jeder | keine Geldinformation |
+
+**Ehrlich dazu:** Der Depotwert ist aus der oeffentlichen Sammlung plus den oeffentlichen Preisen
+ableitbar. Das Verdecken ist dort Produktentscheidung (Upsell), kein Geheimnisschutz. Echt
+geschuetzt sind nur die Kaufpreise und die Handelshistorie, und die liefert der Server gar nicht
+erst aus. `may_view_manager(slug)` ist fuer anon ausfuehrbar, damit die Seite weiss, ob sie
+verdecken muss; die Funktion gibt nur ueber die Rechte des Aufrufers Auskunft.
+
+**Bulk-Abzug bleibt zu:** Zugriff nur je Manager ueber die RPC, `manager_cards`, `manager_trades`
+und `manager_sync` bleiben fuer anon und authenticated gesperrt.
