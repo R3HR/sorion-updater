@@ -937,8 +937,9 @@
         <div class="sup-head">☕ Support SORION</div>
         <div class="sup-sub">No ads, no tracking. There are over six months of
           work in this, built by one person, plus about €38 a month for servers and
-          domains. If SORION saves you time, you can chip in. A tip is a thank-you:
-          it doesn't unlock Pro or any other feature.</div>
+          domains. If SORION saves you time, you can chip in. A one-time tip is a
+          thank-you and doesn't unlock anything. Looking for Pro?
+          <a href="#" onclick="openPro();return false">It's free right now.</a></div>
       </div>
       <div class="sup-kofi">
         <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
@@ -1830,7 +1831,7 @@
       document.getElementById('stat-earn').innerHTML =
         '<span class="lockv">&#8776;&euro;000.00</span> <span style="font-size:13px">&#128274;</span>';
       document.getElementById('stat-earn-sub').innerHTML =
-        '<a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener" class="earn-upsell">Pro feature: what your cards earned · free code on Discord</a>';
+        '<a href="#" onclick="openPro();return false" class="earn-upsell">Pro feature: what your cards earned · free right now</a>';
       box.style.display = '';
       return;
     }
@@ -1879,7 +1880,7 @@
         + '<span style="font-size:13px">&#128274;</span></div>'
         + '<div class="pm-earn-row"><span class="lockv">000 limited essence</span></div>'
         + '<div class="pm-earn-note">// Pro feature: what this card earned in lineups &middot; '
-        + '<a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener" class="earn-upsell">free code on Discord</a></div>';
+        + '<a href="#" onclick="openPro();return false" class="earn-upsell">free right now</a></div>';
     }
     const e = earnByCard.get(cardSlug);
     if (!e) return `<div class="pm-nodata">${earnState.done ? '// no lineup rewards yet' : '// loading…'}</div>`;
@@ -2257,7 +2258,7 @@
     if (moneyLocked) {
       // Die Aufteilung "gekauft gegen gratis" braucht die Kaufpreise, die der
       // Server ohne Zugang nicht liefert. Lieber nichts zeigen als 0 EUR.
-      if (vSub) vSub.innerHTML = '<a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener" class="earn-upsell">Pro: invested and P&amp;L · free code on Discord</a>';
+      if (vSub) vSub.innerHTML = '<a href="#" onclick="openPro();return false" class="earn-upsell">Pro: invested and P&amp;L · free right now</a>';
       const lock = (id, txt) => {
         const el = document.getElementById(id);
         if (el) el.innerHTML = `<span class="lockv">${txt}</span> <span style="font-size:13px">&#128274;</span>`;
