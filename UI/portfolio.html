@@ -286,8 +286,8 @@
   .p-stat-sub .e-xp   { color: var(--sr); }
   .p-stat-label {
     font-family: 'Share Tech Mono', monospace;
-    font-size: 8px;
-    letter-spacing: 0.2em;
+    font-size: 11px;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--purple);
     margin-bottom: 6px;
@@ -596,6 +596,7 @@
     .portfolio-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
     .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .logo img { height: 40px; }
+    .logo-mark { font-size: 20px; letter-spacing: 2px; }
     .logo-sub { display: none; }
   }
 
@@ -627,10 +628,15 @@
   .pm-earn-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
                  padding: 12px 14px; }
   .pm-earn-row { font-family: 'Share Tech Mono', monospace; font-size: 14px; padding: 4px 0; }
+  /* Gesperrte Werte: der Platzhalter ist ERFUNDEN, nie der echte Wert — der
+     verlaesst den Server ohne Pro-Stufe gar nicht (Grundregel Pro-Features). */
+  .lockv { filter: blur(4px); user-select: none; color: var(--up); opacity: .75; }
+  .earn-upsell { color: #b060ff; text-decoration: none; border-bottom: 1px dotted #b060ff; }
+  .earn-upsell:hover { color: #c68fff; }
   .pm-earn-note { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: var(--text2);
                   opacity: .75; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 
-  .logo-mark { font-family: 'Orbitron', monospace; font-size: 26px; font-weight: 900; letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
+  .logo-mark { font-family: 'Orbitron', monospace; font-size: 38px; font-weight: 900; letter-spacing: 4px; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
   .logo-cursor { color: var(--purple); animation: logoblink 1.2s steps(2) infinite; }
   @keyframes logoblink { 50% { opacity: 0; } }
   .p-sort {
@@ -702,7 +708,8 @@
   @media (max-width: 720px) {
     /* Mindestschrift — die Basis ist inzwischen groesser (04.09.), diese Regel
        darf sie nicht mehr nach UNTEN ziehen */
-    .p-stat-label, .card-rarity { font-size: 10px; }
+    .p-stat-label { font-size: 10.5px; }
+    .card-rarity { font-size: 10px; }
     .pm-label { font-size: 10px; }
     .pm-section { font-size: 11px; }
     /* Schliessen-Knopf der Manager-Suche: groessere Tippflaeche */
@@ -766,6 +773,7 @@
       <div class="p-stat">
         <div class="p-stat-label">// Portfolio Value</div>
         <div class="p-stat-value" id="stat-value">—</div>
+        <div class="p-stat-sub" id="stat-value-sub"></div>
       </div>
       <div class="p-stat">
         <div class="p-stat-label">// Invested</div>
@@ -774,6 +782,7 @@
       <div class="p-stat">
         <div class="p-stat-label" id="stat-pnl-label">// P&amp;L · net of 5% fee</div>
         <div class="p-stat-value" id="stat-pnl">—</div>
+        <div class="p-stat-sub" id="stat-pnl-sub"></div>
       </div>
       <div class="p-stat" id="stat-earn-box" style="display:none">
         <div class="p-stat-label">// Earned in lineups</div>
@@ -926,9 +935,10 @@
     <div class="sup-top">
       <div class="sup-txt">
         <div class="sup-head">☕ Support SORION</div>
-        <div class="sup-sub">No ads, no paywall, no tracking. There are over six months of
+        <div class="sup-sub">No ads, no tracking. There are over six months of
           work in this, built by one person, plus about €38 a month for servers and
-          domains. If SORION saves you time, you can chip in.</div>
+          domains. If SORION saves you time, you can chip in. A tip is a thank-you:
+          it doesn't unlock Pro or any other feature.</div>
       </div>
       <div class="sup-kofi">
         <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
@@ -992,13 +1002,13 @@
     <div class="pm-head">
       <div>
         <div class="pm-name">⌕ Manager Search</div>
-        <div class="pm-sub">Look up any Sorare manager — collections are public</div>
+        <div class="pm-sub">Look up any Sorare manager: collections are public</div>
       </div>
       <button class="pm-close" onclick="closeManagerSearch()">✕</button>
     </div>
     <div class="pm-body">
       <div style="display:flex;gap:8px;margin-bottom:14px">
-        <input id="ms-input" placeholder="manager name, e.g. jr3hr" spellcheck="false"
+        <input id="ms-input" placeholder="username or sorare.com profile link" spellcheck="false"
           style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px"
           onkeydown="if(event.key==='Enter')msSearch()">
         <button class="btn-sorare" style="padding:10px 18px;font-size:11px" onclick="msSearch()">Load</button>
@@ -1226,25 +1236,51 @@
   // die Sperre haengt am Manager-Slug (max. 1 Abruf/24 h), der eigene Sync-Knopf
   // laeuft mit 10-Minuten-Cooldown. Vorher kostete JEDER Aufruf 6-16 Anfragen.
   let lastSyncedAt = null;
+  // Seit 21.10.: die SAMMLUNG ist oeffentlich, nur die Geldzahlen haengen am Zugang.
+  // Der Server liefert Kaufpreise ohne Zugang gar nicht erst (null), die Kacheln
+  // werden zusaetzlich verdeckt, damit nicht 0 EUR wie eine Tatsache aussieht.
+  let moneyLocked = false;
 
   // SEC-006: Manager-Daten laufen jetzt über RPCs mit dem NUTZER-Token.
   // Der anon-Key genügt nicht mehr — die Tabellen selbst sind gesperrt.
   // Die RPC entscheidet: eigener Manager immer, fremder nur mit Pro-Tier.
-  function userHeaders() {
-    let s = null;
-    try { s = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
-    return { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + (s?.access_token || ANON_KEY) };
+  // Das gespeicherte Token wird ERNEUERT, falls es abgelaufen ist. Ohne das wirkt
+  // ein eingeloggter Nutzer fuer die RPC wie ein Gast: sie liefert dann eine leere
+  // Liste, und das Portfolio bleibt kommentarlos leer (BUG-050, dieselbe Falle wie
+  // am 06.09. auf der Leaderboards-Seite).
+  async function userHeaders() {
+    const tok = await authToken();          // erneuert bei Bedarf, null = nicht angemeldet
+    return { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + (tok || ANON_KEY), _signedIn: !!tok };
   }
 
   async function loadFromDb(slug) {
-    const H = userHeaders();
-    const [syncRes, cardRes] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/manager_sync_for?p_slug=${encodeURIComponent(slug)}&select=synced_at,card_count`, { headers: H }),
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/manager_cards_for?p_slug=${encodeURIComponent(slug)}&select=card_slug,player_slug,player_name,picture_url,rarity,in_season,buy_eur,buy_date,buy_type`, { headers: H }),
-    ]);
+    const H = await userHeaders();
+    const signedIn = H._signedIn; delete H._signedIn;
+    const syncRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/manager_sync_for?p_slug=${encodeURIComponent(slug)}&select=synced_at,card_count`, { headers: H });
     const sync = syncRes.ok ? (await syncRes.json())[0] : null;
-    const rows = cardRes.ok ? await cardRes.json() : [];
+
+    // PostgREST liefert HART hoechstens 1.000 Zeilen je Anfrage, auch mit groesserem
+    // Range-Kopf. Ohne Blaettern sah ein Depot mit 3.181 Karten deshalb aus wie 1.000
+    // (BUG-047), samt zu niedrigem Wert und falschem P&L. Also seitenweise holen,
+    // bis eine Seite nicht mehr voll ist.
+    const PAGE = 1000, MAX_PAGES = 30;
+    const rows = [];
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const from = page * PAGE, to = from + PAGE - 1;
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/rpc/manager_cards_for?p_slug=${encodeURIComponent(slug)}&select=card_slug,player_slug,player_name,picture_url,rarity,in_season,buy_eur,buy_date,buy_type&order=card_slug.asc&offset=${from}&limit=${PAGE}`,
+        { headers: { ...H, 'Range-Unit': 'items', 'Range': `${from}-${to}` } }
+      );
+      if (!res.ok) break;
+      const batch = await res.json();
+      if (!Array.isArray(batch) || !batch.length) break;
+      rows.push(...batch);
+      if (batch.length < PAGE) break;
+    }
     lastSyncedAt = sync?.synced_at ?? null;
+    // Eigener Manager oder Pro? Die RPC gibt nur ueber die Rechte des Aufrufers
+    // Auskunft, nicht ueber fremde Daten.
+    moneyLocked = (await rpcAuth('may_view_manager', { p_slug: slug })) !== true;
     return rows.map(r => ({
       slug: r.card_slug,
       rarityTyped: r.rarity,
@@ -1640,12 +1676,54 @@
   // mit den Preis-Updatern, deshalb sequenziell mit Pause.
   const earnByCard = new Map();
   const earnState = { gws: 0, running: false, done: false };
+  let earnLocked = false;        // Pro-Feature 'portfolio_earnings', der Server entscheidet
   let essRate = null;
 
   const rpcJson = (name, body) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
     method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).then(r => r.ok ? r.json() : null).catch(() => null);
+
+  // Gueltiges Sitzungs-Token holen, notfalls erneuern. OHNE das beantwortet der
+  // Server has_feature() mit false und ein zahlendes Pro-Konto saehe seine
+  // Ertraege nicht (Falle vom 06.09.: abgelaufenes Token -> 401 -> leere Seite).
+  // Gibt null zurueck, wenn niemand angemeldet ist; dann wird anonym gefragt.
+  async function authToken() {
+    let sess = null;
+    try { sess = JSON.parse(localStorage.getItem('sorion_session') || 'null'); } catch {}
+    if (!sess?.access_token) return null;
+    try {
+      const exp = JSON.parse(atob(sess.access_token.split('.')[1])).exp * 1000;
+      if (Date.now() < exp - 30000) return sess.access_token;
+    } catch { return sess.access_token; }        // kein lesbares exp: einfach versuchen
+    if (!sess.refresh_token) return null;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: sess.refresh_token }),
+      });
+      if (!r.ok) return null;
+      const d = await r.json();
+      if (!d?.access_token) return null;
+      localStorage.setItem('sorion_session', JSON.stringify({ ...sess, ...d }));
+      return d.access_token;
+    } catch { return null; }
+  }
+
+  // Wie rpcJson, aber angemeldet — noetig fuer alles, was an eine Stufe gebunden
+  // ist (Pro-Features). Ohne Token wird bewusst anonym gefragt, damit die Seite
+  // fuer Gaeste weiter antwortet statt 401 zu kassieren.
+  async function rpcAuth(name, body) {
+    const tok = await authToken();
+    const headers = { 'apikey': ANON_KEY, 'Content-Type': 'application/json' };
+    if (tok) headers['Authorization'] = 'Bearer ' + tok;
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+        method: 'POST', headers, body: JSON.stringify(body),
+      });
+      return r.ok ? await r.json() : null;
+    } catch { return null; }
+  }
 
   const so5 = body => fetch(`${SUPABASE_URL}/functions/v1/so5-results`, {
     method: 'POST', headers: { 'apikey': ANON_KEY, 'Content-Type': 'application/json' },
@@ -1681,8 +1759,22 @@
     if (earnState.running || !slug) return;
     earnState.running = true;
 
+    // Pro-Feature (feature_access: portfolio_earnings). Der Server entscheidet;
+    // die RPC liefert einem Nicht-Pro ohnehin keine Zeilen. Gefragt wird hier nur,
+    // um den Hinweis zu zeigen — und um bei gesperrtem Zugang das Nachladen der
+    // Spieltage zu sparen (sonst ~100 Aufrufe auf dem geteilten API-Kontingent).
+    earnLocked = (await rpcAuth('has_feature', { p_feature: 'portfolio_earnings' })) !== true;
+    if (earnLocked) {
+      earnState.running = false;
+      earnState.done = true;
+      updateEarnStats();
+      const pmBox = document.getElementById('pm-earn');
+      if (pmBox) pmBox.innerHTML = renderCardEarnings(null);   // gesperrt: Slug egal
+      return;
+    }
+
     essRate = await rpcJson('essence_value', {});
-    const stored = await rpcJson('so5_earnings_by_card', { p_manager: slug });
+    const stored = await rpcAuth('so5_earnings_by_card', { p_manager: slug });
     if (Array.isArray(stored)) {
       for (const r of stored) {
         earnByCard.set(r.card_slug, {
@@ -1732,6 +1824,16 @@
   function updateEarnStats() {
     const box = document.getElementById('stat-earn-box');
     if (!box) return;
+    // Gesperrt: Platzhalter statt Zahlen. Der echte Wert wurde nie geladen — ohne
+    // Pro-Stufe liefert ihn der Server gar nicht erst aus (Grundregel Pro-Features).
+    if (earnLocked) {
+      document.getElementById('stat-earn').innerHTML =
+        '<span class="lockv">&#8776;&euro;000.00</span> <span style="font-size:13px">&#128274;</span>';
+      document.getElementById('stat-earn-sub').innerHTML =
+        '<a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener" class="earn-upsell">Pro feature: what your cards earned · free code on Discord</a>';
+      box.style.display = '';
+      return;
+    }
     if (!earnByCard.size) { box.style.display = 'none'; return; }
     let cash = 0, xp = 0; const ess = {};
     for (const e of earnByCard.values()) {
@@ -1772,6 +1874,13 @@
     .replace(/\b\w/g, m => m.toUpperCase()).replace(/\bXp\b/, 'XP');
 
   function renderCardEarnings(cardSlug) {
+    if (earnLocked) {
+      return '<div class="pm-earn-row"><span class="lockv">&euro;0.00 prize money</span> '
+        + '<span style="font-size:13px">&#128274;</span></div>'
+        + '<div class="pm-earn-row"><span class="lockv">000 limited essence</span></div>'
+        + '<div class="pm-earn-note">// Pro feature: what this card earned in lineups &middot; '
+        + '<a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener" class="earn-upsell">free code on Discord</a></div>';
+    }
     const e = earnByCard.get(cardSlug);
     if (!e) return `<div class="pm-nodata">${earnState.done ? '// no lineup rewards yet' : '// loading…'}</div>`;
     const rateOf = r => essRate?.find(x => x.scarcity === r);
@@ -2114,7 +2223,13 @@
     document.getElementById('stat-rare').textContent    = rar.length;
     document.getElementById('stat-sr').textContent      = sr.length;
 
+    // Value zaehlt ALLE Karten, P&L nur gekaufte. Nebeneinander wirkte das wie ein
+    // Widerspruch (Value > Invested, trotzdem negativ). Deshalb wird beides unter den
+    // Kacheln aufgeschluesselt: geschenkte Karten (Rewards, Crafts) haben keinen
+    // Kaufpreis und koennen keinen Gewinn/Verlust haben; die Verkaufsgebuehr
+    // (5 %, mind. 0,10 EUR) trifft billige Karten ueberproportional.
     let total = 0, invested = 0, pnl = 0, pnlBasis = 0;
+    let valBought = 0, valFree = 0, nFree = 0, fees = 0, buyNoPrice = 0, nNoPrice = 0;
     for (const c of allCards) {
       const rarity  = c.rarityTyped?.toLowerCase() || 'limited';
       const fmvData = fmvCache[`${c.player?.slug}_${rarity}_${eligOf(c)}`];
@@ -2124,12 +2239,39 @@
       if (buy != null && buy > 0) {
         invested += buy;
         const sv = sellValue(v);
-        if (v) { pnl += sv - buy; pnlBasis += buy; }
-      }
+        if (v) { pnl += sv - buy; pnlBasis += buy; valBought += v; fees += v - sv; }
+        else   { buyNoPrice += buy; nNoPrice++; }
+      } else if (v) { valFree += v; nFree++; }
     }
 
+    // Ohne Zugang: Platzhalter statt Zahlen. Die Kaufpreise fehlen serverseitig,
+    // "Invested 0" waere schlicht falsch, und der Depotwert bleibt Pro vorbehalten.
+    // Der Depotwert ist fuer JEDEN sichtbar (Vorgabe Jonas 21.10.): Er ergibt sich
+    // ohnehin aus der oeffentlichen Sammlung und unseren oeffentlichen Preisen,
+    // ihn zu verdecken waere Theater. Geschuetzt bleiben die Zahlen, die wirklich
+    // nur den Besitzer angehen: Einstand, Gewinn und Verlust, Ertraege.
     document.getElementById('stat-value').textContent =
       total > 0 ? `€${total.toFixed(0)}` : '—';
+    const vSub = document.getElementById('stat-value-sub');
+
+    if (moneyLocked) {
+      // Die Aufteilung "gekauft gegen gratis" braucht die Kaufpreise, die der
+      // Server ohne Zugang nicht liefert. Lieber nichts zeigen als 0 EUR.
+      if (vSub) vSub.innerHTML = '<a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener" class="earn-upsell">Pro: invested and P&amp;L · free code on Discord</a>';
+      const lock = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = `<span class="lockv">${txt}</span> <span style="font-size:13px">&#128274;</span>`;
+      };
+      lock('stat-invested', '&euro;0000');
+      lock('stat-pnl', '&euro;-000 (-00%)');
+      const ps = document.getElementById('stat-pnl-sub');
+      if (ps) ps.textContent = '';
+      return;
+    }
+
+    if (vSub) vSub.textContent = total > 0
+      ? `€${valBought.toFixed(0)} bought · €${valFree.toFixed(0)} free (${nFree} rewards/crafts)`
+      : '';
     document.getElementById('stat-invested').textContent =
       invested > 0 ? `€${invested.toFixed(0)}` : '—';
     const pnlEl = document.getElementById('stat-pnl');
@@ -2137,8 +2279,15 @@
       const pct = (pnl / pnlBasis) * 100;
       pnlEl.textContent = `${pnl >= 0 ? '+' : ''}€${pnl.toFixed(0)} (${pnl >= 0 ? '+' : ''}${pct.toFixed(1)}%)`;
       const pnlLbl = document.getElementById('stat-pnl-label');
-      if (pnlLbl) pnlLbl.textContent = netMode ? `// P&L · net of fees (${feePct()}%, min €${MIN_FEE.toFixed(2)})` : '// P&L · gross';
+      if (pnlLbl) pnlLbl.textContent = netMode ? '// P&L · after fees' : '// P&L · gross';
       pnlEl.style.color = pnl >= 0 ? 'var(--up)' : 'var(--down)';
+      const pSub = document.getElementById('stat-pnl-sub');
+      if (pSub) {
+        const bits = ['bought cards only'];
+        if (netMode && fees >= 0.5) bits.push(`€${fees.toFixed(0)} fees (${feePct()}%, min €${MIN_FEE.toFixed(2)})`);
+        if (nNoPrice) bits.push(`€${buyNoPrice.toFixed(0)} in ${nNoPrice} unpriced`);
+        pSub.textContent = bits.join(' · ');
+      }
     } else {
       pnlEl.textContent = '—';
     }
@@ -2294,9 +2443,30 @@
   function closeManagerSearch() { document.getElementById('ms-backdrop').style.display = 'none'; }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeManagerSearch(); });
 
+  // Sorare-Anzeigename und Slug sind oft verschieden (Umbenennung, Umlaute):
+  // "KalleAusSuelz" ist ein Nickname, gesucht wird aber der Slug. Ohne Login gibt
+  // die Sorare-API keinen Weg vom Nickname zum Slug her (usersPaginated verlangt
+  // einen eingeloggten Nutzer). Deshalb nimmt die Suche auch einen eingefuegten
+  // Profillink an, dort steht der echte Slug.
+  function msNormalizeInput(raw) {
+    let v = String(raw || '').trim();
+    if (/sorare\.com/i.test(v)) {
+      try {
+        const u = new URL(/^https?:/i.test(v) ? v : 'https://' + v);
+        const parts = u.pathname.split('/').filter(Boolean);
+        const i = parts.findIndex(x => /^(my-club|gallery|club|u|users|user)$/i.test(x));
+        v = decodeURIComponent(i >= 0 && parts[i + 1] ? parts[i + 1] : (parts[parts.length - 1] || ''));
+      } catch {}
+    }
+    return v.replace(/^@/, '').toLowerCase();
+  }
+
   async function msSearch() {
-    const slug = document.getElementById('ms-input').value.trim().toLowerCase();
+    let slug = msNormalizeInput(document.getElementById('ms-input').value);
     if (!slug) return;
+    // Nickname oder neuer Slug -> Primaer-Slug. Fehlte auf dieser Seite, index.html
+    // hatte es seit BUG-039 bereits: Umbenannte Manager waren hier nicht auffindbar.
+    if (typeof resolveManagerSlug === 'function') slug = (await resolveManagerSlug(slug)) || slug;
     const box = document.getElementById('ms-result');
     box.innerHTML = '<div class="pm-nodata">// loading collection…</div>';
     try {
@@ -2316,17 +2486,42 @@
       if (c && c.slug === slug && Date.now() - c.ts < 10 * 60 * 1000) return c;
     } catch {}
 
+    // 240 Seiten a 50 Karten = 12.000. Die alten 60 Seiten reichten fuer grosse
+    // Sammlungen nicht (Sorare-Konto mit 3.810 Limited). Eine Obergrenze bleibt,
+    // damit ein Fehler in der Blaetter-Logik nicht endlos laeuft.
+    const MS_MAX_PAGES = 240;
+    let truncated = false;
     const cards = [];
     for (const rarity of ['limited', 'rare', 'super_rare']) {
       let cursor = null, page = 0;
       do {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
-          body: JSON.stringify({ action: 'user_cards', slug, rarity, cursor }),
-        });
-        const d = await res.json();
-        if (d.error) throw new Error('manager not found');
+        // Eine Sammlung wie 3.810 Limited braucht 77 Abrufe hintereinander. Faellt
+        // EINER davon aus, war vorher die ganze Suche hin: Die Edge Function
+        // antwortet dann mit Klartext ("Network connection lost."), und
+        // res.json() warf "Unexpected token 'N'" (BUG-049). Deshalb: Antwort
+        // defensiv lesen und voruebergehende Aussetzer bis zu dreimal wiederholen.
+        let d = null, lastErr = null;
+        for (let versuch = 0; versuch < 3; versuch++) {
+          if (versuch) await new Promise(r => setTimeout(r, 400 * versuch));
+          try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/sorare-oauth`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY },
+              body: JSON.stringify({ action: 'user_cards', slug, rarity, cursor }),
+            });
+            const text = await res.text();
+            try { d = JSON.parse(text); }
+            catch { lastErr = text.slice(0, 80); d = null; continue; }   // kein JSON: Aussetzer
+            break;
+          } catch (e) { lastErr = e.message; d = null; }
+        }
+        if (!d) throw new Error('Sorare did not respond, please try again in a moment.'
+          + (lastErr ? ` (${String(lastErr).replace(/[<>]/g, '')})` : ''));
+        // Nur ein echtes "not found" als solches melden; Zeitueberschreitung oder
+        // Drosselung bei Sorare sahen frueher genauso aus.
+        if (d.error) throw new Error(/not found/i.test(String(d.error))
+          ? 'manager not found. Sorare usernames often differ from display names: open the manager on sorare.com and paste the profile link here.'
+          : 'Sorare did not respond, please try again in a moment.');
         for (const n of d?.nodes ?? []) {
           cards.push({
             rarity,
@@ -2340,7 +2535,11 @@
         if (onProgress) onProgress(cards.length);
         cursor = d?.pageInfo?.hasNextPage ? d.pageInfo.endCursor : null;
         page++;
-      } while (cursor && page < 60);
+      } while (cursor && page < MS_MAX_PAGES);
+      // Grenze erreicht und Sorare haette noch mehr: das Ergebnis ist unvollstaendig.
+      // Frueher wurde stillschweigend bei 3.000 Karten abgeschnitten (BUG-046):
+      // ein Manager mit 3.810 Limited bekam glatte "3000" angezeigt.
+      if (cursor) truncated = true;
     }
     if (!cards.length) throw new Error('no cards found — is the manager name correct?');
 
@@ -2358,7 +2557,7 @@
         if (Array.isArray(rows)) for (const r of rows) fmv[`${r.player_slug}_${rarity}_${r.eligibility ?? 'in_season'}`] = r;
       }
     }
-    const out = { slug, ts: Date.now(), cards, fmv };
+    const out = { slug, ts: Date.now(), cards, fmv, truncated };
     try { sessionStorage.setItem('sorion_ms_cache', JSON.stringify(out)); } catch {}
     return out;
   }
@@ -2400,7 +2599,7 @@
 
     document.getElementById('ms-result').innerHTML = `
       <div class="pm-grid">
-        <div class="pm-stat"><div class="pm-label">Cards</div><div class="pm-val">${data.cards.length} <span style="font-size:10px;color:var(--text2)">(${counts.limited}L·${counts.rare}R·${counts.super_rare}SR)</span></div></div>
+        <div class="pm-stat"><div class="pm-label">Cards</div><div class="pm-val">${data.truncated ? 'min. ' : ''}${data.cards.length} <span style="font-size:10px;color:var(--text2)">(${counts.limited}L·${counts.rare}R·${counts.super_rare}SR)</span></div></div>
         <div class="pm-stat"><div class="pm-label">Portfolio value</div><div class="pm-val">€${value.toFixed(0)}</div></div>
         <div class="pm-stat"><div class="pm-label">Invested</div><div class="pm-val">€${invested.toFixed(0)}</div></div>
         <div class="pm-stat"><div class="pm-label">P&amp;L since buy</div><div class="pm-val" style="color:${pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${pnl >= 0 ? '+' : '−'}€${Math.abs(pnl).toFixed(0)}${pnlPct != null ? ` (${pnl >= 0 ? '+' : ''}${pnlPct.toFixed(1)}%)` : ''}</div></div>

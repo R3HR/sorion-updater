@@ -31,7 +31,10 @@
   .wrap { max-width: 640px; margin: 0 auto; padding: 32px 20px 80px; }
   a { color: var(--purple); }
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 10px; }
-  .logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 20px; text-decoration: none; color: var(--text); }
+  .logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 38px; letter-spacing: 4px;
+    text-decoration: none; color: var(--text); text-shadow: 0 0 20px rgba(176,96,255,0.5); }
+  @media (max-width: 720px) { .logo { font-size: 20px; letter-spacing: 2px; } }
+  @media (max-width: 480px) { .logo { font-size: 18px; } }
   .logo span { color: var(--purple); }
   .logo-cursor { animation: logoblink 1.2s steps(2) infinite; }
   @keyframes logoblink { 50% { opacity: 0; } }
@@ -101,6 +104,13 @@
   <!-- ── Auth (nicht eingeloggt) ─────────────────────────────── -->
   <div id="auth-view" style="display:none">
     <h1>// Account</h1>
+    <!-- Anmeldung ohne eigene Mailadresse: Sorare IST die Identitaet. Der Knopf steht
+         bewusst ueber den Tabs, weil das fuer die allermeisten der kuerzeste Weg ist. -->
+    <div class="card" style="margin-bottom:14px">
+      <button onclick="loginWithSorare()">Sign in with Sorare</button>
+      <div class="hint" style="margin-top:8px">No email needed. We only receive your public manager name, and your portfolio is tied to it right away.</div>
+    </div>
+    <div class="hint" style="text-align:center;margin-bottom:12px">or with an email address</div>
     <div class="tabs">
       <div class="tab active" id="tab-login" onclick="switchTab('login')">Sign in</div>
       <div class="tab" id="tab-signup" onclick="switchTab('signup')">Sign up</div>
@@ -201,8 +211,9 @@
 
     <div class="card" id="voucher-card">
       <h2>Redeem a code</h2>
-      <div class="hint">Enter a supporter code to unlock your tier.
-        Codes come with a Ko-fi membership.</div>
+      <div class="hint">Enter a code to unlock Pro. Pro is free while it's being built:
+        grab a code in our <a href="https://discord.gg/ZMvVEE8QvZ" target="_blank" rel="noopener">Discord</a>.
+        Ko-fi tips don't come with a code.</div>
       <label>Code</label>
       <input type="text" id="voucher-code" autocomplete="off" spellcheck="false"
              placeholder="e.g. SORION-PRO-XXXX" onkeydown="if(event.key==='Enter')redeemCode()">
@@ -302,6 +313,21 @@
     document.getElementById('signup-card').style.display = t === 'signup' ? 'block' : 'none';
   }
 
+  // Sorare-Autorisierung. Wird aus BEIDEN Zustaenden gebraucht: abgemeldet als
+  // Anmeldung, angemeldet als Verknuepfung. Welche davon es wird, entscheidet die
+  // Rueckkehrseite anhand der vorhandenen Sorion-Sitzung.
+  // MUSS auf oberster Ebene stehen: vorher lag sie in enterProfile(), das nur nach
+  // dem Anmelden laeuft, und der Knopf im abgemeldeten Zustand warf
+  // "loginWithSorare is not defined" (BUG-045).
+  function sorareAuthorize() {
+    const CLIENT_ID = 'JwRtoOABm0DtyOM5_xDKlFaF2-gp7uUAS4bQeQcuUjw';
+    const CB = 'https://sorion.pro/auth/callback';
+    location.href = 'https://sorare.com/oauth/authorize?client_id=' + CLIENT_ID
+      + '&redirect_uri=' + encodeURIComponent(CB) + '&response_type=code&scope=';
+  }
+  window.loginWithSorare = sorareAuthorize;
+  window.connectSorare   = sorareAuthorize;
+
   // ── Auth-Aktionen ───────────────────────────────────────────
   async function doSignup() {
     // Ereignis NICHT hier: es feuerte beim Klick, vor Pruefung und Anfrage, und
@@ -394,12 +420,6 @@
       }
     };
 
-    window.connectSorare = () => {
-      const CLIENT_ID = 'JwRtoOABm0DtyOM5_xDKlFaF2-gp7uUAS4bQeQcuUjw';
-      const CB = 'https://sorion.pro/auth/callback';
-      location.href = 'https://sorare.com/oauth/authorize?client_id=' + CLIENT_ID
-        + '&redirect_uri=' + encodeURIComponent(CB) + '&response_type=code&scope=';
-    };
 
     // Profilzeile laden (oder anlegen)
     const pRes = await authFetch(`/rest/v1/profiles?user_id=eq.${currentUser.id}&select=*`);

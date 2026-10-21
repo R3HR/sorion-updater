@@ -70,9 +70,10 @@
           <button class="sup-close" type="button" aria-label="Close">×</button>
         </div>
         <div class="sup-mbody">
-          <div class="sup-sub">No ads, no paywall, no tracking. There are over six
+          <div class="sup-sub">No ads, no tracking. There are over six
             months of work in this, built by one person, plus about €38 a month for
-            servers and domains. If SORION saves you time, you can chip in.</div>
+            servers and domains. If SORION saves you time, you can chip in.
+            A tip is a thank-you: it doesn't unlock Pro or any other feature.</div>
           <iframe src="${KOFI_EMBED}" title="Support SORION on Ko-fi" loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
             style="width:100%;height:640px;border:none;border-radius:8px;background:#f9f9f9;display:block"></iframe>
