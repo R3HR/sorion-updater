@@ -843,3 +843,39 @@ Wiederholung da.
 **Offen, serverseitig:** Mit groesseren Seiten (100 statt 50 Karten) halbierte sich die Zahl der
 Abrufe und damit die Trefferwahrscheinlichkeit. Das braucht ein Deploy von `sorare-oauth`, das mir
 am 25.09. von der Berechtigungspruefung verweigert wurde.
+
+## BUG-052 - Spieltag einer Runde = Tag der Abrechnung statt Tag des Anpfiffs (14.10.) - BEHOBEN
+
+- **Symptom:** Runde 29 von Hyperglitch (R61, Stage 2) wurde am 13.10. gespielt, stand aber mit `played_on = 2026-10-14` in der Datenbank. Aufgefallen beim Leaderboard am 14.10.
+- **Ursache:** `assignRound` schrieb `new Date().toISOString().slice(0, 10)`, also das **UTC-Datum des Moments, in dem der Bot die Runde abschliesst**. Sorare rechnete R61 erst am 14.10. um 10:50 Berlin ab. `played_on` entscheidet aber ueber Block und Woche: Eine Sonntagsrunde, die erst Montag frueh abgerechnet wird, waere dem **naechsten Block** zugeschlagen worden - beim Blockende am 18.10. haette das die Strike-Rechnung verfaelscht.
+- **Fix (14.10.):** `played_on` = Berliner Datum des **ersten Anpfiffs** der Runde (fruehestes `locked_at` in `squad_lineup_log`), Rueckfall auf das Berliner Tagesdatum. Nachtspiele (01:30) zaehlen so zum Vortag. Neue Action `fix_played_on` (Cron-Secret) vergleicht alle Runden; `apply: true` mit `round_nos` korrigiert gezielt.
+- **Pruefung aller 45 live erfassten Runden:** Abweichungen bei R61 (korrigiert auf 13.10.) und in Set 1 bei R27, R28, R30, R31, R32 (jeweils einen Tag zu spaet). Set 1 ist abgeschlossen und veroeffentlicht und bleibt deshalb **bewusst unveraendert**. In Hyperglitch lag keine Blockgrenze betroffen: R44 (20.09.) und R54 (04.10.) stimmen.
+- **Lektion:** Ein Zeitstempel "wann der Bot etwas merkt" ist kein fachliches Datum. Was ueber Zuordnungen entscheidet (Block, Woche), muss aus dem Ereignis selbst kommen.
+
+
+## BUG-050 - Portfolios luden gar nicht mehr (21.10.) - BEHOBEN
+
+**Symptom:** "Es lassen sich zur Zeit keine Portfolios mehr laden." Vermutung Jonas: die offene
+Railway-Rechnung.
+
+**Nicht die Ursache:** Railway laeuft vollstaendig (alle Cron-Jobs online, naechster Lauf planmaessig),
+die Preise werden aktualisiert, `card_prices` antwortet normal.
+
+**Tatsaechlich zwei Dinge, die zusammenkamen:**
+1. **Gewollt:** Der Lockdown vom 13.10. (`2026-10-13_manager_lockdown.sql`) hat
+   `manager_cards`, `manager_trades` und `manager_sync` fuer anon und authenticated gesperrt.
+   Zugriff laeuft seitdem ueber `manager_cards_for` und Geschwister, die `may_view_manager`
+   fragen: angemeldet UND (eigener Manager ODER Pro/VIP/Creator). Fuer Gaeste ist das Portfolio
+   damit absichtlich leer.
+2. **Fehler:** `userHeaders()` schickte das gespeicherte Token UNERNEUERT. Ein abgelaufenes
+   Token wirkt fuer PostgREST wie ein Gast, die RPC liefert dann eine leere Liste statt eines
+   Fehlers. Ergebnis: auch angemeldete Pro-Nutzer sahen ein leeres Depot, ohne jeden Hinweis.
+   Dieselbe Falle wie am 06.09. auf der Leaderboards-Seite.
+
+**Fix:** `userHeaders()` holt das Token ueber `authToken()` (erneuert bei Bedarf). Ein leeres
+Ergebnis erklaert sich jetzt selbst: "Sign in to see your portfolio. Other managers need Pro."
+statt eines kommentarlosen "No cards found".
+
+**Lehre, zum zweiten Mal:** Wer eine Datenquelle hinter eine Anmeldung legt, muss JEDEN Client-Pfad
+auf die Token-Erneuerung pruefen. Und eine Sperre, die leere Daten statt eines Fehlers liefert,
+braucht im Frontend zwingend einen Hinweis, sonst ist sie von einem Ausfall nicht zu unterscheiden.
