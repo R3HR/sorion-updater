@@ -879,3 +879,90 @@ statt eines kommentarlosen "No cards found".
 **Lehre, zum zweiten Mal:** Wer eine Datenquelle hinter eine Anmeldung legt, muss JEDEN Client-Pfad
 auf die Token-Erneuerung pruefen. Und eine Sperre, die leere Daten statt eines Fehlers liefert,
 braucht im Frontend zwingend einen Hinweis, sonst ist sie von einem Ausfall nicht zu unterscheiden.
+
+## BUG-053: PostgREST deckelt stumm bei 1000 Zeilen (Sammlungs-Kalkulator)
+
+- **Symptom:** Im neuen `tools/2026-10-21_sammlung-kalkulator.mjs` hatten 34 Spieler einer
+  Sammlung angeblich "keinen Preis in card_prices", darunter alle 8 Super Rares, also die
+  wertvollsten Karten. Die Zeilen existierten aber. Gegenprobe ueber `player_name` fand sie.
+- **Ursache:** Nicht Slug-Drift (erst vermutet, dann geprueft: `ritsu-doan` heisst in der DB
+  genauso wie bei Sorare). Die Abfrage holte 200 Spieler-Slugs auf einmal OHNE Scarcity-Filter.
+  Ein Spieler hat bis zu 8 Preiszeilen (Rarity x Eligibility), das erste Paket lief damit in
+  **PostgRESTs Standardgrenze von 1000 Zeilen** - ohne Fehler, ohne Hinweis. Die abgeschnittenen
+  Zeilen sahen wie "nicht getrackt" aus und landeten im Bulk. Folge fuer die Beispielrechnung:
+  225 statt 271 EUR Nettowert, 48 statt 55 verkaeufliche Karten.
+- **Fix:** `holeAlle()` im Kalkulator: Pakete von 50 Slugs plus Seitenabruf per `.range(von, von+999)`,
+  Abbruch erst wenn eine Seite weniger als 1000 Zeilen liefert. Der Namens-Fallback bleibt als
+  Versicherung drin (holt jetzt 0 Zeilen nach).
+- **Status:** ✅ behoben 2026-10-21 (nur im neuen Werkzeug)
+- **Produktion geprueft, nicht betroffen:** `UI/portfolio.html` (beide FMV-Ladestellen, Zeilen ~1389
+  und ~2354) fragt je Durchgang mit `scarcity=eq.<rarity>` und 100 Slugs. Bei fixer Scarcity hat ein
+  Spieler maximal 2 Zeilen, also hoechstens ~200 je Anfrage. Deckel unerreicht.
+- **Lehre:** Jede PostgREST-Abfrage ohne `range`, deren Zeilenzahl mit der Paketgroesse multipliziert
+  wird, ist eine stille Falle. Regel: Paketgroesse x maximale Zeilen je Element unter 1000 halten,
+  oder paginieren. Dieselbe Fehlerklasse wie BUG-051: eine Sperre bzw. Grenze, die leere oder
+  gekuerzte Daten statt eines Fehlers liefert, ist von einem Ausfall nicht zu unterscheiden.
+
+## BUG-054: "Schnell verkaufen" war teurer als der geduldige Preis (Listenplan)
+
+- **Symptom:** Erster Lauf von `tools/2026-10-21_listen-plan.mjs` wies fuer 347 Karten
+  280,59 EUR "Netto schnell" gegen 271,68 EUR "Netto geduldig" aus, das Unterbieten brachte
+  also angeblich 11 EUR MEHR ein.
+- **Ursache:** Der Schnell-Preis war pauschal `Floor minus 1 Cent`. Bei limited liegt der FMV
+  aber haeufig UNTER dem Floor (und genau der FMV ist dort die Preisbasis). "Floor minus 1 Cent"
+  lag damit oberhalb des eigenen Vorschlags: kein schnellerer Verkauf, nur ein optimistischerer
+  Preis.
+- **Fix:** `askSchnell = min(askGeduldig, floor - 0,01)`. Unterbieten heisst unter den eigenen
+  Vorschlag gehen, nie darueber. Danach kostet das Unterbieten ueber alle 347 Karten 2,64 EUR.
+- **Status:** gefunden und behoben 2026-10-21, vor der ersten Nutzung
+- **Lehre:** Jede Preisregel, die zwei Quellen mischt (eigener Schaetzwert und Marktfloor),
+  braucht eine Richtungspruefung. "Guenstiger" muss im Ergebnis guenstiger sein, sonst ist die
+  Formel still falsch. Dieselbe Klasse wie der Floor-Deckel im Kalkulator.
+
+## BUG-055 · Ko-fi-Trinkgeld wirkte wie ein Pro-Kauf (21.10.2026)
+
+- **Symptom:** Erste echte Spende (1 EUR, 07.10.) kam von jemandem, der vermutlich Pro freischalten wollte. Hinweis Jonas: "Leute spenden einen Euro und denken, sie würden Pro freischalten."
+- **Ursache:** Pro kann man nicht kaufen (nur gratis per Discord-Code, solange Pro im Bau ist), aber die Oberfläche sagte etwas anderes: (1) Die drei Pro-Links im Portfolio ("Pro feature: what your cards earned", "unlock", "Pro: invested and P&L") riefen `openSupport()` auf und öffneten direkt das Ko-fi-Fenster mit "Tip €1". (2) rewards.html: "Become a Pro supporter on Ko-fi, then sign in with the same account" (stand direkt über dem korrekten Discord-Hinweis). (3) profile.html: "Codes come with a Ko-fi membership", obwohl Ko-fi keine Codes ausgibt. (4) Support-Texte versprachen "no paywall", obwohl es gesperrte Pro-Felder gibt.
+- **Fix:** Alle Pro-Hinweise zeigen auf den Discord-Code statt auf Ko-fi. Support-Fenster und die drei Support-Kästen sagen jetzt: "A tip is a thank-you: it doesn't unlock Pro or any other feature." "No paywall" entfernt. Live: sorion-ui `5ab523f`; Sorion_pro/UI nachgezogen `fec4e57`.
+- **Nebenbefund:** Sorion_pro/UI lag bei rewards/profile/portfolio Wochen hinter sorion-ui (live). Die HANDOFF-Regel "UI/* kanonisch" wurde offenbar umgekehrt gelebt. Beim Abgleich sind alle sechs Dateien jetzt identisch.
+- **Offen (Jonas):** Gilt aktuell überhaupt ein Discord-Code? Der bekannte `SORION-PRO-DISCORD` lief am 07.10. ab. Prüfen: `select * from redeem_stats();`, sonst neuen anlegen.
+- **Nachtrag 21.10. (Entscheidung Jonas):** Pro wird doch verkauft, als Ko-fi-Abo "Pro-Supporter" 5 EUR/Monat. Gratis-Code auf Discord bleibt und steht bewusst vorn ("Testimonials sind gerade mehr wert als zahlende Kunden"). Umgesetzt als gemeinsames Pro-Fenster `openPro()` in support.js, alle Pro-Links öffnen es (sorion-ui `72da0b8`).
+- **Status:** ✅ behoben 21.10.2026 (Texte + Pro-Fenster), Code-Gültigkeit und Ko-fi-Abo-Einrichtung offen
+
+## BUG-051 - Kopfzeile sprang beim Seitenwechsel, Logo fehlte teils ganz (24.10.) - BEHOBEN
+
+**Symptom (Nutzer-Feedback):** "Wenn man oben die Seiten durchklickt, veraendert sich immer die
+Breite bzw. Hoehe vom Header. Das Logo springt die ganze Zeit durch die Gegend. Bei Leaderboard
+fehlt es komplett."
+
+**Ursache:** Jede Seite brachte ihre eigene Kopfzeile mit: vier Bauarten (mit und ohne Untertitel,
+38 oder 20 px Logo, verschiedene Abstaende), `legal.html` und `thresholds.html` ganz ohne. Und weil
+die Kopfzeile INNERHALB des Inhaltsrahmens sass, wanderte das Logo mit dessen Breite
+(640 px Profil, 920 px Gameweeks, 1600 px Markt). Dazu drei kleinere Quellen: unterschiedliche
+Scrollleisten (8 px eigene gegen Standard, `scrollbar-width: thin` nur auf drei Seiten), vererbte
+Zeilenhoehen und eine globale `button`-Regel auf `profile.html`.
+
+**Fix:** `site-header.js`, als erstes Element im `<body>` jeder Seite, setzt dieselbe Kopfzeile
+ausserhalb des Inhaltsrahmens ein. Eigene Klassen mit Praefix `sx-`, keine Tag-Selektoren, alle
+Eigenschaften ausdruecklich gesetzt, damit kein Seiten-CSS hineinwirkt. Scrollleiste und
+Scrollleisten-Platz einheitlich. Der naechtliche Generator (`tools/build-static.mjs`) fuer
+`thresholds.html` baut die Kopfzeile ebenfalls ein. "Manager Search" funktioniert von jeder Seite
+(index.html oeffnet das Fenster bei `?search=1`).
+
+**Gegenprobe:** alle acht Seiten bei 2000, 1440 und 390 px vermessen, Logo-Position, Kopfzeilen-
+groesse und Lage des Support-Knopfs identisch, keine Seite breiter als der Bildschirm.
+
+**Zwei eigene Fehler unterwegs, beide vor dem Endstand behoben:**
+1. Eine Randregel auf `thresholds.html` (`body > :not(...) { margin-left:18px }`) hatte hoehere
+   Spezifitaet als `.wrap { margin: 0 auto }` und zog den Inhalt an den linken Rand. Jonas hat es
+   im Screenshot gesehen. Jetzt Innenabstand auf `.wrap`.
+2. Beim Abschirmen des Support-Knopfs eine zweite oeffnende `.sx-support{` eingefuegt statt die
+   vorhandene zu erweitern. Das brach das CSS ab dieser Stelle, mobil griff das Desktop-Layout.
+
+**Entfallen:** Die Knoepfe "Logout" und "Connect Sorare" in der Portfolio-Kopfzeile. Die
+Anmeldung laeuft ueber "Profile". Wer sie zurueck will: eine Seite kann vor `site-header.js` ein
+`<template id="page-header-actions">` ablegen, dessen Inhalt rechts eingesetzt wird.
+
+**Lehre:** Ein Browser-Zwischenspeicher kann eine Messung verfaelschen: der erste Nachweis lief
+gegen die alte Skriptfassung. Vor dem Vermessen das Skript mit `fetch(..., {cache:'reload'})`
+erneuern.
