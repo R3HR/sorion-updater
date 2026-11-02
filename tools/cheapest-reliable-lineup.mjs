@@ -54,6 +54,11 @@ const WOCHENENDE = process.argv.includes('--wochenende');
 // (J1 Rare: 300 Aufstellungen im August, 985 im Oktober), alte Spieltage
 // beschoenigen die Gegenwart.
 const LETZTE = parseInt(arg('letzte', '0'), 10);
+// Wie viele CLASSIC-Karten die Aufstellung enthalten darf. In-Season-Wettbewerbe verlangen
+// mindestens 4 In-Season-Karten, bei 5 Slots ist also genau 1 Classic erlaubt
+// (docs/competitions/rules.json). Classic ist deutlich billiger und hat den Saison-Abschlag
+// schon hinter sich, deshalb gehoert dieser Slot ausgereizt.
+const MAXCLASSIC = parseInt(arg('classic', '0'), 10);
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const APIKEY = process.env.SORARE_APIKEY;
@@ -122,30 +127,40 @@ if (LAND) {
   cards = cards.filter(c => c.league_country === LAND || (c.league_country == null && landTeams.has(c.team_name)));
   console.log(`Laenderfilter ${LAND}: ${cards.length} von ${vorher} Kartenzeilen, ${landTeams.size} Vereine`);
 }
-const cand = new Map();
+// Je Spieler BEIDE Kartenarten fuehren, sobald ein Classic-Slot erlaubt ist. Die Punkte
+// haengen am Spieler, nicht an der Karte, nur der Preis unterscheidet sich.
+const cand = new Map();                      // Key: slug + '|' + eligibility
 for (const c of cards ?? []) {
   const eur = c.fmv ?? c.floor_price;
   if (eur == null) continue;
-  const cur = cand.get(c.player_slug);
+  if (MAXCLASSIC === 0 && !ELIG && c.eligibility !== 'in_season') continue;
+  const key = c.player_slug + '|' + c.eligibility;
+  const cur = cand.get(key);
   if (!cur || Number(eur) < cur.eur)
-    cand.set(c.player_slug, { slug: c.player_slug, name: c.player_name, pos: c.position,
+    cand.set(key, { key, slug: c.player_slug, name: c.player_name, pos: c.position,
       team: c.team_name, eur: Number(eur), elig: c.eligibility });
 }
-if (MIT && !cand.has(MIT)) {
+if (MIT && ![...cand.values()].some(c => c.slug === MIT)) {
   // Der eigene Spieler kann eine andere Eligibility haben (Classic in In-Season-Wettbewerb).
   const { data: own } = await supabase.from('card_prices')
     .select('player_slug, player_name, position, team_name').eq('player_slug', MIT).eq('scarcity', RARITY).limit(1);
-  if (own?.[0]) cand.set(MIT, { slug: MIT, name: own[0].player_name, pos: own[0].position, team: own[0].team_name, eur: 0, elig: 'besitzt' });
+  if (own?.[0]) cand.set(MIT + '|besitzt', { key: MIT + '|besitzt', slug: MIT, name: own[0].player_name,
+    pos: own[0].position, team: own[0].team_name, eur: 0, elig: 'besitzt' });
 }
 if (MIT) {
-  const f = cand.get(MIT);
-  if (!f) { console.error(`Fester Spieler ${MIT} nicht gefunden`); process.exit(1); }
-  f.eur = 0; f.elig = 'besitzt';
+  // Eigene Karte: alle Kaufvarianten dieses Spielers raus, eine Gratis-Variante rein.
+  const vorhanden = [...cand.values()].find(c => c.slug === MIT);
+  for (const k of [...cand.keys()]) if (cand.get(k).slug === MIT) cand.delete(k);
+  if (!vorhanden) { console.error(`Fester Spieler ${MIT} nicht gefunden`); process.exit(1); }
+  cand.set(MIT + '|besitzt', { ...vorhanden, key: MIT + '|besitzt', eur: 0, elig: 'besitzt' });
+  const f = cand.get(MIT + '|besitzt');
   console.log(`Fest gesetzt (kostet nichts): ${f.name}, ${f.pos}, ${f.team}`);
 }
-console.log(`${cand.size} Spieler mit ${RARITY}-Karte und Preis${ELIG ? ` (nur ${ELIG})` : ''}`);
+console.log(`${new Set([...cand.values()].map(c => c.slug)).size} Spieler, ${cand.size} Kartenvarianten`
+  + `${ELIG ? ` (nur ${ELIG})` : ''}${MAXCLASSIC ? `, bis zu ${MAXCLASSIC} Classic erlaubt` : ''}`);
 
 // 3) Punkte je Spieltag ueber die Vereine
+const playerSlugs = new Set([...cand.values()].map(c => c.slug));
 const teams = [...new Set([...cand.values()].map(c => c.team).filter(Boolean))];
 const clubsData = await gql(`{ football { clubsReady { slug name } } }`, 'clubs');
 const clubs = (clubsData?.football?.clubsReady ?? []).filter(c => teams.includes(c.name));
@@ -160,7 +175,7 @@ for (const club of clubs) {
         classic: so5Fixture(so5FixtureType: CLASSIC) { slug }
         daily:   so5Fixture(so5FixtureType: DAILY)   { slug } } } } } } } }`, club.slug);
   for (const n of d?.football?.club?.activePlayers?.nodes ?? []) {
-    if (!cand.has(n.slug)) continue;
+    if (!playerSlugs.has(n.slug)) continue;
     scores.set(n.slug, (n.so5Scores ?? []).filter(s => s?.anyGame?.date)
       .map(s => ({ date: new Date(s.anyGame.date), score: Number(s.score),
         fixtures: [s.anyGame.classic?.slug, s.anyGame.daily?.slug].filter(Boolean) })));
@@ -169,8 +184,8 @@ for (const club of clubs) {
 }
 console.log(`Punkte fuer ${scores.size} Spieler geladen`);
 
-for (const [slug, c] of cand) {
-  const list = scores.get(slug) ?? [];
+for (const [, c] of cand) {
+  const list = scores.get(c.slug) ?? [];
   c.byWeek = weeks.map(w => {
     // Sorare sagt selbst, zu welchem Spieltag ein Spiel zaehlt. Das Datumsfenster
     // war zu grob: J1-Spieltage laufen teils unter der Woche und ueberlappen.
@@ -187,7 +202,9 @@ for (const [slug, c] of cand) {
 // darf die Verlaesslichkeit nicht kaputtrechnen. Er wird ausgewiesen und uebersprungen.
 // Nur Spieler, fuer die Punkte geladen wurden. Sonst druecken Vereine, die ueber die
 // API nicht erreichbar sind, die Quote und ein normaler Spieltag gilt als "zu duenn".
-const alive = [...cand.values()].filter(c => scores.has(c.slug));
+// Abdeckung je Spieltag nur ueber In-Season-Varianten zaehlen, sonst wird jeder Spieler
+// doppelt gezaehlt und die Prozentzahl ist halbiert.
+const alive = [...cand.values()].filter(c => scores.has(c.slug) && c.elig !== 'classic');
 for (const [i, w] of weeks.entries()) {
   w.coverage = alive.filter(c => c.byWeek[i] > 0).length / (alive.length || 1);
   w.count    = alive.filter(c => c.byWeek[i] > 0).length;
@@ -206,6 +223,13 @@ const POS = { Goalkeeper: 'GK', Defender: 'DEF', Midfielder: 'MID', Forward: 'FW
 const pool = [...cand.values()].filter(c => POS[c.pos] && c.played >= 3 && c.slug !== MIT).sort((a, b) => a.eur - b.eur);
 console.log(`${pool.length} Kandidaten mit mindestens 3 Einsaetzen\n`);
 
+// Ein Spieler darf nur einmal in der Elf stehen, egal mit welcher Karte, und die
+// Classic-Grenze des Wettbewerbs muss eingehalten sein.
+const gueltig = team => {
+  if (new Set(team.map(p => p.slug)).size !== team.length) return false;
+  return team.filter(p => p.elig === 'classic').length <= MAXCLASSIC;
+};
+
 const rate = team => {
   let hit = 0;
   for (const w of scored)
@@ -222,14 +246,22 @@ for (const c of pool) c.avg = avg(c);
 // Dominanz je WOCHE, nicht im Schnitt: ein Spieler faellt nur raus, wenn ein anderer
 // hoechstens so teuer ist und in JEDER bewerteten Woche mindestens so viel bringt.
 // Ueber den Schnitt zu filtern warf Spieler weg, die genau in den knappen Wochen tragen.
-const slice = k => {
-  const l = pool.filter(c => POS[c.pos] === k).sort((a, b) => a.eur - b.eur);
+// Dominanz NUR innerhalb derselben Kartenart pruefen. Sonst verdraengt die Classic-Karte
+// eines Spielers immer seine In-Season-Karte (gleiche Punkte, billiger) und die Suche
+// landete bei lauter Classic-Karten, also ausserhalb der Wettbewerbsregel.
+const frontOf = l => {
   const front = [];
-  for (const c of l) {
+  for (const c of [...l].sort((a, b) => a.eur - b.eur)) {
     const dominated = front.some(f => f.eur <= c.eur && scored.every(w => f.byWeek[w] >= c.byWeek[w]));
     if (!dominated) front.push(c);
   }
   return front;
+};
+const slice = k => {
+  const l = pool.filter(c => POS[c.pos] === k);
+  const inS = frontOf(l.filter(c => c.elig !== 'classic'));
+  const cls = MAXCLASSIC > 0 ? frontOf(l.filter(c => c.elig === 'classic')) : [];
+  return [...inS, ...cls].sort((a, b) => a.eur - b.eur);
 };
 const G = slice('GK'), D = slice('DEF'), M = slice('MID'), F = slice('FWD');
 const extras = [...new Set([...D, ...M, ...F])].sort((a, b) => a.eur - b.eur);
@@ -238,8 +270,61 @@ console.log(`Suchraum (Pareto): ${G.length} TW x ${D.length} ABW x ${M.length} M
 // Suche mit Abbruchschranke: alle Listen sind nach Preis sortiert, also kann jeder
 // Zweig verworfen werden, sobald er das bisher billigste Team nicht mehr unterbieten kann.
 const minE = extras.length ? extras[0].eur : 0;
+
+// ZWEITE SCHRANKE, neben den Kosten: die erreichbaren PUNKTE.
+// Fuer jede Positionsliste wird je Woche das Maximum vorberechnet. Steht eine Teilauswahl
+// fest, laesst sich damit die bestmoegliche Vervollstaendigung abschaetzen. Schafft selbst
+// die die geforderte Quote nicht, ist der ganze Zweig tot.
+// Ohne das explodiert die Suche: mit Classic-Slot sind es ueber 15 Milliarden Kombinationen,
+// und die Kosten-Schranke greift erst, sobald das erste gueltige Team gefunden ist.
+const maxJeWoche = list => scored.map(w => list.reduce((m, c) => Math.max(m, c.byWeek[w]), 0));
+const maxD = maxJeWoche(D), maxM = maxJeWoche(M), maxF = maxJeWoche(F), maxE = maxJeWoche(extras);
+const nullArr = scored.map(() => 0);
+// Was schafft die OBERGRENZE, also je Position der punktbeste Spieler dieser Woche?
+// Das ist kein kaufbares Team (die Besten stehen nicht in einer Elf zusammen und waeren
+// unbezahlbar), aber es beantwortet die Vorfrage: Ist die geforderte Quote ueberhaupt
+// erreichbar? Liegt die Obergrenze unter der Schwelle, sucht man sonst stundenlang Nichts.
+{
+  const maxG = maxJeWoche(G);
+  let erreichbar = 0;
+  console.log('Obergrenze je Spieltag (punktbester Spieler je Position, nicht kaufbar):');
+  for (let i = 0; i < scored.length; i++) {
+    const w = scored[i];
+    const sum = maxG[i] + maxD[i] + maxM[i] + maxF[i] + maxE[i];
+    const ok = sum >= weeks[w].need * (1 + PUFFER);
+    if (ok) erreichbar++;
+    console.log(`  ${weeks[w].name.padEnd(13)} hoechstens ${String(Math.round(sum)).padStart(4)} pts, `
+      + `noetig ${String(Math.round(weeks[w].need * (1 + PUFFER))).padStart(4)}  ${ok ? 'machbar' : 'UNMOEGLICH'}`);
+  }
+  const maxQuote = erreichbar / scored.length;
+  console.log(`  Hoechstens erreichbare Quote: ${(maxQuote * 100).toFixed(0)} % `
+    + `(${erreichbar} von ${scored.length} Spieltagen), gefordert ${(QUOTE * 100).toFixed(0)} %`);
+  if (maxQuote < QUOTE) {
+    console.log(`\nABBRUCH: Die geforderte Quote ist in diesem Wettbewerb nicht erreichbar, `
+      + `auch nicht mit unbegrenztem Budget. Mit --quote=${maxQuote.toFixed(2)} oder weniger erneut starten.`);
+    process.exit(0);
+  }
+}
+// Erreicht die Quote noch, wenn die offenen Positionen ihr jeweiliges Maximum liefern?
+const moeglich = (feste, ...offene) => {
+  let hit = 0;
+  for (let i = 0; i < scored.length; i++) {
+    const w = scored[i];
+    let sum = feste.reduce((acc, pl) => acc + pl.byWeek[w], 0);
+    for (const arr of offene) sum += arr[i];
+    if (sum >= weeks[w].need * (1 + PUFFER)) hit++;
+  }
+  return hit / scored.length >= QUOTE;
+};
 const found = [];
-let cap = Infinity, bestQ = -1, bestTeam = null;
+let cap = Infinity, bestQ = -1, bestTeam = null, geprueft = 0;
+const t0 = Date.now();
+const tick = () => {
+  if (++geprueft % 2000000 === 0)
+    console.log(`  ... ${(geprueft / 1e6).toFixed(0)} Mio geprueft, `
+      + `${((Date.now() - t0) / 1000).toFixed(0)} s, bestes bisher `
+      + `${cap === Infinity ? 'keins' : cap.toFixed(2) + ' EUR'}`);
+};
 const fixed = MIT ? cand.get(MIT) : null;
 if (fixed) {
   // Der feste Spieler belegt seinen Positionsplatz. Gesucht werden die drei uebrigen
@@ -259,7 +344,10 @@ if (fixed) {
           const cost = bc + e.eur;
           if (cost >= cap) break;
           if (base.some(p => p.slug === e.slug)) continue;
-          const team = [...base, e], q = rate(team);
+          const team = [...base, e];
+          if (!gueltig(team)) continue;
+          tick();
+          const q = rate(team);
           if (q > bestQ) { bestQ = q; bestTeam = { cost, q, team }; }
           if (q >= QUOTE) { found.push({ cost, q, team }); if (cost < cap) cap = cost; }
         }
@@ -269,11 +357,15 @@ if (fixed) {
 } else {
   for (const g of G) {
     if (g.eur + D[0].eur + M[0].eur + F[0].eur + minE >= cap) break;
+    if (!moeglich([g], maxD, maxM, maxF, maxE)) continue;
     for (const d of D) {
       if (g.eur + d.eur + M[0].eur + F[0].eur + minE >= cap) break;
+      if (!moeglich([g, d], maxM, maxF, maxE)) continue;
       for (const m of M) {
         if (g.eur + d.eur + m.eur + F[0].eur + minE >= cap) break;
+        if (!moeglich([g, d, m], maxF, maxE)) continue;
         for (const f of F) {
+          if (!moeglich([g, d, m, f], maxE)) continue;
           const baseCost = g.eur + d.eur + m.eur + f.eur;
           if (baseCost + minE >= cap) break;
           const base = [g, d, m, f];
@@ -281,7 +373,10 @@ if (fixed) {
             const cost = baseCost + e.eur;
             if (cost >= cap) break;
             if (base.some(p => p.slug === e.slug)) continue;
-            const team = [...base, e], q = rate(team);
+            const team = [...base, e];
+            if (!gueltig(team)) continue;
+            tick();
+            const q = rate(team);
             if (q > bestQ) { bestQ = q; bestTeam = { cost, q, team }; }
             if (q >= QUOTE) { found.push({ cost, q, team }); if (cost < cap) cap = cost; }
           }
@@ -294,7 +389,7 @@ if (fixed) {
 const seen = new Set();
 const uniq = [];
 for (const r of found.sort((a, b) => a.cost - b.cost || b.q - a.q)) {
-  const key = r.team.map(p => p.slug).sort().join('|');
+  const key = r.team.map(p => p.key).sort().join('#');
   if (seen.has(key)) continue;
   seen.add(key); uniq.push(r);
 }
@@ -312,8 +407,10 @@ const show = r => {
 };
 
 if (!found.length) {
-  console.log(`Kein Team im Suchraum erreicht ${(QUOTE * 100).toFixed(0)} %. Bestes gefundenes:`);
-  if (bestTeam) show(bestTeam);
+  console.log(`Kein Team im Suchraum erreicht ${(QUOTE * 100).toFixed(0)} %.`);
+  if (bestTeam) { console.log('Bestes gefundenes:'); show(bestTeam); }
+  else console.log('Es wurde keine einzige gueltige Elf bewertet: die Punkte-Schranke hat alle '
+    + 'Zweige verworfen. Quote senken oder Puffer entfernen.');
 } else {
   console.log(`${found.length} Kombinationen ueber ${(QUOTE * 100).toFixed(0)} % Trefferquote\n`);
   for (const r of found.slice(0, TOP)) show(r);
