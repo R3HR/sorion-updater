@@ -966,3 +966,64 @@ Anmeldung laeuft ueber "Profile". Wer sie zurueck will: eine Seite kann vor `sit
 **Lehre:** Ein Browser-Zwischenspeicher kann eine Messung verfaelschen: der erste Nachweis lief
 gegen die alte Skriptfassung. Vor dem Vermessen das Skript mit `fetch(..., {cache:'reload'})`
 erneuern.
+
+## BUG-056 - Erste Runde eines neuen Sets landete im alten Set, Ausgeschiedener als 11. Manager (31.10.) - BEHOBEN
+
+**Symptom:** Nach dem Start von DIVINATION (30.10.) rechnete der Bot R74 noch in Hyperglitch (Set-Runde 42):
+Namiunk_022 stand mit 258 Punkten vorn statt ParisBoemboem als Champion mit 250. Nach dem Anlegen von Set 3
+erschien MaisonPanda als 11. Manager mit 0 Punkten und ❌❌❌.
+**Ursache:** (1) Der Bot ordnet eine Runde dem aktiven Set zu; Set 3 wurde erst nach der Runde angelegt
+(`set_admin` ist bewusst manuell). (2) `members` in `computeStandings` nahm jeden Slug, der je in
+`squad_step_scores` stand; die Nachfolge-Regel (Set 2) galt nur im eigenen Set.
+**Fix:** Migration `20261031100000_squad_set3_divination.sql` (Set 2 zu 29.10., Set 3 angelegt, R74 als Set-Runde 1
+umgehängt), `20261031110000_squad_set3_block_anchor.sql` (Block-Anker 30.10. nach Vorgabe Captain). Code:
+Manager, die in einem früheren Set per Nachfolge ausgeschieden sind, zählen im späteren Set nicht mehr zu `members`.
+Titel und Saison-Label des Boards nehmen den Setnamen statt "Hyperglitch".
+**Lehre / offen:** Das neue Set VOR der ersten Runde anlegen (Set schließen, öffnen, Anker setzen). Eine Prüfung im
+Bot fehlt, die vor Rundenzuordnung auf ein ausgelaufenes `planned_end_on` hinweist.
+
+
+## BUG-043 - essence_value() liefert den Mittelwert, ein einziger Craft dominiert ihn (02.11.) - OFFEN
+
+- **Symptom:** `essence_value()` gibt fuer Rare **73,53 EUR je 1000 Essence** aus (samples 7).
+  Das ist als Rechengrundlage unbrauchbar hoch.
+- **Befund:** Es gibt nur 7 Rare-Crafts ueberhaupt. Sechs davon kosteten 1000 Essence und brachten
+  im Median 7,56 EUR (Spanne 1,77 bis 87,09). Der siebte war Aleix Garcia: 2000 Essence,
+  450,67 EUR. Dieser eine Treffer zieht den Mittelwert um Faktor 10 nach oben.
+- **Warum das zaehlt:** Der Wert geht in jede Ertragsrechnung ein (Essence-Rewards, Amortisation
+  eines Teams, IDEA-001). Mit 73,53 statt 7,56 sieht jedes Essence-Reward zehnmal so gut aus.
+- **Fix-Vorschlag:** `essence_value()` auf den MEDIAN umstellen und die Stichprobengroesse
+  mitliefern, damit die Seite "n = 6" anzeigen kann statt einer Scheingenauigkeit. Bei n < 20
+  gar keinen Einzelwert zeigen, sondern die Spanne.
+- **Zusatzbefund:** Die Funktion ist inzwischen nicht mehr oeffentlich aufrufbar
+  (permission denied fuer die Query-Rolle), vermutlich SEC-004-Nachzug. Beim Fix mitpruefen,
+  ob die Seite sie noch erreicht.
+
+## BUG-044 - lineup_costs enthaelt nur Gewinner, Auswertungen ueberschaetzen billige Teams (02.11.) - DOKUMENTIERT
+
+- **Symptom:** Die Auswertung "welcher Rang je Preisklasse" legt nahe, dass ein 10-EUR-Team in
+  J1 Rare im Median Rang 557 erreicht und damit Essence holt.
+- **Ursache:** `lineup_costs` erfasst ausschliesslich Aufstellungen aus den BEZAHLTEN Raengen.
+  Ein billiges Team, das auf Rang 700 landete und leer ausging, steht nicht in der Tabelle.
+  Jede Aussage der Form "ein Team fuer X EUR gewinnt Y" ist damit nach oben verzerrt.
+- **Richtig lesen:** Die Zahlen beantworten "WENN ein Team dieser Preisklasse gewann, wie hoch
+  kam es", nicht "wie oft gewinnt ein Team dieser Preisklasse".
+- **Fuer Trefferquoten** ist `tools/cheapest-reliable-lineup.mjs` zustaendig: Es rechnet jede
+  Kandidaten-Elf gegen JEDEN Spieltag, auch gegen die, an denen sie nichts geholt haette.
+
+## BUG-045 - Zweites .select() in derselben Supabase-Query lieferte still null Zeilen (02.11.) - BEHOBEN
+
+- **Symptom:** `cheapest-reliable-lineup.mjs` fand fuer J1 League "0 Spieler mit rare-Karte und
+  Preis", obwohl `card_prices` 769 passende Zeilen hat. Der Lauf brach nicht ab, sondern rechnete
+  mit leerem Kandidatenfeld weiter und meldete am Ende "Kein Team erreicht 75 %". Das sah nach
+  einem fachlichen Ergebnis aus, war aber ein Datenfehler.
+- **Ursache:** Beim Einbau des Laenderfilters wurde ein ZWEITES `.select()` an dieselbe Query
+  angehaengt, um `league_country` nachzuziehen:
+  `from(...).select(A).ilike(...).eq(...)` und danach `cq = cq.select(B)`.
+  Das zweite select setzt die Query zurueck, die Filter gehen verloren oder die Anfrage wird
+  ungueltig. Bei LaLiga fiel es nicht auf, weil dort zufaellig Zeilen zurueckkamen.
+- **Fix:** Nur noch EIN `select` mit allen Spalten. Zusaetzlich bricht das Werkzeug jetzt mit
+  Fehlermeldung ab, wenn die Kartenabfrage leer bleibt, statt ein Scheinergebnis zu liefern.
+- **Lektion:** Ein Nullergebnis aus einer Abfrage ist erst dann ein Befund, wenn die Abfrage
+  selbst geprueft ist. Jeder Auswertungsschritt, der mit leerer Menge weiterrechnen kann, braucht
+  einen harten Abbruch. Siehe auch die Regel aus dem Level-Fehlbefund vom 12.09.

@@ -43,6 +43,17 @@ const MIT = arg('mit', null);
 // Land der Liga (league_country). Noetig, weil Ligennamen nicht eindeutig sind:
 // "Primera División" heisst die Liga auch in Chile, Venezuela, Costa Rica, Bolivien.
 const LAND = arg('land', null);
+// Ziel: 'cash' (Standard) oder 'essence'. Essence-Raenge sind viel breiter, das billigste
+// verlaessliche Team liegt dort deutlich tiefer (Frage Jonas 14.09.: Essence zum Craften).
+const ZIEL = arg('ziel', 'cash');
+const SCORE_COL = ZIEL === 'essence' ? 'essence_score' : 'cash_score';
+// Nur Spieltage, die freitags beginnen. Die Dienstag-bis-Freitag-Fenster sind fuer Ligen
+// wie LaLiga fast leer (kaum Spiele unter der Woche) und ein eigener, kleiner Wettbewerb.
+const WOCHENENDE = process.argv.includes('--wochenende');
+// Nur die juengsten N Spieltage bewerten. Die Felder wachsen ueber die Saison
+// (J1 Rare: 300 Aufstellungen im August, 985 im Oktober), alte Spieltage
+// beschoenigen die Gegenwart.
+const LETZTE = parseInt(arg('letzte', '0'), 10);
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const APIKEY = process.env.SORARE_APIKEY;
@@ -64,28 +75,43 @@ async function gql(query, label) {
 
 // 1) Schwellen der abgeschlossenen Spieltage
 const { data: thr } = await supabase.from('reward_thresholds')
-  .select('fixture_slug, fixture_name, start_date, cash_score, lineups')
-  .eq('competition', LIGA).eq('rarity', RARITY).not('cash_score', 'is', null)
+  .select(`fixture_slug, fixture_name, start_date, ${SCORE_COL}, lineups`)
+  .eq('competition', LIGA).eq('rarity', RARITY).not(SCORE_COL, 'is', null)
   .order('start_date');
-if (!thr?.length) { console.error(`Keine Cash-Schwellen fuer ${LIGA} / ${RARITY}`); process.exit(1); }
-console.log(`Sicherheitsabstand: ${(PUFFER * 100).toFixed(0)} % ueber der Cash-Schwelle`);
-console.log(`${LIGA} ${RARITY}: ${thr.length} Spieltage mit Cash-Schwelle `
-  + `(${Math.min(...thr.map(t => +t.cash_score)).toFixed(0)} bis ${Math.max(...thr.map(t => +t.cash_score)).toFixed(0)} Punkte)`);
+if (!thr?.length) { console.error(`Keine ${ZIEL}-Schwellen fuer ${LIGA} / ${RARITY}`); process.exit(1); }
+console.log(`Ziel: ${ZIEL.toUpperCase()}, Sicherheitsabstand ${(PUFFER * 100).toFixed(0)} % ueber der Schwelle`);
+console.log(`${LIGA} ${RARITY}: ${thr.length} Spieltage mit ${ZIEL}-Schwelle `
+  + `(${Math.min(...thr.map(t => +t[SCORE_COL])).toFixed(0)} bis ${Math.max(...thr.map(t => +t[SCORE_COL])).toFixed(0)} Punkte)`);
 
-const weeks = thr.map((t, i) => ({
-  slug: t.fixture_slug, name: t.fixture_name, need: Number(t.cash_score),
+let weeks = thr.map((t, i) => ({
+  slug: t.fixture_slug, name: t.fixture_name, need: Number(t[SCORE_COL]),
   from: new Date(t.start_date + 'T00:00:00Z'),
   to: thr[i + 1] ? new Date(thr[i + 1].start_date + 'T00:00:00Z')
                  : new Date(+new Date(t.start_date + 'T00:00:00Z') + 7 * 864e5),
 }));
+if (LETZTE > 0 && weeks.length > LETZTE) {
+  const vorher = weeks.length;
+  weeks = weeks.slice(-LETZTE);
+  console.log(`Nur die juengsten ${weeks.length} von ${vorher} Spieltagen (${weeks[0].name} bis ${weeks[weeks.length - 1].name})`);
+}
+if (WOCHENENDE) {
+  const vorher = weeks.length;
+  weeks = weeks.filter(w => w.from.getUTCDay() === 5);
+  console.log(`Nur Wochenend-Spieltage (Start Freitag): ${weeks.length} von ${vorher}`);
+}
 
 // 2) Kandidaten mit Preisen
 let cq = supabase.from('card_prices')
-  .select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name')
+  .select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name, league_country')
   .ilike('league_name', KARTENLIGA).eq('scarcity', RARITY);
 if (ELIG) cq = cq.eq('eligibility', ELIG);
-cq = cq.select('player_slug, player_name, position, eligibility, fmv, floor_price, team_name, league_country');
-const { data: rawCards } = await cq;
+const { data: rawCards, error: cardErr } = await cq;
+if (cardErr) { console.error(`card_prices: ${cardErr.message}`); process.exit(1); }
+if (!rawCards?.length) {
+  console.error(`Keine Karten fuer league_name ILIKE "${KARTENLIGA}", scarcity ${RARITY}`
+    + `${ELIG ? `, eligibility ${ELIG}` : ''}. Schreibweise pruefen.`);
+  process.exit(1);
+}
 // Laenderfilter mit Rueckfall: Manche Zeilen haben league_country = null (BUG-042),
 // obwohl der Verein eindeutig spanisch ist. Ein strikter Filter wuerde sie verlieren.
 // Deshalb: Land passt, ODER kein Land und der Verein kommt mit diesem Land vor.
@@ -275,7 +301,7 @@ for (const r of found.sort((a, b) => a.cost - b.cost || b.q - a.q)) {
 found.length = 0; found.push(...uniq);
 
 const show = r => {
-  console.log(`== ${r.cost.toFixed(2)} EUR, Cash in ${Math.round(r.q * scored.length)} von ${scored.length} Wochen (${(r.q * 100).toFixed(0)} %)`);
+  console.log(`== ${r.cost.toFixed(2)} EUR, ${ZIEL} in ${Math.round(r.q * scored.length)} von ${scored.length} Wochen (${(r.q * 100).toFixed(0)} %)`);
   for (const p of r.team)
     console.log(`   ${(p.name || p.slug).slice(0, 22).padEnd(23)} ${POS[p.pos].padEnd(4)} `
       + `${(p.team || '').slice(0, 20).padEnd(21)} ${p.eur.toFixed(2).padStart(7)} EUR ${p.elig.padEnd(10)} `
