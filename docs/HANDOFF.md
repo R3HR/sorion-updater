@@ -227,7 +227,9 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
   (c) `blocks` kennt die Sonderfaelle aus Abschnitt 5 nicht: Block unter 6 Runden nicht werten und in den naechsten wachsen lassen; Schlussblock unter 6 Runden gar nicht werten; unter 60 % Teilnahme fuer den Manager nicht werten. **Relevant fuer den 21.09.:** Block 1 hat aktuell 5 Runden.
   (d) Spezifikation 2 nennt `overCap[].managers` noch "nach firstSeen sortiert" - seit schemaVersion 2 nach Bonus sortiert mit `suggestedPenalty`.
 
-**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **10.10. — Claim-Frist bleibt individuell + Vorwarnung (Entscheidung Captain):** Regel 6.3 bleibt wie geschrieben: Ein Claim gilt bis 30 Min vor dem ersten Anpfiff des **Betroffenen**, spaetestens 19:00. Eine Frist fuer alle wurde verworfen (am Wochenende laufen viele Spiele vor 19:00, z. B. alle deutschen), eine individuelle Untergrenze ebenfalls ("sorgt fuer Chaos"). **Keine Umlenkung:** Ist ein Claim gegen den Schwaechsten zu spaet, ist er ungueltig, der Claimende stellt um oder zahlt - der Bot lenkt nicht auf den Naechstschwaecheren um. Bekannte Luecke, bewusst hingenommen: Wer frueh spielt, ist nach seiner Frist auch mit der schwaechsten Kopie geschuetzt. Dagegen **neu: Vorwarnung** (`claimclose:<step>:<manager>`, #lineups, ohne Ping): 30 Min vor einer Frist **vor 19:00** meldet der Bot, gegen wen bald nicht mehr geclaimt werden kann und bei welchen Spielern auf 4/4 er die schwaechste Kopie haelt (gleiche Regel wie beim Claim, `weakestIn`). Erster Live-Lauf 10.10. 14:55: enexxx (Davies), andreihaha (Olise). **Noch offen:** Die Abend-Erinnerung ("30 minutes left to claim") faellt aus, sobald irgendeine Aufstellung gesperrt ist (`!anyLocked`), und ihre Frist springt, wenn spaet eine Aufstellung mit frueherem Anpfiff dazukommt (10.10.: keine Erinnerung). Text nennt ausserdem nur eine Uhrzeit. Umbau vorgeschlagen, nicht beauftragt.
+**18.09. — Board-Fallback bei leerer Board-Liste (BUG-048):** Sorare lieferte `boards(mode: SQUAD)` ab ca. 09:50 UTC leer, das Board mit offener Stage 5 war per `board(id)` aber abrufbar - Bot lief (200 OK), sah aber nichts. Jetzt: bei leerer Liste holt der Poll das zuletzt bekannte Board mit offener Stage per ID; Poll-Antwort `boardFallback` zeigt es an. **05.11. — Boardwechsel nach gescheiterter Stage 5: setBoard hing stundenlang hinterher.** Stage 5 (Set 3, Board `58437f5b`) scheiterte am 04.11. (Meldung 23:00 Berlin). Am 05.11. lieferte `currentUser.setBoard` bis **mindestens 11:20 Berlin** weiter dieses fertige Board (alle 5 Stages abgeschlossen), obwohl das neue Board `56e54026` laengst existierte und 7 Manager dort schon aufgestellt hatten. Der Bot lief fehlerfrei (200 OK), sah aber keine offene Stage und meldete nichts. Um 11:27 lieferte `setBoard` das neue Board, der naechste Poll holte alles nach (7 Aufstellungen, Cap James Hill). Die Board-Liste `boards(mode: SQUAD)` ist weiterhin leer. **Kein Bot-Fehler im Code** - es gibt keine andere bekannte Quelle fuer das neue Board. Moegliche Absicherung (angeboten, nicht gebaut): Waechter, der Jonas privat meldet, wenn an einem Spieltag (`nextMatchdayAt` des letzten Boards) ab ca. 09:30 keine offene Stage sichtbar ist.
+
+**10.10. — Claim-Frist bleibt individuell + Vorwarnung (Entscheidung Captain):** Regel 6.3 bleibt wie geschrieben: Ein Claim gilt bis 30 Min vor dem ersten Anpfiff des **Betroffenen**, spaetestens 19:00. Eine Frist fuer alle wurde verworfen (am Wochenende laufen viele Spiele vor 19:00, z. B. alle deutschen), eine individuelle Untergrenze ebenfalls ("sorgt fuer Chaos"). **Keine Umlenkung:** Ist ein Claim gegen den Schwaechsten zu spaet, ist er ungueltig, der Claimende stellt um oder zahlt - der Bot lenkt nicht auf den Naechstschwaecheren um. Bekannte Luecke, bewusst hingenommen: Wer frueh spielt, ist nach seiner Frist auch mit der schwaechsten Kopie geschuetzt. Dagegen **neu: Vorwarnung** (`claimclose:<step>:<manager>`, #lineups, ohne Ping): 30 Min vor einer Frist **vor 19:00** meldet der Bot, gegen wen bald nicht mehr geclaimt werden kann und bei welchen Spielern auf 4/4 er die schwaechste Kopie haelt (gleiche Regel wie beim Claim, `weakestIn`). Erster Live-Lauf 10.10. 14:55: enexxx (Davies), andreihaha (Olise). **Noch offen:** Die Abend-Erinnerung ("30 minutes left to claim") faellt aus, sobald irgendeine Aufstellung gesperrt ist (`!anyLocked`), und ihre Frist springt, wenn spaet eine Aufstellung mit frueherem Anpfiff dazukommt (10.10.: keine Erinnerung). Text nennt ausserdem nur eine Uhrzeit. Umbau vorgeschlagen, nicht beauftragt.
 
 **02.10. — S11-Warnungen (BUG-050, BUG-051):** Zwei Fehler in Folge. (1) `s11Snapshot` hing noch an der alten Board-Liste und war seit dem 19.09. **komplett stumm** - jetzt dieselbe Quellenfolge wie der Poll (Liste -> `setBoard`). (2) Eine Partie galt als auswertbar, sobald **eine** Mannschaft aufgestellt war; ein Spieler der anderen wurde dann als "nicht im Kader" gemeldet (Nanasi, in Wahrheit Startelf). Jetzt muessen **beide** Formationen veroeffentlicht sein, sonst `pending` und keine Warnung.
 
@@ -237,7 +239,7 @@ Erste Auswertung der wiederhergestellten fmv_accuracy (14.968 Zeilen vom ersten 
 
 **05.10. — Nachfolge auf einem Platz (Regelwerk 7.3):** Tabelle `squad_successions` (Migration 20261005210000): `from_slug` zaehlt bis `from_last_round`, `to_slug` ab `to_after_round + 1`. `computeStandings` filtert Ergebnisse/0-Runden ueber `activeIn(m, round)` und uebertraegt danach (nach den Strafen) die PUNKTE auf den Nachfolger, nicht Summe/Rundenzahl. `blocks`: Linien jetzt aus dem Punkte-Ø JE RUNDE ueber die besetzten Plaetze (ohne Vakanz identisch zum alten Wert, verifiziert Block 1/2), Linie je Manager ueber seine eigenen Runden (`conditions.*.line` ist jetzt pro Manager), Platzhalter je Block (Vorgaenger in alten Bloecken, `leftSquad`/`inheritedFrom`), keine Vorschlaege fuer Ausgeschiedene. Erster Fall: maisonpanda -> henrytemo, R54/R55. **Offen:** Discord-ID von HenryTemo fuer @-Mentions nachtragen.
 
-**18.10. — Skill `squad-leaderboard`** (`C:\craft-log\.claude\skills\squad-leaderboard\`): `scripts/render.py` holt standings/report/blocks/rounds/cap_instructions/penalties, macht die Sorare-Gegenprobe und schreibt Leaderboard + Last-Stage-Post nach `_squad_snapshots\posts\posts_R<n>.txt`, dazu eine Pruefliste (fehlende Lineups, Cap-Verstoesse, Gleichstaende, zwei ❌, Blockende). Getestet an R65: identisch mit der Handrechnung. Python ueber den vollen Pfad aufrufen, der Windows-Alias `python` ist kaputt. Noch nicht drin: Weekly-Post. **21.10.:** Rendering liegt jetzt serverseitig in der rein lesenden Action `posts` (Read-Token genuegt, `&format=text` fuer Bots ohne JSON); `render.py` holt nur noch den Text. Grund: der Skill sollte an einen anderen Bot, der das Cron-Secret nicht bekommen darf (SEC-007). Server- und Lokal-Ausgabe an R67 zeichengleich verglichen. **21.10. (2):** Weekly ist drin: rein lesende Action `weekly` (`&week=JJJJ-MM-TT` optional, Standard = letzte abgeschlossene Woche Mo–So nach Spieltag) liefert Weekly Results + Strike Conditions des laufenden Blocks (Regelwerk 9/10.3/17.3), `render.py weekly`. Getestet an der Woche 12.–18.10. (R60–R65). `posts` meldet montags `MONTAG: Weekly faellig`. Captain: ab Set 3 wieder jeden Montag posten.
+**18.10. — Skill `squad-leaderboard`** (`C:\craft-log\.claude\skills\squad-leaderboard\`): `scripts/render.py` holt standings/report/blocks/rounds/cap_instructions/penalties, macht die Sorare-Gegenprobe und schreibt Leaderboard + Last-Stage-Post nach `_squad_snapshots\posts\posts_R<n>.txt`, dazu eine Pruefliste (fehlende Lineups, Cap-Verstoesse, Gleichstaende, zwei ❌, Blockende). Getestet an R65: identisch mit der Handrechnung. Python ueber den vollen Pfad aufrufen, der Windows-Alias `python` ist kaputt. Noch nicht drin: Weekly-Post. **21.10.:** Rendering liegt jetzt serverseitig in der rein lesenden Action `posts` (Read-Token genuegt, `&format=text` fuer Bots ohne JSON); `render.py` holt nur noch den Text. Grund: der Skill sollte an einen anderen Bot, der das Cron-Secret nicht bekommen darf (SEC-007). Server- und Lokal-Ausgabe an R67 zeichengleich verglichen. **21.10. (2):** Weekly ist drin: rein lesende Action `weekly` (`&week=JJJJ-MM-TT` optional, Standard = letzte abgeschlossene Woche Mo–So nach Spieltag) liefert Weekly Results + Strike Conditions des laufenden Blocks (Regelwerk 9/10.3/17.3), `render.py weekly`. Getestet an der Woche 12.–18.10. (R60–R65). `posts` meldet montags `MONTAG: Weekly faellig`. Captain: ab Set 3 wieder jeden Montag posten. **23.10.:** R69 drei Cap-Strafen gebucht (Namiunk_022 -5 Schick, -5 García; HenryTemo -5 García, sein 2. Cap im Set). Strafzeilen im Last-Stage-Post nennen jetzt den Spieler (aus dem Strafgrund). **Offen:** `report.overCap[].suggestedPenalty` nennt nur EINEN Manager, auch wenn ein Spieler 2 ueber dem Cap liegt (García 6x) - muss count-4 Manager vorschlagen. **31.10.:** Set 3 DIVINATION angelegt (Start 30.10., Block-Anker 30.10. nach Captain, Block 1 = 30.10.-12.11., Auswertung Fr 13.11.), Hyperglitch zum 29.10. geschlossen, Endstand nach R73: ParisBoemboem 250, Namiunk_022 248, McBeast 231. R74 = Set-Runde 1 (BUG-056). **Neu ab Set 3:** unentschuldigtes Fehlen -10. **Offen:** `planned_end_on` fuer Set 3 nicht gesetzt; Weekly 19.-25.10. wurde nicht gepostet.
 
 **16.09. — Ticker-Schlussfassung nach Rundenende (BUG-047):** Der Ticker fror auf dem letzten Live-Wert ein (Stage 2: 991.55 statt Endstand 990.71), weil er nur bei aktiver Stage bearbeitet wurde und Sorare nach Abpfiff noch korrigiert. Datenbank war korrekt. Jetzt am Ende jedes Polls: abgeschlossene Stages (48-h-Fenster) werden aus den DB-Scores als **"· Final"** neu gerendert und **in place bearbeitet**, nur bei Inhaltsaenderung (`squad_ticker_messages.render_hash`, `final_at`). Nie Neupost, keine Ereignismeldungen. Verifiziert: gleiche `message_id`, zweiter Poll ohne Bearbeitung; Stage 1 und 2 des aktuellen Boards haben ihre Schlussfassung.
 
@@ -559,6 +561,19 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
+**🔴 NEU 22.10. · ZUERST: Railway-Einbruch, Schluessel rotieren (SEC-008)**
+Railway meldet am 22.10., dass ein Dritter moeglicherweise Umgebungsvariablen abgerufen und
+teils entschluesselt hat. Alles, was in Railway liegt, gilt als offengelegt: vor allem
+`SUPABASE_SERVICE_KEY` (DB-Vollzugriff) und darueber Jonas' Sorare-Tokens aus `squad_tokens`
+(Klartext, Service-Rolle umgeht RLS), ausserdem `CRON_SECRET`, `SORARE_APIKEY`,
+`KOFI_VERIFICATION_TOKEN`, Discord-Webhook. Dienste laufen weiter (Preise 22.10. 04:59 UTC
+aktuell), nur Builds sind gestoppt. **Vollstaendige Bewertung und die 7 Rotationsschritte in
+der Reihenfolge, die keinen Ausfall erzeugt: [INCIDENTS.md](INCIDENTS.md) SEC-008.**
+Reihenfolge kurz: neuen `sb_secret` anlegen, ueberall setzen, dann alten loeschen →
+Sorare-Tokens neu seeden → `SORARE_APIKEY` → `CRON_SECRET` → Ko-fi und Discord →
+Logs auf Missbrauch pruefen → Railway-Konto selbst absichern (`railway login` ist bereits
+ungueltig).
+
 **NEU 25.09. — Anmeldung nur mit Sorare: zwei Schritte fehlen, REIHENFOLGE beachten**
 Ziel (Jonas): Konto anlegen und anmelden ausschliesslich ueber Sorare, ohne eigene Mailadresse.
 Das Backend konnte das laengst (`sorare-oauth`, action `login`: legt bei Bedarf einen Auth-Nutzer
@@ -819,7 +834,8 @@ insgesamt) und `expires_at` (bis wann einloesbar). Dazu seit 07.09. die Regel
 EIN Konto denselben Code mehrfach einloesen und die Laufzeit jedes Mal verlaengern koennen.
 Beispiel fuer einen Discord-Code, 1 Monat Pro, 50 Einloesungen, gueltig bis 07.10.:
 `select create_redeem_code('SORION-PRO-DISCORD', 'pro', 1, 50, '2026-10-07', 'Discord Launch');`
-Nutzung pruefen: `select * from redeem_stats();` (Codes stehen nur als Hash in der DB —
+Nutzung pruefen: `select * from redeem_stats();`
+**Monatliche Discord-Codes:** Oktober (bis 10.11., 3 von 50 genutzt), November `SORION-PRO-NOV26` (angelegt 12.11., bis 12.12.). (Codes stehen nur als Hash in der DB —
 die **Notiz** beim Anlegen ist die Wiedererkennung).
 
 ### Creator-Zugang (Testen der Bezahl-Features)
@@ -918,6 +934,11 @@ zeigen. Danach Schalter aus, Seite neu laden: beide zeigen Platzhalter mit Schlo
   Code geprueft: Die Ko-fi-Pipeline (`dedup → enrich → announce → persist`) vergibt KEINE
   Stufe, also auch kein Pro. Vergabe nur manuell per `set_user_tier(...)` und nur, wenn zu
   der Mail ein Sorion-Konto existiert. Mail nicht in Doku/Chat uebernehmen.
+  **21.10.2026, Pro-Verkauf (Entscheidung Jonas):** Pro gibt es auf zwei Wegen: (1) GRATIS per Discord-Code,
+  steht in jedem Pro-Hinweis zuerst und am lautesten (Feedback/Testimonials > Umsatz), (2) Ko-fi-Abo
+  "Pro-Supporter" 5 EUR/Monat. Einmal-Trinkgelder schalten nichts frei. UI: `openPro()` in support.js
+  ist die EINZIGE Stelle fuer Pro-Werbung, alle Pro-Links rufen sie auf. Zustellung an Zahlende: Code
+  per Ko-fi-Willkommensnachricht (Einrichtung Jonas, siehe BUG-055).
 - **Produktfrage:** einen Wettbewerb als Kostprobe offen lassen, damit die Seite auf Reddit
   ihren Aufhaenger behaelt?
 - **Preisfrage:** Partner-API-Staffel (29-49 EUR/Monat) ist nur Konzept, siehe
@@ -1049,6 +1070,11 @@ JEMALS erspielt hat — ueber alle Manager hinweg.
 
 ## 🛠 Migrationen laufen jetzt per CLI (seit 06.09.2026)
 
+**AENDERUNG 12.11.2026 (neue CLI-Version):** `--linked` ist veraltet, es heisst jetzt `--remote`.
+Und jede Abfrage gegen die Produktion verlangt eine Bestaetigung: lesend `--read-only`, schreibend
+`--yes`. Ohne einen der beiden bricht die CLI mit "Confirmation required" ab und aendert nichts.
+`redeem_stats()` ist im Lesemodus gesperrt, stattdessen `redeem_codes` direkt lesen.
+
 Kein Kopieren in den SQL-Editor mehr. Aus `C:\craft-log\supabase` (dort ist die CLI eingeloggt
 und das Projekt verknuepft):
 
@@ -1069,8 +1095,92 @@ kein Fehler. `analytics_prune` bleibt ohne Zeitzonen-Setting (400-Tage-Loeschung
 - `2026-08-25_factor-data.mjs` — Datenlauf der FMV-Faktoren-Analyse (nur lesend, anonym; Ausgaben in `tools/analysis-out/`, ~80 MB, nicht committen)
 - `2026-08-25_fmv-v33-backtest.mjs` — offline-Reproduktion des v3.3-Backtests (liest analysis-out, kein API/DB-Zugriff)
 - `2026-08-25_fmv-v33-proposal.mjs` — VORSCHLAG: kompletter Ersatz fuer `lib/fmv.mjs` (bedingter SELL_CAP); Einbau nur durch Jonas nach Checkliste oben
+- `2026-10-21_sammlung-kalkulator.mjs`: bewertet eine FREMDE Sammlung vor dem Kauf: Bulk-Filter nach echter Liquiditaet, VK je Segment, EK-Gebot. Aufruf `--manager=<slug> [--rarities=limited,rare,super_rare,unique] [--fenster=30] [--minpreis=1] [--abschlag=0.7]`, CSV in `tools/analysis-out/`. Nur lesend, keine Schreibzugriffe auf Sorare. Befunde im Abschnitt "Sammlung kaufen und weiterverkaufen".
+- `2026-10-21_listen-plan.mjs`: macht aus der Kalkulator-CSV die Arbeitsliste zum Listen, Preisvorschlag je Karte (geduldig und unterboten), Aufteilung in Block "hand" und Block "masse". Laeuft offline auf der CSV, `--csv=<datei> [--grenze=1]`.
 - KEINEN Cron fuer diese Werkzeuge anlegen — Einmal-/Diagnose-Skripte, Dauerlast war die INC-005/006-Falle
 - Vorbereiteter Analyse-Auftrag: `C:\Users\Jonas\Documents\Bot2B\07_Wissen\Prompts_Bibliothek\Sorion_FMV_Faktoren_Analyst.json` — prueft, ob Score/Einsatzquote/Liga/Club die VERKAUFSPREISE ueber v3.2 hinaus erklaeren (Ziel: Formel-Faktoren fuer v3.3+). Kernregeln stehen im Prompt: gegen Verkaeufe messen (nie gegen den eigenen FMV — zirkulaer), Walk-Forward-Backtest vor jedem Formel-Vorschlag, DB nur lesend.
+
+## Sammlung kaufen und weiterverkaufen (Frage Jonas 21.10.2026)
+
+Ausgangsfrage: eine ganze Sammlung von einem Freund kaufen und zum Sorion-Preis verkaufen.
+Werkzeug: `tools/2026-10-21_sammlung-kalkulator.mjs`.
+
+**Commons werden nicht bewertet (Ansage Jonas 21.10.):** gehandelt werden limited, rare,
+super_rare, unique. Der Standard des Werkzeugs ist
+`--rarities=limited,rare,super_rare,unique`, der Filter sitzt serverseitig in Sorares
+`cards(rarities:)`. Bei der Beispielsammlung sparte das 1.468 von 1.855 Karten und rund
+30 Seitenabrufe. Commons stehen ohnehin nicht in `card_prices`, sie werden nicht getrackt,
+weil sie praktisch nicht gehandelt werden.
+
+**Echte Sammlung sorare-ma, 387 handelbare Karten (375 limited, 4 rare, 8 super_rare),
+Lauf 21.10.:** die Preisschwelle entscheidet das Bild fast allein.
+
+| Variante | verkaeuflich | Netto nach 5 % | EK-Gebot (0,7) | Median je Karte |
+|---|---|---|---|---|
+| `--minpreis=1` (Standard) | 55 von 387 | 271,68 EUR | 190,18 EUR | 2,56 EUR |
+| `--minpreis=0` (alles) | 347 von 387 | 369,25 EUR | 258,47 EUR | 0,34 EUR |
+
+Der Unterschied sind **292 Karten mit zusammen rund 98 EUR**, also 33 Cent im Schnitt. Diese
+Karten sind liquide, sie verkaufen sich. Es sind aber 292 Listings plus Nachpflege fuer den
+Gegenwert von zwei Super Rares. **Das ist der eigentliche Rechtfertigungsgrund fuer einen
+Verkaufs-Bot**, nicht die 55 teuren Karten, die man in einer Stunde von Hand listet.
+In beiden Varianten bleiben 40 Karten Bulk, weil sie in 30 Tagen keinen Manager-Verkauf
+hatten (nominal 9 EUR).
+
+Konzentration: die obersten 10 % der Karten tragen 43 % (Variante A) bzw. 65 % (Variante B)
+des Werts. 15 Karten ab 5 EUR netto machen 181 EUR, also zwei Drittel von Variante A.
+
+**Entscheidung Jonas 21.10.: Variante B.** Geboten werden 258 EUR fuer alle 347 verkaeuflichen
+Karten. Arbeitsliste dazu per `tools/2026-10-21_listen-plan.mjs`:
+Block "hand" 55 Karten mit 271,68 EUR netto, Block "masse" 292 Karten mit 97,57 EUR netto
+(Median 0,23 EUR je Karte). Unterbieten (Floor minus 1 Cent, nie ueber dem eigenen Vorschlag)
+kostet ueber alle 347 Karten 2,64 EUR und ist die guenstigste Beschleunigung, die es gibt.
+
+**Methode, die sich bewaehrt hat:**
+- Bulk-Kriterium ist die Liquiditaet, nicht der FMV: `card_prices.manager_sales` ist ein Array
+  echter Manager-Verkaeufe mit Datum. Kein Verkauf im Fenster heisst Bulk, egal welchen Wert
+  die Karte nominell hat. ACHTUNG: das Array speichert nur die letzten 10 Verkaeufe, die Zahl
+  saettigt also bei 10 und ist nach oben eine Untergrenze.
+- Preisbasis je Segment nach `docs/2026-10-11_RARE_FLOOR_SCHLAEGT_FMV.md`: limited ueber FMV,
+  rare und super_rare ueber den Floor. Ein Werkzeug, das alles auf FMV stellt, listet die
+  Rares systematisch falsch.
+- Realistischer Erlos ist zusaetzlich auf den Floor gedeckelt. Wer teurer listet als die
+  guenstigste gleiche Karte, verkauft nicht, er wartet.
+- Nicht modelliert, bewusst: Level und Seriennummer 1 (Wertbeitrag belegt in
+  `docs/2026-09-12_KARTENMERKMALE_WERT.md`). Das Werkzeug weist diese Karten getrennt aus und
+  laesst sie von Hand pruefen.
+- Die Zahlen bewegen sich mit dem Markt: zwei Laeufe eine halbe Stunde auseinander ergaben
+  270,85 und 271,68 EUR. Ein EK-Gebot ist eine Momentaufnahme, keine Konstante.
+- CSV je Karte mit Klasse und Begruendung in `tools/analysis-out/sammlung_<slug>_<datum>_min<schwelle>.csv`.
+
+**Zum Verkaufs-Bot (Aufwandsfrage, noch nichts gebaut):** Der Datenteil ist fertig
+(Portfolio-Sync, FMV, Floor, Liquiditaet). Der Weg in der API ist `prepareOffer` nach
+`createSingleSaleOffer`, Repreisen ueber `cancelOffer(blockchainId)`. Der Knackpunkt ist
+derselbe wie bei der Tauschboerse (Abschnitt 15.09.): `approvals` verlangt eine Wallet-Signatur,
+das OAuth-Token reicht NICHT. Unbeaufsichtigt ginge es nur ueber `signIn` mit Passwort plus
+`wallet.passwordEncryptedPrivateKey`, also mit Kontopasswort und Wallet-Schluessel im Bot.
+**Belegt aus den offiziellen API-Doks (github.com/sorare/api, geprueft 21.10.2026):**
+- **Der OAuth-Scope schliesst Verkaufen ausdruecklich AUS** ("excludes bidding, selling, or
+  making offers on cards, accepting offers or initiating withdrawals"). Der Weg ueber das
+  OAuth-Token ist damit nicht nur unbequem, er ist zu.
+- Verkaufen braucht einen authentifizierten Aufruf plus **Signatur mit dem Starkware-Schluessel
+  des Nutzers**. Solana und Base nutzen andere Schluessel und Signierverfahren. Welcher Weg fuer
+  Jonas' Konto gilt, ist ungeklaert und die erste Frage vor dem Bau
+  (`currentUser { wallet { starkKey solanaAddress status } }`, braucht Login).
+- Das JWT aus `signIn` **laeuft 30 Tage und ist nicht widerrufbar** ("There is no way currently
+  to revoke the token"). Ein Bot-Token, das abfliesst, laesst sich also nicht abschalten.
+- Limits: ohne Anmeldung 20/min, mit JWT oder OAuth 60/min, mit APIKEY 200/min. Ein Verkaufs-Bot
+  laeuft ueber das JWT, also mit 60/min, NICHT mit den 200 des Updater-Keys.
+- Zu Bots sagen die API-Doks nichts, weder erlaubend noch verbietend. Die T&C selbst waren am
+  21.10. nicht abrufbar (sorare.com liefert ohne JavaScript nur einen Browser-Hinweis,
+  help.sorare.com antwortet 403). **Die Frage "ist automatisiertes Listen erlaubt" ist damit
+  offen und gehoert an Sorare selbst gestellt**, nicht aus einer Doku abgeleitet.
+
+Empfehlung bis dahin: Kalkulator plus Arbeitsliste, Absenden von Hand durch Jonas. Wenn der Bot
+kommt, dann in dieser Reihenfolge: (1) Wallet-Typ klaeren, (2) Signaturweg an EINER billigen
+Karte beweisen (prepareOffer, signieren, createSingleSaleOffer, danach cancelOffer), erst dann
+(3) Mengenbetrieb mit Deckel: hoechstens N Listings je Lauf, Mindestpreis als Safety Floor,
+keine Karte doppelt listen (`liveSingleSaleOffer` pruefen), jede Mutation ins Log.
 
 ## Team-Kosten je Wettbewerb (06.09.) — was kostet eine Gewinner-Aufstellung?
 
