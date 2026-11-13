@@ -398,14 +398,18 @@ Classic-Kurve in einem Scheineinbruch.
 7-Tage-Zahl in-season nach 8 Tagen, erster Vergleich nach 15; classic jeweils 6 Tage spaeter.
 Die Seite sagt das selbst an, statt Teilwerte zu zeigen.
 
-**Schalter 7D / 30D / 1Y (13.11., Wunsch Jonas):** rollierende Fenster, Kopfzahl gegen den
-gleich langen Zeitraum davor. Balken: 28 Tage / 26 Wochen (Montag) / 24 Monate. Eine Woche oder
-ein Monat zaehlt erst, wenn ihr letzter Tag vollstaendig ist; der angebrochene erste Zeitraum
-nach Erhebungsbeginn und der laufende sind schraffiert. Kopfzahl erst, wenn das ganze Fenster
-abgedeckt ist: 30D nach 30 Tagen (Vergleich nach 60), **1Y erst nach einem Jahr (Vergleich nach
-zwei)**. Die Balken fuellen sich ab Tag eins. Auswahl je Browser gemerkt (`sorion_vol_view`).
-Lokal mit kuenstlichen Daten fuer alle drei Ansichten, kurze und lange Datenlage, Desktop und
-Handy geprueft (kein seitliches Ueberlaufen).
+**Schalter 7D / 30D / 1Y (13.11., Wunsch Jonas, Stand nach zwei Runden Feedback):**
+- **7D:** letzte 7 vollstaendige Tage gegen die 7 davor; 28 Tagesbalken.
+- **30D = laufender Monat** (Jonas: "30D sollte den aktuellen Monat zeigen"): Tagesbalken vom 1.
+  bis heute; Kopfzahl = Monat bis zum juengsten vollstaendigen Tag, verglichen mit DENSELBEN Tagen
+  des Vormonats (gleich viele Tage, Vormonat ggf. kuerzer). Frueh im Monat, solange dessen Tage
+  noch nicht vollstaendig sind (Classic bis etwa zum 8.), steht dort der Vormonat mit Namen und
+  die Balken beginnen dort. Erste Monatszahl: 3. Dez., erster Vergleich: 3. Jan.
+- **1Y:** genau 12 Monatsbalken; Kopfzahl rollierende 12 Monate (= Balken). Erste Zahl nach einem
+  Jahr, Vergleich nach zwei.
+Balken reichen immer bis heute (laufender Zeitraum schraffiert), leere Zeitraeume vor den ersten
+Daten werden abgeschnitten (BUG-061). Auswahl je Browser gemerkt (`sorion_vol_view`). Geprueft mit
+kuenstlichen Reihen (inkl. Datum 3.12. fuer den Monatsanfang), gegen Live-Daten, mit echten Klicks.
 **Erledigt 13.11. (Freigabe Jonas):** `migrations/2026-11-13_market_volume_range.sql` ausgefuehrt,
 Obergrenze der Lesefunktion 180 -> 800 Tage. Danach von aussen geprueft: Lesen mit 760 Tagen ok,
 Schreiben als Besucher weiterhin 401.
