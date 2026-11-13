@@ -338,6 +338,43 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
+## 📊 Markttabelle: Market Cap und Volumen (13.11.2026)
+
+Zwei neue Spalten in index.html, **ohne** Datenbankaenderung und ohne zusaetzlichen
+API-Aufruf: beide Felder laedt die Tabelle ohnehin schon.
+
+**Market Cap** = `supply` mal `fmv`. `supply` ist die tatsaechlich gepraegte Stueckzahl
+dieser Saison und Rarity, nicht die Maximalauflage. Stand 13.11. ergibt das **16,2 Mio EUR**
+ueber alle Segmente (limited in-season 6,55 Mio, limited classic 3,34 Mio, rare in-season
+3,29 Mio, rare classic 2,01 Mio, super_rare classic 1,04 Mio).
+**Luecke: super_rare in-season hat gar kein `supply`** und wird weiterhin nicht gerechnet,
+siehe BUG-041 (fehlender Railway-Dienst). Dort bleibt die Spalte leer.
+
+**Volume (7d)** = Summe der gespeicherten Manager-Verkaeufe der letzten 7 Tage, in Klammern
+der Tageswert (Summe geteilt durch 7). Nur Manager-Verkaeufe, dieselbe Grundlage wie der FMV.
+Stand 13.11.: **169.242 EUR** in 7 Tagen.
+
+**Warum 7 Tage und kein echter 24-Stunden-Wert:** In-Season-Karten laufen taeglich komplett
+durch, Classic braucht vier bis fuenf Tage. Ein 24-Stunden-Wert waere dort in Wahrheit
+"seit dem letzten Durchlauf". Der Tageswert in Klammern ist deshalb ueberall gleich
+gerechnet, statt mal gemessen und mal geschaetzt zu sein.
+
+**Zwei Grenzen, die man kennen muss:**
+1. `manager_sales` speichert nur die letzten **10** Verkaeufe. Liegen alle zehn im Fenster,
+   ist die Summe eine Untergrenze; solche Zellen tragen ein nachgestelltes **+**. Betrifft
+   8,7 % der Limited-in-season- und 6,4 % der Limited-classic-Karten mit Umsatz, bei rare
+   und super_rare praktisch nie (0,0 bis 0,2 %).
+2. Sorare liefert je Abruf hoechstens **20** Verkaeufe. 1.180 Limited-in-season-Karten stehen
+   genau an dieser Grenze (`sales_7d` = 20), ihr echter Umsatz liegt also hoeher.
+
+Wer die Zahlen exakt will, muesste im Updater eine Spalte `volume_7d` mitschreiben
+(Summe ueber alle abgerufenen Verkaeufe statt nur ueber die gespeicherten zehn).
+Das ist eine Migration plus Updater-Aenderung und war fuer den ersten Wurf nicht noetig.
+
+**Offen (Idee Jonas):** eine Kennzahl fuer den GESAMTEN Markt ueber der Tabelle, mit Verlauf
+ueber die letzten Wochen, damit man sieht, ob der Handel zurueckgeht. Die Daten liegen
+vollstaendig in `fmv_accuracy` (Tagesvolumen 13.11. zurueck: 128k, 58k, 51k, 40k, 53k EUR).
+
 ## 🧪 Tauschboerse: Prototyp (15.09.2026), NICHT angebunden
 
 Wunschlisten und Tauschangebote zwischen Managern, geplant von null.
@@ -1630,3 +1667,5 @@ verdecken muss; die Funktion gibt nur ueber die Rechte des Aufrufers Auskunft.
 
 **Bulk-Abzug bleibt zu:** Zugriff nur je Manager ueber die RPC, `manager_cards`, `manager_trades`
 und `manager_sync` bleiben fuer anon und authenticated gesperrt.
+
+**13.11. — Block 1 (DIVINATION) abgeschlossen, Stand der Lage:** R74–R83 = Block 1 (30.10.–12.11.), Urteil **kein Strike** (Linien ohne Geister-Eintrag: Block 42,1, Saison 219,8; HenryTemo 42 gegen 42,08 nur ein ❌). R83: Cap-Strafe Sorare_Jens −5 (Simón, Anspruch nach 19:00 verpasst, Anweisung "line up a different player" ignoriert; Strafe id 20, Runde 83). **Offen, dringend:** BUG-057 (Geister-Slug `r3hr-7625…`, 7 Zeilen im R79-Step; `purge_manager all_steps` wartet auf Captain-Freigabe, Auto-Modus blockiert Löschungen) – Boards seit R79 wurden von Hand ohne den 11. Eintrag gerechnet, Block 2 würde sonst verzerrt. BUG-058 (`suggestedPenalty` ignoriert Anspruchsfrist). Weekly 2.–8.11. am 09.11. geliefert, die für 26.10.–1.11. und 19.–25.10. nie gepostet. `planned_end_on` für Set 3 weiter leer.
