@@ -398,6 +398,17 @@ Classic-Kurve in einem Scheineinbruch.
 7-Tage-Zahl in-season nach 8 Tagen, erster Vergleich nach 15; classic jeweils 6 Tage spaeter.
 Die Seite sagt das selbst an, statt Teilwerte zu zeigen.
 
+**Schalter 7D / 30D / 1Y (13.11., Wunsch Jonas):** rollierende Fenster, Kopfzahl gegen den
+gleich langen Zeitraum davor. Balken: 28 Tage / 26 Wochen (Montag) / 24 Monate. Eine Woche oder
+ein Monat zaehlt erst, wenn ihr letzter Tag vollstaendig ist; der angebrochene erste Zeitraum
+nach Erhebungsbeginn und der laufende sind schraffiert. Kopfzahl erst, wenn das ganze Fenster
+abgedeckt ist: 30D nach 30 Tagen (Vergleich nach 60), **1Y erst nach einem Jahr (Vergleich nach
+zwei)**. Die Balken fuellen sich ab Tag eins. Auswahl je Browser gemerkt (`sorion_vol_view`).
+Lokal mit kuenstlichen Daten fuer alle drei Ansichten, kurze und lange Datenlage, Desktop und
+Handy geprueft (kein seitliches Ueberlaufen).
+**Offen:** `migrations/2026-11-13_market_volume_range.sql` hebt die Obergrenze der Lesefunktion
+von 180 auf 800 Tage. Ohne sie wuerden die 1Y-Werte ab Mai 2027 stillschweigend gekappt.
+
 **Was die alte Reihe trotzdem sagt (nur zur Einordnung, nicht auf der Seite):** Wochensummen aus
 `fmv_accuracy` seit 14.09., in-season: 895k, 494k, 541k, 691k, 659k, 750k, 613k, 486k EUR.
 Richtung seit Mitte Oktober fallend; wegen der Grenze ist der echte Rueckgang eher groesser.
