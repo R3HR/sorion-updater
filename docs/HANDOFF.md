@@ -338,6 +338,56 @@ Super Rare Faktor 2,7 (22,1 % vs 60 %). Details und Konsequenzen in WETTBEWERB.m
 **Market Cap koennen wir NICHT sauber rechnen:** nur 16.624 von 126.360 card_prices-Zeilen
 haben `available_supply` (13 %). Waere ein eigenes Vorhaben (Supply flaechendeckend erfassen).
 
+## 📈 Marktvolumen aus Sorares Verkaufshistorie (13.11.2026) — LOEST die Vorwaerts-Zaehlung ab
+
+**Warum:** Jonas: "Unsere Nutzer koennen nicht bis November 2027 warten." Die Vorwaerts-Zaehlung
+(unten, `market_volume_daily`) haette erst nach einem Jahr eine Jahreszahl geliefert.
+
+**Quelle:** `anyPlayer(slug) { tokenPrices(rarity, seasonEligibility, since, first: 50, after) }`
+— blaetterbar, vollstaendig, sofort aktuell. Geprueft: Lamine Yamal Limited 13.11.2025 bis
+13.11.2026 = 1.848 Verkaeufe lueckenlos; `seasonEligibility` gilt zum VERKAUFSZEITPUNKT (bis Juli
+2026 sind 2025er Karten In-Season, ab August die 2026er; IN_SEASON + CLASSIC = Gesamt). Hoechstens
+50 je Seite. Alle 6 Kombinationen (3 Seltenheiten x 2) im ersten Abruf je Spieler per Alias.
+
+**Eine Methode fuer alles:** Vergangenheit UND laufende Tage kommen aus dieser Abfrage.
+`market_volume()` liest nur noch `market_volume_hist`. Zwei Methoden zu stueckeln haette an der
+Naht einen Sprung erzeugt, der wie ein Trend aussieht. Nebeneffekt: kein 7-Tage-Verzug bei
+Classic mehr. Die Zaehlung im Updater (`market_volume_daily`, `add_market_volume`) laeuft noch,
+wird aber nicht mehr gelesen; kann bei Gelegenheit raus.
+
+**Aufbau (Migration `2026-11-13_market_volume_history.sql`, ausgefuehrt 13.11.):**
+- `market_volume_jobs`: Auftrag = Datumsbereich + Prioritaet. `recent` [04.09., 13.11.) zuerst,
+  dann `day:JJJJ-MM-TT` je beendetem Tag ab 13.11., dann `year` [13.11.2025, 04.09.).
+- `market_volume_job_players`: eingefrorene Spielerliste je Auftrag (19.778 Spieler mit Verkauf),
+  damit Pakete stabil bleiben; wird nach Abschluss geloescht.
+- `market_volume_batches`: Pakete zu 100 Spielern. `mv_claim_batch()` reserviert (SKIP LOCKED,
+  verfaellt nach 15 Min.), `mv_complete_batch()` addiert Ergebnis UND setzt Erledigt-Vermerk in
+  EINER Transaktion, lehnt erledigte Pakete ab. Mehrere Laeufe gleichzeitig sind sicher.
+- `market_volume_hist`: Tagessummen je Auftrag. `complete` = Tag liegt in fertigem Auftrag.
+
+**Programm:** `tools/market-volume-history.mjs`, hoechstens 13 Min. je Lauf, legt fehlende
+Auftraege selbst an, drosselt auf 90 Abrufe/min in den Updater-Fenstern (sonst 150).
+Erstes Paket: 100 Spieler, 6.517 Verkaeufe, 183 Abrufe, 74 s. Hochrechnung aus 40 Zufalls-
+spielern: Jahr ~147.000 Abrufe (Streuung gross), 70 Tage ~36.000.
+
+**🔴 OFFEN — Railway-Dienst "Market History" (nur Jonas, CLI darf keine Dienste anlegen):**
+Railway antwortete auf `railway add`: "You do not have access to this resource". Anlegen in der
+Oberflaeche: Projekt faithful-gentleness, New, GitHub Repo `R3HR/sorion-updater`, Name
+"Market History". Einstellungen: Start Command `node tools/market-volume-history.mjs`,
+Cron Schedule `*/15 * * * *`, Restart Policy Never. Variablen (Raw Editor), als Verweis, damit
+kein Schluessel kopiert wird:
+```
+SORARE_APIKEY=${{Updater Limited.SORARE_APIKEY}}
+SUPABASE_URL=${{Updater Limited.SUPABASE_URL}}
+SUPABASE_SERVICE_KEY=${{Updater Limited.SUPABASE_SERVICE_KEY}}
+```
+Bis dahin lief die Rueckrechnung am 13.11. ab 14:13 UTC lokal (`railway run`, fortsetzbar).
+Ohne den Dienst bleiben ab 14.11. die neuen Tage aus und die Rueckrechnung steht, sobald der
+Laptop zu ist.
+
+**Pruefen:** Fortschritt je Auftrag:
+`select j.job, j.batches, count(*) filter (where b.done_at is not null) erledigt from market_volume_jobs j join market_volume_batches b using (job) group by 1,2;`
+
 ## 📊 Markttabelle: Market Cap und Volumen (13.11.2026)
 
 Zwei neue Spalten in index.html, **ohne** Datenbankaenderung und ohne zusaetzlichen
