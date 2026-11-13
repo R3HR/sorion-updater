@@ -406,8 +406,9 @@ abgedeckt ist: 30D nach 30 Tagen (Vergleich nach 60), **1Y erst nach einem Jahr 
 zwei)**. Die Balken fuellen sich ab Tag eins. Auswahl je Browser gemerkt (`sorion_vol_view`).
 Lokal mit kuenstlichen Daten fuer alle drei Ansichten, kurze und lange Datenlage, Desktop und
 Handy geprueft (kein seitliches Ueberlaufen).
-**Offen:** `migrations/2026-11-13_market_volume_range.sql` hebt die Obergrenze der Lesefunktion
-von 180 auf 800 Tage. Ohne sie wuerden die 1Y-Werte ab Mai 2027 stillschweigend gekappt.
+**Erledigt 13.11. (Freigabe Jonas):** `migrations/2026-11-13_market_volume_range.sql` ausgefuehrt,
+Obergrenze der Lesefunktion 180 -> 800 Tage. Danach von aussen geprueft: Lesen mit 760 Tagen ok,
+Schreiben als Besucher weiterhin 401.
 
 **Was die alte Reihe trotzdem sagt (nur zur Einordnung, nicht auf der Seite):** Wochensummen aus
 `fmv_accuracy` seit 14.09., in-season: 895k, 494k, 541k, 691k, 659k, 750k, 613k, 486k EUR.
