@@ -1133,5 +1133,6 @@ Schliesst uralte Verkaeufe aus und garantiert, dass sich ein als vollstaendig an
 nie mehr aendert. Die 20er-Warnung zaehlt nur noch echte Folgelaeufe. Getestet mit neuen
 Zeilen (beide Eligibilities), Folgelauf nach 6 h, Classic-Lauf nach 4 Tagen.
 
-**Altlasten:** `migrations/2026-11-13_market_volume_cleanup.sql` loescht die betroffenen Zeilen.
-Auf der Seite waren sie nie sichtbar (vor Erhebungsbeginn 14.11.).
+**Altlasten:** `migrations/2026-11-13_market_volume_cleanup.sql` am 13.11. ausgefuehrt (Freigabe
+Jonas). Danach stehen nur noch 7 Zeilen in_season fuer 12./13.11. (23 Verkaeufe), classic leer.
+Auf der Seite waren die geloeschten Zeilen nie sichtbar (vor Erhebungsbeginn 14.11.).
