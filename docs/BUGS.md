@@ -1027,3 +1027,92 @@ Bot fehlt, die vor Rundenzuordnung auf ein ausgelaufenes `planned_end_on` hinwei
 - **Lektion:** Ein Nullergebnis aus einer Abfrage ist erst dann ein Befund, wenn die Abfrage
   selbst geprueft ist. Jeder Auswertungsschritt, der mit leerer Menge weiterrechnen kann, braucht
   einen harten Abbruch. Siehe auch die Regel aus dem Level-Fehlbefund vom 12.09.
+
+## BUG-046 - FMV unterschaetzt duenn gehandelte Karten um Faktor 5 bis 7 (02.11.) - OFFEN, WICHTIG
+
+- **Anlass (Jonas):** "akito suzuki liegt in season bei 60 EUR aktuell", unser FMV sagte 16,58.
+- **Geprueft** an neun J1-Rare-Karten, FMV gegen den Median der ECHTEN Manager-zu-Manager-
+  Verkaeufe (TokenOffer, je 20 letzte Verkaeufe ueber die API):
+
+  | Spieler | FMV in-season | Markt-Median | Faktor |
+  |---|---|---|---|
+  | Ado Onaiwu | 0,32 | 2,14 | 6,7 |
+  | Taishi Matsumoto | 0,90 | 5,70 | 6,3 |
+  | Kyota Tokiwa | 0,68 | 3,96 | 5,8 |
+  | Hayato Inamura | 0,83 | 4,54 | 5,5 |
+  | Svend Brodersen | 1,65 | 5,62 | 3,4 |
+  | Akito Suzuki | 16,58 | 30,06 | 1,8 |
+  | Kengo Nagai | 1,97 | 3,60 | 1,8 |
+  | Kosei Suwama | 9,04 | 10,35 | 1,1 |
+  | Shuichi Gonda | 10,81 | 4,48 | 0,4 (zu HOCH) |
+
+- **Nicht die Ursache:** Der Updater holt den Floor korrekt mit `rarity`-Parameter
+  (`lowestPriceAnyCard(inSeason: X, rarity: SCARCITY)`). Das war mein erster Verdacht und er
+  war falsch.
+- **Ursache:** Der Floor wirkt als Anker NACH UNTEN (FMV-Regel seit v3.2). Bei duenn gehandelten
+  Karten steht oft ein einzelnes Billigangebot im Markt, etwa Tokiwa mit 0,45 EUR, waehrend die
+  letzten zwanzig echten Verkaeufe bei 3 bis 7 EUR lagen. Dieses eine Angebot zieht den FMV auf
+  ein Fuenftel des Marktpreises.
+- **Warum das zaehlt:** Betrifft jede Zahl, die auf FMV beruht: Marktseite, Portfoliowert,
+  Team-Kosten, Accuracy. Teams wirken in unseren Auswertungen um Faktor 5 billiger als sie sind.
+  Eine Kaufempfehlung ueber 4,12 EUR kostet real eher 20 bis 25 EUR.
+- **Zu klaeren vor dem Fix:** Der Anker ist bewusst gesetzt ("ein Ask ist kein Preis, aber ein
+  kaufbares Angebot schon"). Vorschlag: Anker nur greifen lassen, wenn der Floor durch mehr als
+  ein Angebot gestuetzt ist (second_lowest vorhanden) ODER wenn die Sales duenn sind. Vorher
+  Walk-Forward-Backtest, die Aenderung hebt die FMV breit an.
+- **Sofort beachten:** Fuer Kaufempfehlungen den Median der TokenOffer-Verkaeufe nehmen, nicht
+  FMV oder Floor.
+
+
+## BUG-057 - Geister-Eintrag R3HR (alter UUID-Slug) als 11. Manager, Last-Stage-Post zeigt die falsche Runde (05.11.) - OFFEN
+
+**Symptom:** Ab R79 (Stage 1 auf neuem Board, 05.11.) erschien im Board ein elfter Eintrag `R3HR 0 pts ❌❌❌`, die Prüfliste meldete
+`KEIN LINEUP: R3HR` samt Strike-Vorschlag, Block Ø und 80%-Linie lagen zu niedrig (11 statt 10 Manager), und der Last-Stage-Post zeigte
+die Zahlen der Vorrunde (R78: Stage 5 FAILED) statt R79 (Stage 1, 942,92 / 700). Bei Blockende hätte das Bot-Board "1 strike (R3HR)" gemeldet.
+**Ursache:** Im Step `BoardStep:f9a171fe…` standen 7 Zeilen unter dem alten Slug `r3hr-7625d620-89dc-4c09-86b1-d1b3a7f21c50`
+(5 `squad_lineup_log`, 1 `squad_step_scores`, 1 `squad_score_snapshots`) – ein früherer Lineup von Jonas (Evanilson/Oyarzabal, kurz darauf
+per Cap-Anweisung getauscht). Der Alias `r3hr-7625… -> r3hr` existiert (BUG-039), der Eingang hat ihn aber für diese Zeilen nicht angewendet;
+wie genau, ist ungeklärt (Verdacht: einmaliger leerer Abruf von `squad_slug_aliases`, wird in `.catch(() => [])` verschluckt).
+Die Geister-Zeile wird nie aktualisiert, bleibt auf `LINEUP_SET` und ist die älteste Zeile des Steps. `action=report` bildet `stateOf[step]`
+aus der ÄLTESTEN Zeile (`order=updated_at.desc`, spätere Zuweisung gewinnt): R79 galt als "offen", `finished[0]` war R78.
+**Fix:** offen. Dokumentierter Ablauf (BUG-039): `purge_manager` für den UUID-Slug mit `all_steps:true`, dann Poll. Der Auto-Modus hat das
+Löschen blockiert, Captain-Freigabe steht aus. Bis dahin wurden Boards ab R79 von Hand ohne den 11. Eintrag neu gerechnet (Linien aus den
+`blocks`-Rohdaten; die Rechnung trifft mit Geist exakt die Bot-Werte).
+**Härtung (offen):** (1) `stateOf` in `report` aus der NEUESTEN Zeile bilden (`??=` statt Überschreiben). (2) Fehler beim Laden der Alias-Tabelle
+nicht verschlucken, sondern den Lauf abbrechen. (3) Zeilen unter einem Slug, für den ein Alias existiert, beim Poll bereinigen.
+**Dringend:** Block 2 rechnet die Saison nur aus DIVINATION; der Geist zählt dort weiter als elfter Manager und verschiebt alle Linien.
+
+
+## BUG-058 - `suggestedPenalty` ignoriert die Anspruchsfrist (13.11.) - OFFEN
+
+**Symptom:** R83, Unai Simón 5x: Bericht und Prüfliste schlugen McBeast (Platz 1, 0%) vor. Tatsächlich hatte der Bot um 20:40 Uhr Sorare_Jens
+gemeldet ("too late — the claim had to be in by 19:00 … line up a different player"). Jens ließ Simón drin; die Strafe (−5, id 20) traf Jens.
+**Ursache:** `report.overCap[].suggestedPenalty` rechnet nur nach Bonus und Platz (`rarity_tie_higher_rank`) und kennt die Anspruchsfrist
+(`swapDeadline`) nicht. Zusätzlich speichert der Bot nur gültige Ansprüche ("you have to swap out") in `squad_cap_instructions`;
+die Meldung "line up a different player" (Claim zu spät/nicht höher) steht nur in `squad_notifications` (`claim:<step>:<player>:<manager>`),
+darum taucht sie in `action=cap_instructions` nicht auf. Das ist dieselbe Lücke wie "nennt nur einen Manager bei 2 Kopien" (23.10.).
+**Fix:** offen. Vorschlag: `suggestedPenalty` aus den gesendeten `claim:`-Meldungen und dem Endstand ableiten, auch die "line up a different
+player"-Meldung als Anweisung speichern. Bis dahin vor jeder Cap-Strafe `action=status` mit `like:'claim:<step>%'` prüfen.
+**Hinweis:** Der Strafgrund wurde per Shell ohne UTF-8 gebucht ("Sim?n"); `capPlayerOf` findet den Namen daher nicht und der Last-Stage-Post
+zeigt `⚠️ Player cap violated: Sorare_Jens (-5)` ohne Spielernamen (von Hand ergänzt).
+
+## BUG-059 - Zeitraum-Schalter im Volumen-Streifen reagierte nicht auf Klicks (13.11.) - BEHOBEN
+
+**Symptom:** Jonas: "die Schalter fuer den Zeitraum lassen sich nicht umschalten". 7D/30D/1Y
+blieben beim Klick unveraendert.
+
+**Ursache:** Jede `.hero-stat`-Kachel hat eine Schmuck-Ebene `::after` (Hover-Glanz) mit
+`position: absolute; inset: 0`, also ueber der ganzen Kachel, und `pointer-events` stand auf
+`auto`. Sie fing jeden Klick ab; `elementFromPoint` auf der Knopfmitte lieferte die Kachel,
+nicht den Knopf. Bisher hatte keine Kachel Knoepfe, deshalb fiel es nie auf.
+
+**Warum der Test es nicht fand:** Ich hatte den Schalter lokal per `setVolView()` aus der
+Konsole bedient, nicht per Mausklick. Die Funktion war korrekt, nur der Klick kam nie an.
+Lehre: Bedienelemente immer mit einem echten Klick pruefen (oder `elementFromPoint`).
+
+**Fix (index.html):** `.hero-stat::before, .hero-stat::after { pointer-events: none; }`.
+Verifiziert mit echtem Klick: 30D wird aktiv, Ueberschrift wechselt, Auswahl gemerkt.
+
+**Nebenbei geklaert:** Der leere Streifen ist kein Fehler. Die Erhebung beginnt mit dem
+ersten Updater-Lauf im Cron-Fenster 16:00 UTC; bis dahin steht dort "Collection starts with
+the next market update".
