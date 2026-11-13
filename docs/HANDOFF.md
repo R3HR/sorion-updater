@@ -371,7 +371,7 @@ Wer die Zahlen exakt will, muesste im Updater eine Spalte `volume_7d` mitschreib
 (Summe ueber alle abgerufenen Verkaeufe statt nur ueber die gespeicherten zehn).
 Das ist eine Migration plus Updater-Aenderung und war fuer den ersten Wurf nicht noetig.
 
-**Gesamtmarkt-Streifen (13.11., gebaut, Migration wartet auf Jonas):** Streifen GANZ OBEN auf
+**Gesamtmarkt-Streifen (13.11., LIVE, Erhebung ab erstem Updater-Lauf 13.11. 16:00 UTC):** Streifen GANZ OBEN auf
 der Markt-Seite, ueber allen Kacheln (Wunsch Jonas: beschreibt den ganzen Markt). Zeigt die
 letzten 7 vollstaendigen Tage (alle Verkaeufe, Anteil Manager), die Veraenderung zur Woche
 davor und 28 Tagesbalken; nicht voll erfasste Tage sind schraffiert und zaehlen nicht mit.
@@ -403,8 +403,13 @@ Die Seite sagt das selbst an, statt Teilwerte zu zeigen.
 Richtung seit Mitte Oktober fallend; wegen der Grenze ist der echte Rueckgang eher groesser.
 Vor dem 14.09. nicht vergleichbar (INC-009-Ausfall, davor keine Verkaufsart).
 
-**Migration:** `migrations/2026-11-13_market_volume.sql`, ausfuehren mit
-`npx supabase db query --remote --yes --file "<absoluter Pfad>"`.
+**Migration ausgefuehrt 13.11. ~13:40 Berlin (Freigabe Jonas).** Von aussen geprueft: Lesen als
+Besucher liefert `[]`, Schreiben (`add_market_volume`) und Tabelle direkt -> 401. Beide Updater
+liefen da schon mit dem neuen Code (Deploy 13:37). **Erster Zaehllauf:** naechstes Cron-Fenster
+16:00 UTC. Pruefen im Railway-Log auf die Zeile "Marktvolumen: N neue Verkaeufe gezaehlt" oder:
+`select day, eligibility, scarcity, deal_type, sales, volume from market_volume_daily order by day desc;`
+(lesend, `--read-only`). Steht dort nach 17:00 Berlin nichts, zuerst das Log auf
+"add_market_volume fehlt" pruefen (Probe gescheitert).
 
 ## 🧪 Tauschboerse: Prototyp (15.09.2026), NICHT angebunden
 
