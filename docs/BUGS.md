@@ -1136,3 +1136,19 @@ Zeilen (beide Eligibilities), Folgelauf nach 6 h, Classic-Lauf nach 4 Tagen.
 **Altlasten:** `migrations/2026-11-13_market_volume_cleanup.sql` am 13.11. ausgefuehrt (Freigabe
 Jonas). Danach stehen nur noch 7 Zeilen in_season fuer 12./13.11. (23 Verkaeufe), classic leer.
 Auf der Seite waren die geloeschten Zeilen nie sichtbar (vor Erhebungsbeginn 14.11.).
+
+## BUG-061 - Volumen-Streifen zeigte trotz Daten keine Balken (13.11.) - BEHOBEN
+
+**Symptom:** Jonas: "nach wie vor tot". Streifen zeigte "bars appear here as data comes in",
+obwohl fuer 12. und 13.11. Daten vorlagen.
+
+**Ursache (Logikfehler):** Die Balken endeten bei GESTERN, und alle Zeitraeume vor dem
+Erhebungsbeginn (14.11.) wurden verworfen. Heute (13.11.) fehlte also wegen der ersten Regel,
+der 12.11. wegen der zweiten. Am ersten Tag blieb kein einziger Balken. Meine Tests mit
+kuenstlichen Daten hatten nur lange Datenreihen geprueft, nie den ersten Tag.
+
+**Fix (sorion-ui):** Balken bis zum laufenden Zeitraum (immer schraffiert), Tage vor
+Erhebungsbeginn bleiben schraffiert sichtbar, leere Zeitraeume vor den ersten Daten werden
+abgeschnitten (anfangs wenige breite Balken statt 26 leerer Plaetze), Balkenbreite begrenzt.
+Kopfzahlen weiter nur aus vollstaendigen Tagen. Geprueft gegen die echten Live-Daten und mit
+echten Klicks auf 7D, 30D, 1Y.
