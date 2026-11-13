@@ -1116,3 +1116,22 @@ Verifiziert mit echtem Klick: 30D wird aktiv, Ueberschrift wechselt, Auswahl gem
 **Nebenbei geklaert:** Der leere Streifen ist kein Fehler. Die Erhebung beginnt mit dem
 ersten Updater-Lauf im Cron-Fenster 16:00 UTC; bis dahin steht dort "Collection starts with
 the next market update".
+
+## BUG-060 - Marktvolumen zaehlte bei neuen Karten Verkaeufe bis ins Jahr 2023 (13.11.) - BEHOBEN
+
+**Symptom:** Nach dem ersten (manuell ausgeloesten) Zaehllauf standen in `market_volume_daily`
+neben 12./13.11. auch Tage aus 2023, 2024 und Mai/Juni 2026.
+
+**Ursache:** Neue Zeilen werden von Harvester, Kader-Abgleich und Seed mit `updated_at = 1970`
+angelegt, damit der Updater sie zuerst bearbeitet. Gezaehlt wurden "alle Verkaeufe nach
+updated_at", fuer diese Zeilen also alle 20 abgerufenen, egal wie alt. Da staendig neue Zeilen
+hinzukommen, waere das kein einmaliges Problem gewesen.
+
+**Fix (`bae4455`, update-scarcity.mjs):** gezaehlt wird nur noch in Tage, die laut
+`market_volume()` noch offen sind (in_season gestern und heute, classic die letzten 7 Tage).
+Schliesst uralte Verkaeufe aus und garantiert, dass sich ein als vollstaendig angezeigter Tag
+nie mehr aendert. Die 20er-Warnung zaehlt nur noch echte Folgelaeufe. Getestet mit neuen
+Zeilen (beide Eligibilities), Folgelauf nach 6 h, Classic-Lauf nach 4 Tagen.
+
+**Altlasten:** `migrations/2026-11-13_market_volume_cleanup.sql` loescht die betroffenen Zeilen.
+Auf der Seite waren sie nie sichtbar (vor Erhebungsbeginn 14.11.).
