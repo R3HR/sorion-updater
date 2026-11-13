@@ -448,18 +448,19 @@ Classic-Kurve in einem Scheineinbruch.
 7-Tage-Zahl in-season nach 8 Tagen, erster Vergleich nach 15; classic jeweils 6 Tage spaeter.
 Die Seite sagt das selbst an, statt Teilwerte zu zeigen.
 
-**Schalter 7D / 30D / 1Y (13.11., Wunsch Jonas, Stand nach zwei Runden Feedback):**
-- **7D:** letzte 7 vollstaendige Tage gegen die 7 davor; 28 Tagesbalken.
-- **30D = laufender Monat** (Jonas: "30D sollte den aktuellen Monat zeigen"): Tagesbalken vom 1.
-  bis heute; Kopfzahl = Monat bis zum juengsten vollstaendigen Tag, verglichen mit DENSELBEN Tagen
-  des Vormonats (gleich viele Tage, Vormonat ggf. kuerzer). Frueh im Monat, solange dessen Tage
-  noch nicht vollstaendig sind (Classic bis etwa zum 8.), steht dort der Vormonat mit Namen und
-  die Balken beginnen dort. Erste Monatszahl: 3. Dez., erster Vergleich: 3. Jan.
-- **1Y:** genau 12 Monatsbalken; Kopfzahl rollierende 12 Monate (= Balken). Erste Zahl nach einem
-  Jahr, Vergleich nach zwei.
-Balken reichen immer bis heute (laufender Zeitraum schraffiert), leere Zeitraeume vor den ersten
-Daten werden abgeschnitten (BUG-061). Auswahl je Browser gemerkt (`sorion_vol_view`). Geprueft mit
-kuenstlichen Reihen (inkl. Datum 3.12. fuer den Monatsanfang), gegen Live-Daten, mit echten Klicks.
+**Schalter 7D / 30D / 1Y (Stand 13.11. abends, nach Jonas: "die ganze Grafik macht keinen Sinn"):**
+- Jeder Schalter zeigt GENAU seinen Zeitraum, die Kopfzahl ist die Summe genau dieser Balken:
+  **7D** = 7 Tagesbalken mit Wochentag und Wert, **30D** = 30 Tagesbalken (jeder 5. Tag beschriftet),
+  **1Y** = Monatsbalken Nov 2025 bis heute als Tagesdurchschnitt je Monat (angebrochene Monate
+  bleiben vergleichbar), Kopfzahl = Summe der letzten 365 Tage. Vergleichs-Chip bei 7D/30D gegen
+  den gleich langen Zeitraum davor; bei 1Y keiner (braeuchte zwei Jahre Historie).
+- **Keine Teildaten.** Laedt ein Zeitraum noch, steht statt der Grafik ein Fortschrittsbalken mit
+  Prozent und Restzeit (`market_volume_progress()`). Die erste Fassung zeigte schraffierte
+  "incomplete"-Balken aus der halb fertigen Rueckrechnung (alphabetisch erst Spieler A bis B),
+  das sagte niemandem etwas.
+- Der laufende Tag zaehlt erst nach Tagesende. Balken 120 px hoch, Skalenzeile "highest EUR x".
+- Geprueft: Live-Ladezustand mit echten Klicks auf alle drei Schalter, vollstaendiges kuenstliches
+  Jahr fuer alle drei Ansichten.
 **Erledigt 13.11. (Freigabe Jonas):** `migrations/2026-11-13_market_volume_range.sql` ausgefuehrt,
 Obergrenze der Lesefunktion 180 -> 800 Tage. Danach von aussen geprueft: Lesen mit 760 Tagen ok,
 Schreiben als Besucher weiterhin 401.
