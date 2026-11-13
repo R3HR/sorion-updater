@@ -306,6 +306,15 @@ async function main() {
   const vol = new Map();
   let volSales = 0, volCapped = 0;
   const berlinDay = d => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+  // Gezaehlt wird NUR in Tage, die noch offen sind (deckungsgleich mit `complete` in
+  // market_volume(): in_season ab D+2 fest, classic ab D+8). Zwei Gruende:
+  //  1. Neue Zeilen kommen mit updated_at = 1970 (Harvester, Kader-Abgleich, Seed), damit
+  //     der Updater sie zuerst nimmt. Ohne diese Grenze galten alle 20 abgerufenen Verkaeufe
+  //     als neu, bis zurueck ins Jahr 2023 (erster Lauf 13.11.).
+  //  2. Ein Tag, den die Seite einmal als vollstaendig zeigt, aendert sich danach nie mehr.
+  const dayMinus = (ds, n) => { const x = new Date(ds + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() - n); return x.toISOString().slice(0, 10); };
+  const todayBerlin = berlinDay(Date.now());
+  const firstOpenDay = { in_season: dayMinus(todayBerlin, 1), classic: dayMinus(todayBerlin, 7) };
   const flushVolume = async () => {
     if (!hasVolume || !vol.size) return;
     const rows = [...vol.values()].map(g => ({ ...g, volume: Math.round(g.volume * 100) / 100 }));
@@ -457,8 +466,12 @@ async function main() {
       // Ohne frueheres updated_at (erster Lauf einer Zeile) galten alte Verkaeufe als neu.
       if (hasVolume && player.updated_at) {
         const prevAt = new Date(player.updated_at).getTime();
-        const fresh = sales.filter(s => s.eur > 0 && new Date(s.date).getTime() > prevAt);
-        if (fresh.length >= 20) volCapped++;   // Sorare liefert hoechstens 20: evtl. mehr verpasst
+        const newer = sales.filter(s => s.eur > 0 && new Date(s.date).getTime() > prevAt);
+        // Sorare liefert hoechstens 20: sind alle neu, wurden evtl. welche verpasst.
+        // Nur bei echten Folgelaeufen zaehlen, nicht bei neuen Zeilen (updated_at = 1970).
+        if (newer.length >= 20 && prevAt > Date.now() - 10 * 86400000) volCapped++;
+        const open = firstOpenDay[eligibility] ?? firstOpenDay.in_season;
+        const fresh = newer.filter(s => berlinDay(s.date) >= open);
         for (const s of fresh) {
           const day = berlinDay(s.date), deal = s.deal ?? 'unknown';
           const k = `${day}|${eligibility}|${deal}`;
