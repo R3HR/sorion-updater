@@ -371,9 +371,40 @@ Wer die Zahlen exakt will, muesste im Updater eine Spalte `volume_7d` mitschreib
 (Summe ueber alle abgerufenen Verkaeufe statt nur ueber die gespeicherten zehn).
 Das ist eine Migration plus Updater-Aenderung und war fuer den ersten Wurf nicht noetig.
 
-**Offen (Idee Jonas):** eine Kennzahl fuer den GESAMTEN Markt ueber der Tabelle, mit Verlauf
-ueber die letzten Wochen, damit man sieht, ob der Handel zurueckgeht. Die Daten liegen
-vollstaendig in `fmv_accuracy` (Tagesvolumen 13.11. zurueck: 128k, 58k, 51k, 40k, 53k EUR).
+**Gesamtmarkt-Streifen (13.11., gebaut, Migration wartet auf Jonas):** Streifen GANZ OBEN auf
+der Markt-Seite, ueber allen Kacheln (Wunsch Jonas: beschreibt den ganzen Markt). Zeigt die
+letzten 7 vollstaendigen Tage (alle Verkaeufe, Anteil Manager), die Veraenderung zur Woche
+davor und 28 Tagesbalken; nicht voll erfasste Tage sind schraffiert und zaehlen nicht mit.
+
+**KORREKTUR einer frueheren Aussage:** Hier stand, die Daten laegen "vollstaendig in
+`fmv_accuracy`". Falsch. Der Updater schreibt dort je Karte und Lauf **hoechstens 5** Verkaeufe
+(`newSales.slice(0, 5)`, gewollt fuer die Genauigkeitsmessung). Gemessen ueber 14 Tage: bei
+Limited stossen 18-21 % der Laeufe an die Grenze, und diese Laeufe tragen **64-71 % des dort
+erfassten Volumens**. Bei Rare 1,8 % (in-season) bzw. 11,9 % (classic). Ein Trend daraus misst
+die Grenze, nicht den Markt. (Die Spalte "Volume (7d)" ist NICHT betroffen, sie liest
+`manager_sales`.)
+
+**Loesung:** eigene Erfassung. `update-scarcity.mjs` zaehlt nach jedem ERFOLGREICHEN Speichern
+alle seit dem letzten Lauf neuen Verkaeufe der Karte (bis 20 je Abruf) und schreibt je Lauf
+eine Summe nach `market_volume_daily` (Tag Berlin x Eligibility x Rarity x Verkaufsart, rund
+20 Zeilen am Tag). Nach dem Update zaehlen, weil sonst `updated_at` stehen bliebe und doppelt
+gezaehlt wuerde. Probe-geschuetzt: ohne Migration aendert sich nichts.
+
+**Vollstaendigkeit (gemessen):** in-season 100 % binnen 24 h -> Tag D zaehlt ab D+2; classic
+35 % nach 1 Tag, 84,5 % nach 3, 100 % nach 7 -> ab D+8. Ohne diese Regel endete jede
+Classic-Kurve in einem Scheineinbruch.
+
+**Nur vorwaerts.** Erster voller Tag = Tag nach dem ersten erfolgreichen Schreiben. Erste
+7-Tage-Zahl in-season nach 8 Tagen, erster Vergleich nach 15; classic jeweils 6 Tage spaeter.
+Die Seite sagt das selbst an, statt Teilwerte zu zeigen.
+
+**Was die alte Reihe trotzdem sagt (nur zur Einordnung, nicht auf der Seite):** Wochensummen aus
+`fmv_accuracy` seit 14.09., in-season: 895k, 494k, 541k, 691k, 659k, 750k, 613k, 486k EUR.
+Richtung seit Mitte Oktober fallend; wegen der Grenze ist der echte Rueckgang eher groesser.
+Vor dem 14.09. nicht vergleichbar (INC-009-Ausfall, davor keine Verkaufsart).
+
+**Migration:** `migrations/2026-11-13_market_volume.sql`, ausfuehren mit
+`npx supabase db query --remote --yes --file "<absoluter Pfad>"`.
 
 ## 🧪 Tauschboerse: Prototyp (15.09.2026), NICHT angebunden
 
