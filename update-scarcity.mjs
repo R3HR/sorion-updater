@@ -219,6 +219,12 @@ async function main() {
   const hasBenchmarks = !bmProbe.error;
   if (!hasBenchmarks) console.warn('fmv_accuracy.floor_est fehlt — Gegenprobe (Floor/Avg) wird uebersprungen');
 
+  // Marktvolumen je Tag mitzaehlen? (migrations/2026-11-13_market_volume.sql)
+  // Leerer Aufruf schreibt nichts, prueft nur, ob die Funktion existiert.
+  const volProbe = await supabase.rpc('add_market_volume', { p_rows: [] });
+  const hasVolume = !volProbe.error;
+  if (!hasVolume) console.warn('add_market_volume fehlt — Marktvolumen wird nicht gezaehlt');
+
   const lsProbe = await supabase.from('card_prices').select('last_sale_at').limit(1);
   const hasLastSale = !lsProbe.error;
   if (!hasLastSale) console.warn('Spalte last_sale_at fehlt — Verkaufsdatum wird übersprungen');
@@ -294,6 +300,19 @@ async function main() {
   let updated = 0, failed = 0, skipped = 0;
   const today = new Date().toISOString().split('T')[0];
   const startedAt = Date.now();
+
+  // Marktvolumen: Summen je (Verkaufstag Berlin, Eligibility, Verkaufsart), einmal
+  // am Ende des Laufs geschrieben (und zwischendurch, damit ein Abbruch wenig kostet).
+  const vol = new Map();
+  let volSales = 0, volCapped = 0;
+  const berlinDay = d => new Date(d).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+  const flushVolume = async () => {
+    if (!hasVolume || !vol.size) return;
+    const rows = [...vol.values()].map(g => ({ ...g, volume: Math.round(g.volume * 100) / 100 }));
+    vol.clear();
+    const { error } = await supabase.rpc('add_market_volume', { p_rows: rows });
+    if (error) console.warn(`add_market_volume fehlgeschlagen, ${rows.length} Tagesgruppen verloren: ${error.message}`);
+  };
 
   for (const player of players) {
     if (Date.now() - startedAt > MAX_RUN_MS) { skipped = players.length - updated - failed; break; }
@@ -429,10 +448,34 @@ async function main() {
 
     const { error: e } = await supabase.from('card_prices').update(update).eq('id', player.id);
     if (e) { console.warn(`  DB update failed for ${player.player_slug}: ${e.message}`); failed++; }
-    else updated++;
+    else {
+      updated++;
+      // Marktvolumen: ALLE seit dem letzten Lauf neuen Verkaeufe dieser Karte. Bewusst
+      // NICHT aus fmv_accuracy, das nimmt hoechstens 5 je Lauf auf (bei Limited steckten
+      // 64 bis 71 % des Volumens in gekappten Laeufen). Erst nach erfolgreichem Update
+      // zaehlen: sonst bliebe updated_at stehen und der naechste Lauf zaehlte doppelt.
+      // Ohne frueheres updated_at (erster Lauf einer Zeile) galten alte Verkaeufe als neu.
+      if (hasVolume && player.updated_at) {
+        const prevAt = new Date(player.updated_at).getTime();
+        const fresh = sales.filter(s => s.eur > 0 && new Date(s.date).getTime() > prevAt);
+        if (fresh.length >= 20) volCapped++;   // Sorare liefert hoechstens 20: evtl. mehr verpasst
+        for (const s of fresh) {
+          const day = berlinDay(s.date), deal = s.deal ?? 'unknown';
+          const k = `${day}|${eligibility}|${deal}`;
+          const g = vol.get(k) ?? { day, eligibility, scarcity: SCARCITY, deal_type: deal, sales: 0, volume: 0 };
+          g.sales++; g.volume += s.eur;
+          vol.set(k, g);
+          volSales++;
+        }
+        if (updated % 100 === 0) await flushVolume();
+      }
+    }
 
     await sleep(DELAY_MS);
   }
+  await flushVolume();
+  if (hasVolume) console.log(`Marktvolumen: ${volSales} neue Verkaeufe gezaehlt` +
+    (volCapped ? `, bei ${volCapped} Karten an der 20er-Grenze (dort evtl. mehr)` : ''));
   console.log(`[${new Date().toISOString()}] Done. Updated: ${updated}, Failed: ${failed}, Skipped: ${skipped}` +
     ` (${((Date.now() - startedAt) / 1000).toFixed(0)}s Laufzeit, ${((Date.now() - startedAt) / Math.max(1, updated + failed)).toFixed(0)} ms/Karte)`);
 }
