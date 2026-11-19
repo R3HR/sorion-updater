@@ -1,22 +1,26 @@
 // Auffangnetz: Dieses Repo hat KEINEN sinnvollen Standard-Startbefehl.
-// Jeder Railway-Dienst bringt seinen eigenen mit — ueber die Config-as-code-
-// Datei im Repo-Root (railway-<dienst>.toml), die startCommand UND cronSchedule
-// festlegt. Faellt Railway auf "npm start" zurueck, ist der Pfad nicht gesetzt.
+// Jeder Railway-Dienst bringt seinen eigenen mit. Faellt Railway auf "npm start"
+// zurueck, fehlt am Dienst der Startbefehl.
 //
-// Vorher stand hier "node update.mjs" — eine Datei, die es seit dem Umbau vom
-// 28.07. nicht mehr gibt. Der Dienst stuerzte dann mit MODULE_NOT_FOUND ab,
-// was die eigentliche Ursache verschleierte (07.09. beim Anlegen von "Rewards").
+// Vorher stand hier "node update.mjs", eine Datei, die es seit dem Umbau vom
+// 28.07. nicht mehr gibt (MODULE_NOT_FOUND verschleierte die Ursache, 07.09.).
+// Bis 19.11. verwies diese Meldung auf Config-as-code-Dateien. Die hat Railway
+// abgekuendigt (INC-008): neue Dienste bekommen Startbefehl und Zeitplan direkt
+// in den Diensteinstellungen. Beim Anlegen von "Market History" (19.11.) fuehrte
+// der alte Hinweis in die Irre.
 console.error([
   '',
   'Kein Startbefehl gesetzt.',
   '',
-  'Dieser Dienst laeuft ueber eine Config-as-code-Datei. In Railway:',
-  '  Settings -> Config-as-code -> Pfad eintragen, z. B. /railway-rewards.toml',
-  '  danach Redeploy.',
+  'In Railway am Dienst: Settings -> Deploy -> Custom Start Command eintragen',
+  '(und bei Zeitplan-Diensten Cron Schedule), speichern, danach Redeploy.',
   '',
-  'Vorhandene Konfigurationen im Repo-Root:',
-  '  railway-limited.toml, railway-rare.toml, railway-sr.toml,',
-  '  railway-rosters.toml, railway-harvest.toml, railway-rewards.toml',
+  'Startbefehle der bestehenden Dienste (siehe docs/HANDOFF.md):',
+  '  Updater Limited   node update-scarcity.mjs limited',
+  '  Update Rare       node update-scarcity.mjs rare',
+  '  Updater SR        node update-scarcity.mjs super_rare',
+  '  Market History    node tools/market-volume-history.mjs',
+  '  Rewards           node tools/sync-reward-thresholds.mjs && node tools/sync-lineup-costs.mjs && node tools/sync-essence-earnings.mjs',
   '',
 ].join('\n'));
 process.exit(1);
