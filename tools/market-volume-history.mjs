@@ -122,10 +122,24 @@ async function ensureJobs() {
     { job: 'recent', from: RECENT_FROM, to: CUT_DAY, priority: 1 },
     { job: 'year',   from: YEAR_FROM,   to: RECENT_FROM, priority: 3 },
   ];
-  for (let d = CUT_DAY; d < today; d = dayAdd(d, 1)) want.push({ job: `day:${d}`, from: d, to: dayAdd(d, 1), priority: 2 });
-  const { data: have, error } = await sb.from('market_volume_jobs').select('job');
+  const { data: have, error } = await sb.from('market_volume_jobs').select('job, range_from, range_to');
   if (error) throw new Error('Auftraege lesen: ' + error.message);
   const known = new Set((have ?? []).map(j => j.job));
+  // Beendete Tage ab CUT_DAY, die noch kein Auftrag abdeckt. Zusammenhaengende Luecken
+  // werden zu EINEM Auftrag: ein Durchgang kostet je Spieler mindestens einen Abruf
+  // (~20.000), egal ob er einen oder fuenf Tage umfasst. Anlass: 14.-18.11. liefen
+  // ohne Dienst auf, das waeren sonst fuenf Durchgaenge statt einem gewesen.
+  const covered = d => (have ?? []).some(j => d >= String(j.range_from) && d < String(j.range_to));
+  let gapFrom = null;
+  for (let d = CUT_DAY; d <= today; d = dayAdd(d, 1)) {
+    const open = d < today && !covered(d);
+    if (open && !gapFrom) gapFrom = d;
+    if (!open && gapFrom) {
+      const last = dayAdd(d, -1);
+      want.push({ job: gapFrom === last ? `day:${gapFrom}` : `days:${gapFrom}_${last}`, from: gapFrom, to: d, priority: 2 });
+      gapFrom = null;
+    }
+  }
   for (const w of want) {
     if (known.has(w.job)) continue;
     const { data: b, error: e } = await sb.rpc('mv_create_job',
