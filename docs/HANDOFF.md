@@ -370,7 +370,21 @@ Auftraege selbst an, drosselt auf 90 Abrufe/min in den Updater-Fenstern (sonst 1
 Erstes Paket: 100 Spieler, 6.517 Verkaeufe, 183 Abrufe, 74 s. Hochrechnung aus 40 Zufalls-
 spielern: Jahr ~147.000 Abrufe (Streuung gross), 70 Tage ~36.000.
 
-**🔴 OFFEN — Railway-Dienst "Market History" (nur Jonas, CLI darf keine Dienste anlegen):**
+**✅ Railway-Dienst "Market History" LIVE seit 19.11.2026, 17:02 Berlin** (serviceId
+`f20e0df6-a7fc-4721-b6a3-3cbb9c2b8f2d`). Angelegt von Jonas in der Oberflaeche, Einstellungen von
+Claude per `railway api` / `serviceInstanceUpdate` korrigiert: startCommand
+`node tools/market-volume-history.mjs`, cronSchedule `*/15 * * * *`, restartPolicyType NEVER,
+**buildCommand LEER**. Erster Lauf arbeitete sofort den Aufholauftrag ab; lokaler Lauf gestoppt.
+**Falle beim Anlegen (19.11.):** Der Befehl war ins Feld *Build Command* geraten. Folge 1: kein
+Startbefehl, Railway fiel auf `npm start` zurueck (`tools/no-start.mjs`, Absturz). Folge 2: nach
+dem Setzen des Startbefehls lehnte Railway das Deployment ab ("buildCommand and startCommand cannot
+be the same"). Ursache steht in `deployment.meta.configErrors` (per `railway api` abfragbar), NICHT
+im Build-Log. `buildCommand: null` aendert nichts, leeren geht nur mit `""`. Ein Push loeste fuer
+den neuen Dienst kein Deployment aus; `serviceInstanceDeploy(latestCommit: true)` schon.
+`tools/no-start.mjs` nennt seit `72d5a80` den richtigen Ort (Settings -> Deploy -> Custom Start
+Command) statt der abgekuendigten Config-as-code-Dateien.
+
+**(Historie) Railway-Dienst "Market History" (nur Jonas, CLI darf keine Dienste anlegen):**
 Railway antwortete auf `railway add`: "You do not have access to this resource". Anlegen in der
 Oberflaeche: Projekt faithful-gentleness, New, GitHub Repo `R3HR/sorion-updater`, Name
 "Market History". Einstellungen: Start Command `node tools/market-volume-history.mjs`,
@@ -707,7 +721,12 @@ Auftrag aus `Sorion_FMV_Faktoren_Analyst.json` abgearbeitet (Checkpoints 1–3 m
 
 ## ⚠️ Offene Aktionen für Jonas
 
-**🔴 NEU 22.10. · ZUERST: Railway-Einbruch, Schluessel rotieren (SEC-008)**
+**🟡 19.11.: Railway-Rotation (SEC-008) weitgehend erledigt.** Service-Key, Sorare-API-Key und
+CRON_SECRET am 19.11. getauscht. Offen: Gegenprobe Preisupdates 20.11. frueh, Sorare-Tokens
+(`seed_tokens`) nicht neu hinterlegt, Ko-fi/Discord bewusst nicht rotiert. Details in INCIDENTS.md.
+Urspruenglicher Eintrag:
+
+**(22.10.) Railway-Einbruch, Schluessel rotieren (SEC-008)**
 Railway meldet am 22.10., dass ein Dritter moeglicherweise Umgebungsvariablen abgerufen und
 teils entschluesselt hat. Alles, was in Railway liegt, gilt als offengelegt: vor allem
 `SUPABASE_SERVICE_KEY` (DB-Vollzugriff) und darueber Jonas' Sorare-Tokens aus `squad_tokens`
