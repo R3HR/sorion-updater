@@ -382,6 +382,12 @@ SUPABASE_URL=${{Updater Limited.SUPABASE_URL}}
 SUPABASE_SERVICE_KEY=${{Updater Limited.SUPABASE_SERVICE_KEY}}
 ```
 Bis dahin lief die Rueckrechnung am 13.11. ab 14:13 UTC lokal (`railway run`, fortsetzbar).
+**Stand 19.11.: Dienst noch NICHT angelegt** (Jonas hatte es vergessen). Folge: nach dem Ende des
+lokalen Laufs am 14.11. 13:55 UTC kamen keine Tage mehr dazu, der Streifen stand auf "Fri 13".
+Seit `f0f791d` fasst das Programm zusammenhaengende Luecken zu EINEM Auftrag zusammen
+(`days:2026-11-14_2026-11-18`, ~20.000 Abrufe statt 5 x 20.000). Aufholen lief am 19.11. ab
+14:30 UTC wieder lokal. `year` stand bei 23/198. Ein zweiter Versuch, den Dienst per CLI
+anzulegen, wurde von der Rechtepruefung der Sitzung gestoppt: das bleibt Jonas' Handgriff.
 Ohne den Dienst bleiben ab 14.11. die neuen Tage aus und die Rueckrechnung steht, sobald der
 Laptop zu ist.
 
